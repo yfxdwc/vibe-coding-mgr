@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>vcm-server dashboard</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 1200px; margin: 2rem auto; padding: 0 1rem; color: #1f2937; background: #f9fafb; }
+    h1 { border-bottom: 2px solid #e5e7eb; padding-bottom: 0.5rem; }
+    .empty { background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 2rem; text-align: center; color: #6b7280; }
+    table { width: 100%; border-collapse: collapse; background: white; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; }
+    th { background: #f3f4f6; text-align: left; padding: 0.75rem; font-size: 0.875rem; color: #6b7280; text-transform: uppercase; }
+    td { padding: 0.75rem; border-top: 1px solid #e5e7eb; }
+    tr:hover { background: #f9fafb; cursor: pointer; }
+    .badge { display: inline-block; padding: 0.125rem 0.5rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
+    .badge.ok { background: #d1fae5; color: #065f46; }
+    .badge.no { background: #fee2e2; color: #991b1b; }
+    .badge.warn { background: #fef3c7; color: #92400e; }
+    .metric { font-weight: 600; }
+    a { color: #4f46e5; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <h1>🛠️ vcm-server dashboard</h1>
+  <p style="color: #6b7280;">Cross-project governance status. Push with <code>vcm push</code> from each project.</p>
+
+  <div id="content">
+    <div class="empty">Loading projects…</div>
+  </div>
+
+  <script>
+    async function load() {
+      const resp = await fetch('/api/projects');
+      const projects = await resp.json();
+      const content = document.getElementById('content');
+      if (projects.length === 0) {
+        content.innerHTML = '<div class="empty">No projects registered yet.<br><br>Run <code>vcm push</code> from a project with vcm installed to see it here.</div>';
+        return;
+      }
+      const rows = projects.map(p => {
+        const status = p.governance_agents_md_present && p.governance_charter_md_present
+          ? '<span class="badge ok">✓ ready</span>'
+          : '<span class="badge warn">⚠ partial</span>';
+        const dirty = p.git_dirty
+          ? '<span class="badge warn">⚠ dirty</span>'
+          : '<span class="badge ok">✓ clean</span>';
+        return `
+          <tr onclick="window.location='/projects/${p.name}'">
+            <td><a href="/projects/${p.name}"><strong>${p.name}</strong></a></td>
+            <td>${status}</td>
+            <td><span class="metric">${p.governance_skills_count ?? '—'}</span></td>
+            <td><span class="metric">${p.governance_adrs_count ?? '—'}</span></td>
+            <td><span class="metric">${p.governance_tds_count ?? '—'}</span></td>
+            <td><code>${p.git_branch ?? '—'}</code></td>
+            <td>${dirty}</td>
+            <td style="color: #6b7280; font-size: 0.875rem;">${p.last_seen_at?.slice(0, 16) ?? '—'}</td>
+          </tr>
+        `;
+      }).join('');
+      content.innerHTML = `
+        <table>
+          <thead>
+            <tr>
+              <th>Project</th>
+              <th>Status</th>
+              <th>Skills</th>
+              <th>ADRs</th>
+              <th>TDs</th>
+              <th>Branch</th>
+              <th>Tree</th>
+              <th>Last seen</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      `;
+    }
+    load();
+  </script>
+</body>
+</html>
