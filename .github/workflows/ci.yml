@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Node deps
+        run: npm ci || npm install
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Run 6 hard checks (self-governance)
+        run: bash scripts/routine_coverage.sh
+
+      - name: CLI smoke test
+        run: |
+          node bin/vcm.js --version
+          cd /tmp && rm -rf vcm-smoke && mkdir vcm-smoke && cd vcm-smoke && \
+            git init -q && \
+            git config user.email "ci@test.com" && \
+            git config user.name "CI" && \
+            node /home/mm7/vibe-coding-mgr/bin/vcm.js init && \
+            test -f AGENTS.md && \
+            test -f CHARTER.md
+
+      - name: Server smoke test
+        run: |
+          python3 -m venv .venv
+          source .venv/bin/activate
+          pip install -r server/requirements.txt
+          python3 server/app.py &
+          SERVER_PID=$!
+          sleep 3
+          curl -sS http://127.0.0.1:7338/api/health | grep -q "healthy"
+          kill $SERVER_PID || true
