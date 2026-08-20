@@ -1,0 +1,100 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vibe-coding-mgr.local/schemas/skill.schema.json",
+  "title": "VCM Skill Manifest",
+  "description": "Unified skill metadata schema compatible with vercel-labs/skills, tech-leads-club/agent-skills, AAS Core (sickn33), and addyosmani/agent-skills. Sales-ai skill 5 原则 + 3 条件自审 enforced via validate.",
+  "type": "object",
+  "required": ["name", "description", "tags"],
+  "additionalProperties": false,
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$",
+      "minLength": 3,
+      "maxLength": 64,
+      "description": "Skill slug. Lowercase, hyphen-separated. Must be unique within project."
+    },
+    "description": {
+      "type": "string",
+      "minLength": 30,
+      "maxLength": 200,
+      "description": "Skill description — drives auto-load decision. Must NOT contain: 通用/最佳实践/总结/全局/整体/一切/所有/完整/系统/架构 (skill-authoring §3)."
+    },
+    "tags": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 10,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9-]*$"
+      },
+      "description": "Tags. Lowercase, hyphen-separated."
+    },
+    "authority": {
+      "type": "string",
+      "enum": ["canonical", "execution-index"],
+      "default": "execution-index",
+      "description": "canonical = own authoritative source. execution-index = points to canonical via canonical_ref."
+    },
+    "canonical_ref": {
+      "type": "string",
+      "format": "uri-reference",
+      "description": "Required when authority = execution-index. Points to the canonical guide (ADR, doc, etc.)."
+    },
+    "source": {
+      "type": "object",
+      "properties": {
+        "primary": {
+          "type": "string",
+          "description": "Project this skill primarily belongs to (e.g., 'sales-ai', 'my-new-app')."
+        },
+        "compatible_with": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "vercel-labs/skills",
+              "tech-leads-club/agent-skills",
+              "sickn33/agentic-awesome-skills",
+              "addyosmani/agent-skills",
+              "refly-ai/refly"
+            ]
+          },
+          "description": "Standard distributions this skill is compatible with."
+        }
+      }
+    },
+    "validation": {
+      "type": "object",
+      "properties": {
+        "last_validated": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "validator": {
+          "type": "string"
+        },
+        "checks_passed": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["description-no-banned-words", "description-length", "frontmatter-present", "name-pattern", "no-duplicate", "path-not-forbidden"]
+          }
+        }
+      }
+    },
+    "lifecycle": {
+      "type": "object",
+      "properties": {
+        "phase": {
+          "type": "string",
+          "enum": ["draft", "active", "review", "deprecated"]
+        },
+        "last_used": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

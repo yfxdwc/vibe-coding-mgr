@@ -1,0 +1,64 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vibe-coding-mgr.local/schemas/state.schema.json",
+  "title": "VCM Project State",
+  "description": "Project governance state snapshot — emitted by `vcm status` and pushed to vcm-server.",
+  "type": "object",
+  "required": ["schema_version", "project", "generated_at", "governance"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "project": {
+      "type": "object",
+      "required": ["name", "path"],
+      "properties": {
+        "name": { "type": "string" },
+        "path": { "type": "string" },
+        "registered_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "vcm_version": {
+      "type": "string"
+    },
+    "governance": {
+      "type": "object",
+      "properties": {
+        "agents_md_present": { "type": "boolean" },
+        "charter_md_present": { "type": "boolean" },
+        "skills_count": { "type": "integer", "minimum": 0 },
+        "adrs_count": { "type": "integer", "minimum": 0 },
+        "tds_count": { "type": "integer", "minimum": 0 },
+        "post_mortems_count": { "type": "integer", "minimum": 0 },
+        "skills_registered": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "health": {
+      "type": "object",
+      "properties": {
+        "last_snapshot_at": { "type": "string", "format": "date-time" },
+        "last_ci_pass": { "type": "boolean" },
+        "ci_warnings": { "type": "integer", "minimum": 0 },
+        "ci_failures": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "git": {
+      "type": "object",
+      "properties": {
+        "head_commit": { "type": "string" },
+        "branch": { "type": "string" },
+        "dirty": { "type": "boolean" },
+        "last_commit_at": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}
