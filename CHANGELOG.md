@@ -9,6 +9,35 @@ The format is loosely: version, date, summary, list of changes, and a
 
 ---
 
+## v0.9.0 — 2026-08-21
+
+**Closes two long-standing scope-system and discoverability gaps.**
+
+### Added
+
+- **`/api/audit/purge` endpoint** (admin scope, ADR-0016) — operators can
+  prune audit log rows older than `before`. Literal `PURGE` confirmation
+  word prevents accidental destruction. The purge itself writes an
+  `audit_purge` event (meta-audit: the audit of auditing is audited).
+- **`/docs` viewer with TOC sidebar + client-side fuzzy search**
+  (ADR-0017) — `/docs/<path>.md` now renders with a 280px sidebar
+  listing every doc + a token-split fuzzy search input. Zero
+  third-party deps (CHARTER §8). Server pre-fetches the index via
+  `/api/docs/index`.
+- **Nav link** for the docs viewer.
+
+### Fixed
+
+- Tests/templates.test.js's `<script>` assertion was rewritten — the
+  new docs viewer injects Alpine.js `<script>` tags for sidebar search.
+
+### Tests
+
+- 212/212 (was 199 → +13: 6 audit-purge + 7 docs-viewer)
+- 17 ADRs (was 15 → +2)
+
+---
+
 ## v0.8.0 — 2026-08-21
 
 **Documentation catch-up + marketplace closure.** A release without

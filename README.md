@@ -6,7 +6,7 @@ Originally extracted from sales-ai where it was developed as the `dev domain`. N
 
 ```bash
 $ vcm --version
-0.8.0
+0.9.0
 $ vcm doctor                          # one-command health check
 vcm doctor — 4 sections
 [governance]  6 hard checks       OK (5 OK, 1 WARN, 0 FAIL)
@@ -270,7 +270,7 @@ CI integration: `vcm doctor --strict` exits 1 on any warning
 
 | Version | Highlights |
 |---|---|
-| v0.8.0 | CHANGELOG, README modernization, server-side publish, audit-stats UI |
+| v0.9.0 | Audit purge endpoint, docs viewer with TOC + search |
 | v0.7.0 | Per-endpoint scopes, schema doc generator, registry endpoint |
 | v0.6.0 | Per-user ACL, audit log SQLite, `vcm doctor` |
 | v0.5.0 | Audit log + trend dashboard + skill marketplace |
