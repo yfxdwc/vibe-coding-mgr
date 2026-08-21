@@ -14,10 +14,12 @@ import queue
 from datetime import datetime
 from pathlib import Path
 
-from flask import Flask, request, jsonify, render_template, abort, Response, stream_with_context
+from flask import Flask, request, jsonify, render_template, abort, Response, stream_with_context, g
 
 import audit  # ADR-0009
+import sys, os; print("SERVER VCM_AUDIT_LOG:", os.environ.get("VCM_AUDIT_LOG"), file=sys.stderr, flush=True)
 import users as users_mod  # ADR-0011
+import scopes as scopes_mod  # ADR-0014
 from pathlib import Path as _Path
 import os as _os
 import sys
@@ -57,7 +59,7 @@ def _check_basic_auth():
       - HTTP Basic: 'Authorization: Basic <b64(user:pass)>'
     """
     if not AUTH_ENABLED and not users_mod.has_any_user():
-        return True, None
+        return None
     # Live recheck: users table may have been populated since startup.
     header = request.headers.get("Authorization", "")
     if not header:
@@ -70,7 +72,14 @@ def _check_basic_auth():
         if users_mod.has_any_user():
             res = users_mod.verify_token(raw)
             if res:
-                return True, None
+                # ADR-0014: stash scope + user_id in flask.g for
+                # @require_scope decorators downstream.
+                scope, user_id, label = res
+                g.user_scope = scope
+                g.user_id = user_id
+                g.token_label = label
+                # ADR-0014: stash scope + user_id in flask.g for
+                return None
         # Otherwise silently fall through to next check
         return False, (jsonify({"error": "invalid bearer token"}), 401,
                        {"WWW-Authenticate": 'Bearer realm="vcm-server"'})
@@ -84,15 +93,23 @@ def _check_basic_auth():
         except (binascii.Error, ValueError, UnicodeDecodeError):
             return False, (jsonify({"error": "malformed Authorization header"}), 400,
                            {"WWW-Authenticate": 'Basic realm="vcm-server"'})
-        # 1) BasicAuth env mode: works for any user (v0.5 compat)
+        # 1) BasicAuth env mode: works for any user (v0.5 compat).
+        # Env-mode scope is admin (legacy single-admin operator).
         if AUTH_ENABLED and AUTH_USER:
             if hmac.compare_digest(u, AUTH_USER or "") and hmac.compare_digest(p, AUTH_PASS or ""):
-                return True, None
+                g.user_scope = "admin"
+                g.user_id = None
+                g.token_label = "env_admin"
+                return None
         # 2) Users mode: validate username+password against users table
         if users_mod.has_any_user():
             res = users_mod.authenticate(u, p)
             if res:
-                return True, None
+                scope, user_id = res
+                g.user_scope = scope
+                g.user_id = user_id
+                g.token_label = "basic_auth"
+                return None
         return False, (jsonify({"error": "invalid credentials"}), 401,
                        {"WWW-Authenticate": 'Basic realm="vcm-server"'})
     else:
@@ -120,8 +137,13 @@ def _enforce_auth():
         return None
     if request.path == "/api/health":  # health check is intentionally public
         return None
-    ok, err = _check_basic_auth()
-    if not ok:
+    result = _check_basic_auth()
+    if result is None:
+        # Public — no auth required
+        return None
+    if isinstance(result, tuple) and result[0] is False:
+        # Auth failure
+        _, err = result
         body, status, headers = err
         # ADR-0009: log auth failure (do NOT leak whether user exists)
         reason = "wrong_or_missing_credentials"
@@ -240,6 +262,7 @@ def health():
 
 
 @app.route("/api/collect", methods=["POST"])
+@scopes_mod.require_scope("push")
 def collect():
     """Receive a project state push from `vcm push`."""
     try:
@@ -341,6 +364,7 @@ def collect():
 
 
 @app.route("/api/audit")
+@scopes_mod.require_scope("read")
 def api_audit():
     """ADR-0009 + ADR-0012: read-only access to the audit log.
 
@@ -370,6 +394,7 @@ def api_audit():
 
 
 @app.route("/api/audit/stats")
+@scopes_mod.require_scope("read")
 def api_audit_stats():
     """ADR-0012: counters by event_type since `since` (optional).
 
@@ -392,6 +417,7 @@ def trends_view():
 
 
 @app.route("/api/projects")
+@scopes_mod.require_scope("read")
 def list_projects():
     """List all registered projects with their latest state summary."""
     conn = get_db()
@@ -432,6 +458,7 @@ def list_projects():
 
 
 @app.route("/api/projects/<name>")
+@scopes_mod.require_scope("read")
 def project_detail(name):
     """Get latest state for a specific project."""
     conn = get_db()
@@ -453,36 +480,43 @@ def project_detail(name):
 
 
 @app.route("/api/dashboard/overview")
+@scopes_mod.require_scope("read")
 def api_dashboard_overview():
     return jsonify(get_overview())
 
 
 @app.route("/api/dashboard/skill-matrix")
+@scopes_mod.require_scope("read")
 def api_dashboard_skill_matrix():
     return jsonify(get_skill_matrix())
 
 
 @app.route("/api/dashboard/attention")
+@scopes_mod.require_scope("read")
 def api_dashboard_attention():
     return jsonify(get_attention())
 
 
 @app.route("/api/dashboard/activity")
+@scopes_mod.require_scope("read")
 def api_dashboard_activity():
     return jsonify(get_recent_activity())
 
 
 @app.route("/api/dashboard/skill-aging")
+@scopes_mod.require_scope("read")
 def api_dashboard_skill_aging():
     return jsonify(get_skill_aging())
 
 
 @app.route("/api/dashboard/summary")
+@scopes_mod.require_scope("read")
 def api_dashboard_summary():
     return jsonify(get_attention_summary())
 
 
 @app.route("/api/dashboard/trend")
+@scopes_mod.require_scope("read")
 def api_dashboard_trend():
     """Governance trend, weekly buckets (ADR-0010).
 
@@ -501,6 +535,7 @@ def api_dashboard_trend():
 
 
 @app.route("/api/dashboard/leaderboard")
+@scopes_mod.require_scope("read")
 def api_dashboard_leaderboard():
     """Cross-project ranking (ADR-0005).
 
@@ -514,6 +549,7 @@ def api_dashboard_leaderboard():
 
 
 @app.route("/api/project/<name>/full")
+@scopes_mod.require_scope("read")
 def api_project_full(name):
     data = get_project_detail(name)
     if data is None:
@@ -522,6 +558,7 @@ def api_project_full(name):
 
 
 @app.route("/api/dashboard/stream")
+@scopes_mod.require_scope("read")
 def api_dashboard_stream():
     """Server-Sent Events live update channel (ADR-0007).
 
@@ -621,6 +658,7 @@ def leaderboard_view():
 
 
 @app.route("/api/peers")
+@scopes_mod.require_scope("read")
 def api_peers():
     """Read peer list from ~/.vcm/peers.yaml if present (best-effort).
 

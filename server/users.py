@@ -237,7 +237,10 @@ def issue_token(username: str, label: str = None, scope: str = None,
 
 
 def verify_token(raw: str):
-    """Returns (scope, user_id, token_label) on success, None on failure."""
+    """Returns (scope, user_id, token_label) on success, None on failure.
+
+    Per ADR-0014: returns the TOKEN's scope, not the user's scope, so
+    admins can issue read-only CI tokens via delegation."""
     if not raw or not raw.startswith("vcm_"):
         return None
     db = _db_path()
@@ -248,7 +251,8 @@ def verify_token(raw: str):
         _ensure_tables(conn)
         token_hash = _hash_token(raw)
         row = conn.execute("""
-            SELECT t.user_id, t.label, t.expires_at, u.scope
+            SELECT t.user_id, t.label, t.expires_at, t.scope AS token_scope,
+                   u.scope AS user_scope
             FROM tokens t JOIN users u ON u.id = t.user_id
             WHERE t.token_hash = ?
         """, (token_hash,)).fetchone()
@@ -270,7 +274,13 @@ def verify_token(raw: str):
             conn.commit()
         except Exception:
             pass
-        return row["scope"], row["user_id"], row["label"] or "?"
+        # ADR-0014: token scope WINS over user scope. This is the
+        # delegation model: an admin can issue a read-only CI token.
+        # Use COALESCE so legacy tokens without a token.scope field
+        # (defensive — schema requires NOT NULL but older DBs may have
+        # NULL values from before the migration) fall back to user scope.
+        scope = row["token_scope"] or row["user_scope"]
+        return scope, row["user_id"], row["label"] or "?"
     finally:
         conn.close()
 
