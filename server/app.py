@@ -24,7 +24,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from dashboard import (
     get_overview, get_skill_matrix, get_attention,
     get_recent_activity, get_skill_aging, get_attention_summary,
-    get_project_detail, get_leaderboard,
+    get_project_detail, get_leaderboard, get_trend,
 )
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -426,6 +426,24 @@ def api_dashboard_skill_aging():
 @app.route("/api/dashboard/summary")
 def api_dashboard_summary():
     return jsonify(get_attention_summary())
+
+
+@app.route("/api/dashboard/trend")
+def api_dashboard_trend():
+    """Governance trend, weekly buckets (ADR-0010).
+
+    Query params:
+      metric   compliance|td_count|skills|adrs|git_dirty|pushed (default compliance)
+      days     1..365, default 30
+      project  project slug, optional (rolls up all projects if absent)
+    """
+    metric = request.args.get("metric", "compliance")
+    try:
+        days = int(request.args.get("days", "30"))
+    except ValueError:
+        days = 30
+    project = request.args.get("project")
+    return jsonify(get_trend(metric=metric, days=days, project=project))
 
 
 @app.route("/api/dashboard/leaderboard")
