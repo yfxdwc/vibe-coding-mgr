@@ -82,13 +82,32 @@
 - `users` + `tokens` + `audit_events` tables in vcm.db
 - WAL journal mode enabled for multi-process SQLite writes
 
-## v0.7.0 (next, ~2 months)
+## v0.7.0 ✅ DONE (2026-08-21)
 
-- [ ] **Per-endpoint ACL scopes** (v0.6.0 ships scope field but ignored)
-- [ ] **WebSocket** transport for MCP (stdio current; v0.7 adds HTTP/WS)
-- [ ] **Cross-server leaderboard** (gossip protocol, no central DB)
+- [x] **Per-endpoint ACL scopes** (ADR-0014) — `@require_scope` decorator
+      closes the v0.6.0 scope-bypass gap. Token scope > user scope; `read`
+      tokens can no longer POST writes.
+- [x] **JSON Schema docs generator** (ADR-0015) — `vcm schema doc <name>`
+      renders skill/state schemas as Markdown for humans.
+- [x] **/api/registry/skills endpoint** — server-side read of the local
+      `~/.vcm/registry/` so the dashboard can render a marketplace view
+      (CLI was the only path before).
+
+### v0.7.0 metrics
+- 191/191 tests pass (was 177 in v0.6.0 → +14 tests)
+- 6/6 hard checks pass
+- 15 ADRs (0001–0015)
+- 2 named free-variable bugs squashed as side effects of writing tests
+- Flask decorator-order gotcha documented (out-of-order decorators → silent
+  loss of scope check)
+
+## v0.8.0 (next, ~2 months)
+
+- [ ] **CHANGELOG.md** — captures v0.2.0 → v0.7.0 history
+- [ ] **README modernization** — written for v0.7.0 reality
+- [ ] **/api/registry/publish endpoint** — server-side publish (push scope)
 - [ ] **Audit log: filtering UI** (event_type / project / source_ip facets)
-- [ ] **JSON Schema docs generator** (schema files become human-readable)
+- [ ] **Per-endpoint ACL scopes: admin endpoints** — /api/audit/purge
 
 ## v1.0.0 (~3 months, stability milestone)
 
