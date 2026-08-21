@@ -88,11 +88,34 @@
       "properties": {
         "phase": {
           "type": "string",
-          "enum": ["draft", "active", "review", "deprecated"]
+          "enum": ["draft", "active", "review", "deprecated", "retired"]
         },
         "last_used": {
           "type": "string",
           "format": "date-time"
+        },
+        "deprecated_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When this skill was marked deprecated (ADR-0006)."
+        },
+        "replaced_by": {
+          "type": "string",
+          "description": "Slug of the skill that supersedes this one."
+        }
+      }
+    },
+    "stewardship": {
+      "type": "object",
+      "description": "Skill lifecycle bookkeeping (ADR-0006).",
+      "properties": {
+        "last_validated": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "validation_count": {
+          "type": "integer",
+          "minimum": 0
         }
       }
     }

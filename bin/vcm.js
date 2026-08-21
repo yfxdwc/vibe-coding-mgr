@@ -35,15 +35,18 @@ program
 
 program
   .command('skill')
-  .description('Manage skills (add/list/validate/convert)')
-  .argument('<action>', 'add | list | validate | convert')
-  .argument('[name]', 'Skill name (for add/validate)')
+  .description('Manage skills (add/list/validate/convert/deprecate/retire/stale/sweep)')
+  .argument('<action>', 'add | list | validate | convert | deprecate | retire | stale | sweep')
+  .argument('[name]', 'Skill name (for add/validate/deprecate/retire)')
   .option('-d, --desc <description>', 'Skill description (for add)')
   .option('-t, --tags <tags>', 'Comma-separated tags (for add)')
-  .option('--from <fmt>', 'Source format (for convert): vercel | tech-leads-club | aas | addyosmani | refly | vcm')
-  .option('--to <fmt>',   'Target format (for convert)')
-  .option('--input <path>', 'Read skill JSON from file (default: stdin)')
-  .option('--output <path>', 'Write to file instead of stdout')
+  .option('--from <fmt>', 'Source format (convert)')
+  .option('--to <fmt>',   'Target format (convert)')
+  .option('--input <path>', 'Read skill JSON from file (convert)')
+  .option('--output <path>', 'Write to file instead of stdout (convert)')
+  .option('--replaced-by <new>', 'Replacement slug (deprecate)')
+  .option('--yes', 'Skip confirmation (retire, sweep)')
+  .option('--days <N>', 'Threshold days (stale, sweep; default 90 / 180)')
   .action(skillCommand);
 
 program
