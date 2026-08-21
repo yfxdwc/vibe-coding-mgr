@@ -21,6 +21,7 @@ import audit  # ADR-0009
 import sys, os; print("SERVER VCM_AUDIT_LOG:", os.environ.get("VCM_AUDIT_LOG"), file=sys.stderr, flush=True)
 import users as users_mod  # ADR-0011
 import scopes as scopes_mod  # ADR-0014
+import markdown_render  # ADR-0018
 from pathlib import Path as _Path
 import os as _os
 import sys
@@ -896,10 +897,16 @@ def api_docs_index():
 def docs_view(filename):
     """Serve any /docs/*.md with sidebar + search (ADR-0017).
 
+    Markdown is rendered to HTML (ADR-0018, stdlib parser in
+    server/markdown_render.py). All content is HTML-escaped first;
+    `<script>`-style content stays inert.
+
     Safety: `filename` is constrained to live under ROOT/docs/. Path
     traversal (`../etc/passwd`) is rejected at `target.relative_to()`.
     """
-    import html as html_stdlib
+
+    import sys as _sys
+    _sys.path.insert(0, str(ROOT / "server"))
     md_root = ROOT / "docs"
     target = (md_root / filename).resolve()
     try:
@@ -909,7 +916,7 @@ def docs_view(filename):
     if not target.exists() or not target.is_file():
         abort(404)
     body_raw = target.read_text(encoding="utf-8", errors="replace")
-    body = html_stdlib.escape(body_raw)
+    body = markdown_render.render_markdown(body_raw)
     return _render("_docs.html", title=target.stem, body=body, relpath=str(filename))
 
 
