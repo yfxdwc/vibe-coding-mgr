@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from dashboard import (
     get_overview, get_skill_matrix, get_attention,
     get_recent_activity, get_skill_aging, get_attention_summary,
-    get_project_detail,
+    get_project_detail, get_leaderboard,
 )
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -302,6 +302,19 @@ def api_dashboard_summary():
     return jsonify(get_attention_summary())
 
 
+@app.route("/api/dashboard/leaderboard")
+def api_dashboard_leaderboard():
+    """Cross-project ranking (ADR-0005).
+
+    Query params:
+      ?sort   td_count|skills|adrs|governance_compliance|last_seen_days|dirty_clean
+      ?order  asc|desc   (default: desc)
+    """
+    sort = request.args.get("sort", "td_count")
+    order = request.args.get("order", "desc")
+    return jsonify(get_leaderboard(sort=sort, order=order))
+
+
 @app.route("/api/project/<name>/full")
 def api_project_full(name):
     data = get_project_detail(name)
@@ -345,6 +358,12 @@ def peers_view():
 def settings_view():
     """Server meta + live health view."""
     return _render("settings.html")
+
+
+@app.route("/leaderboard")
+def leaderboard_view():
+    """Cross-project ranking (ADR-0005)."""
+    return _render("leaderboard.html")
 
 
 @app.route("/api/peers")

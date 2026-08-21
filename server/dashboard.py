@@ -185,6 +185,97 @@ def get_attention_summary():
     }
 
 
+def _compliance(p):
+    """Return 0..1 representing governance compliance.
+
+    Three signals all must hold for a clean (compliance=1.0) project:
+    - AGENTS.md present
+    - CHARTER.md present
+    - At least one registered skill
+    Returns a float in [0, 1]; rounded to 2dp downstream.
+    """
+    sigs = [
+        bool(p.get("agents_md_present")),
+        bool(p.get("charter_md_present")),
+        int(p.get("skills_count") or 0) > 0,
+    ]
+    return sum(1 for s in sigs if s) / len(sigs)
+
+
+def _stale_days(p, now):
+    """Days since last_seen_at, or None."""
+    ls = p.get("last_seen_at")
+    if not ls:
+        return None
+    try:
+        dt = datetime.fromisoformat(ls.replace("Z", "+00:00"))
+        return (now - dt).days
+    except Exception:
+        return None
+
+
+def get_leaderboard(sort="td_count", order="desc", now=None):
+    """Cross-project ranking view (ADR-0005).
+
+    Supported sort keys:
+      - td_count         (number of tech debts)
+      - skills           (registered skill count)
+      - adrs             (ADR count)
+      - governance_compliance (fraction in [0,1])
+      - last_seen_days   (recency of last push)
+      - dirty_clean      (working tree status, dirty=1 / clean=0)
+
+    `order` is 'asc' or 'desc'. Default 'desc' for most metrics means
+    "highest first"; for `last_seen_days`, 'asc' means "most recent first"
+    and we expect the UI to switch order when sorting by recency.
+    """
+    from datetime import datetime, timezone
+    if now is None:
+        now = datetime.now(timezone.utc)
+    projects = get_overview()
+
+    rows = []
+    for p in projects:
+        gov = p.get("__gov", {})
+        rows.append({
+            "name": p["name"],
+            "branch": p.get("git_branch"),
+            "td_count":  p.get("tds_count", 0),
+            "skills":    p.get("skills_count", 0),
+            "adrs":      p.get("adrs_count", 0),
+            "compliance": _compliance(p),
+            "stale_days": _stale_days(p, now),
+            "dirty": bool(p.get("git_dirty")),
+        })
+
+    sort_keys = {
+        "td_count": lambda r: r["td_count"],
+        "skills":   lambda r: r["skills"],
+        "adrs":     lambda r: r["adrs"],
+        "governance_compliance": lambda r: r["compliance"],
+        "last_seen_days": lambda r: (r["stale_days"] if r["stale_days"] is not None else -1),
+        "dirty_clean": lambda r: 1 if r["dirty"] else 0,
+    }
+    if sort not in sort_keys:
+        sort = "td_count"
+    key_fn = sort_keys[sort]
+    reverse = (order == "desc")
+    try:
+        rows.sort(key=key_fn, reverse=reverse)
+    except TypeError:
+        rows.sort(key=lambda r: (key_fn(r) is None, key_fn(r)), reverse=reverse)
+
+    # Round to 2dp for JSON cleanliness
+    for r in rows:
+        r["compliance"] = round(r["compliance"], 2)
+
+    return {
+        "sort": sort,
+        "order": order,
+        "rows": rows,
+    }
+
+
 def get_project_detail(name):
     """Full state + history for a single project."""
     conn = get_db()

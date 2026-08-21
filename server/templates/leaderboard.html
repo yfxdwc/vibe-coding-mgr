@@ -1,0 +1,176 @@
+{% extends "_layout.html" %}
+{# server/templates/leaderboard.html — cross-project ranking (ADR-0005)
+   URL state: ?sort=td_count|skills|adrs|governance_compliance|last_seen_days|dirty_clean
+              &order=asc|desc
+#}
+{% set nav_active = 'leaderboard' %}
+
+{% block title %}leaderboard{% endblock %}
+
+{% block page_head %}
+<header class="page-head">
+  <div class="crumbs">
+    <a href="/">cockpit</a>
+    <span class="sep">/</span>
+    <span class="crumb-current">leaderboard</span>
+  </div>
+  <h1 class="text-display">Project leaderboard</h1>
+  <p class="text-meta">Rank every project by one metric. Click a row to inspect.</p>
+</header>
+{% endblock %}
+
+{% block answers_line %}
+<div class="answers-line">
+  <span class="answers-tag">Answers</span>
+  <p>which project owns the most tech debt / skills / ADRs, and which is most compliant?</p>
+</div>
+{% endblock %}
+
+{% block content %}
+
+<section x-show="!loaded" class="empty-state">
+  <p>Loading leaderboard…</p>
+</section>
+
+<section x-show="loaded" class="stack-5" data-c="leaderboard">
+
+  <div class="c-card">
+    <div class="c-card-head">
+      <h2 class="text-section">Sort by</h2>
+      <span class="text-meta">
+        order: <span class="mono" x-text="order"></span>
+      </span>
+    </div>
+    <div class="cluster-3" style="flex-wrap: wrap;">
+      <template x-for="opt in sortOptions" :key="opt.value">
+        <button class="btn btn--sm"
+                :class="sort === opt.value ? 'btn--primary' : 'btn--ghost'"
+                @click="setSort(opt.value)">
+          <span x-text="opt.label"></span>
+        </button>
+      </template>
+    </div>
+  </div>
+
+  <div class="c-card" x-show="rows.length">
+    <div class="c-card-head">
+      <h2 class="text-section">
+        Sorted by <span class="mono" x-text="sortLabel"></span>
+      </h2>
+      <span class="text-meta">
+        <span x-text="rows.length"></span> project<span x-show="rows.length !== 1">s</span>
+      </span>
+    </div>
+    <div style="overflow-x: auto;">
+      <table class="data-table" data-c="leaderboard-table">
+        <thead>
+          <tr>
+            <th class="num">#</th>
+            <th>Project</th>
+            <th>Branch</th>
+            <th class="num">TDs</th>
+            <th class="num">Skills</th>
+            <th class="num">ADRs</th>
+            <th class="num">Compliance</th>
+            <th class="num">Days idle</th>
+            <th>Tree</th>
+          </tr>
+        </thead>
+        <tbody>
+          <template x-for="(r, i) in rows" :key="r.name">
+            <tr @click="window.location = '/projects/' + r.name">
+              <td class="num muted" x-text="i + 1"></td>
+              <td>
+                <a class="mono" :href="'/projects/' + r.name" @click.stop x-text="r.name"></a>
+              </td>
+              <td><code x-text="r.branch || '—'"></code></td>
+              <td class="num"
+                  :style="r.td_count > 30 ? 'color: var(--fail)' : ''"
+                  x-text="r.td_count"></td>
+              <td class="num" x-text="r.skills"></td>
+              <td class="num" x-text="r.adrs"></td>
+              <td class="num">
+                <span class="tag"
+                      :style="r.compliance >= 0.66 ? 'background: var(--ok-dim); color: var(--ok)' :
+                              r.compliance >= 0.33 ? 'background: var(--warn-dim); color: var(--warn)' :
+                                                     'background: var(--fail-dim); color: var(--fail)'">
+                  <span x-text="Math.round(r.compliance * 100) + '%'"></span>
+                </span>
+              </td>
+              <td class="num"
+                  :style="r.stale_days != null && r.stale_days > 30 ? 'color: var(--fail)' : ''">
+                <span x-show="r.stale_days != null" x-text="r.stale_days + 'd'"></span>
+                <span x-show="r.stale_days == null" class="muted">—</span>
+              </td>
+              <td>
+                <span class="badge" :class="r.dirty ? 'badge--warn' : 'badge--ok'">
+                  <span x-text="r.dirty ? '⚠ dirty' : '✓ clean'"></span>
+                </span>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div x-show="loaded && !rows.length" class="empty-state">
+    <p>No projects ranked yet — push state from each to see them here.</p>
+  </div>
+
+</section>
+
+{% endblock %}
+
+{% block extra_body %}
+<script>
+function page() {
+  return {
+    sort: new URLSearchParams(location.search).get('sort') || 'td_count',
+    order: new URLSearchParams(location.search).get('order') || 'desc',
+    rows: [],
+    loaded: false,
+    summary: {},
+
+    sortOptions: [
+      { value: 'td_count',              label: 'Tech debt' },
+      { value: 'skills',                label: 'Skills' },
+      { value: 'adrs',                  label: 'ADRs' },
+      { value: 'governance_compliance', label: 'Compliance' },
+      { value: 'last_seen_days',        label: 'Recency' },
+      { value: 'dirty_clean',           label: 'Tree status' },
+    ],
+
+    async init() {
+      const sum = await this.fetchJSON('/api/dashboard/summary');
+      this.summary = { ...sum };
+      await this.load();
+      this.loaded = true;
+    },
+
+    async fetchJSON(url) { const r = await fetch(url); return r.ok ? r.json() : {}; },
+
+    async load() {
+      const j = await this.fetchJSON(`/api/dashboard/leaderboard?sort=${this.sort}&order=${this.order}`);
+      this.rows = j.rows || [];
+    },
+
+    setSort(value) {
+      this.sort = value;
+      // last_seen_days: smaller = fresher; default asc for that one
+      if (value === 'last_seen_days') this.order = 'asc';
+      else this.order = 'desc';
+      const u = new URL(location.href);
+      u.searchParams.set('sort', this.sort);
+      u.searchParams.set('order', this.order);
+      history.replaceState(null, '', u);
+      this.load();
+    },
+
+    get sortLabel() {
+      return (this.sortOptions.find(o => o.value === this.sort) || { label: this.sort }).label;
+    },
+  };
+}
+</script>
+{% endblock %}
