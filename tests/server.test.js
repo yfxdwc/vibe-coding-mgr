@@ -71,7 +71,7 @@ describe('vcm-server health', () => {
     const r = await getJSON('/api/health');
     expect(r.status).toBe(200);
     expect(r.data.status).toBe('healthy');
-    expect(r.data.version).toBe('0.6.0');
+    expect(r.data.version).toBe('0.7.0');
   });
 });
 
@@ -81,7 +81,7 @@ describe('vcm-server collect', () => {
       schema_version: '0.1.0',
       project: { name: 'test-proj-1', path: '/tmp/test1' },
       generated_at: new Date().toISOString(),
-      vcm_version: '0.6.0',
+      vcm_version: '0.7.0',
       governance: {
         agents_md_present: true,
         charter_md_present: true,
@@ -113,7 +113,7 @@ describe('vcm-server dashboard endpoints', () => {
       schema_version: '0.1.0',
       project: { name: 'test-proj-2', path: '/tmp/test2' },
       generated_at: new Date().toISOString(),
-      vcm_version: '0.6.0',
+      vcm_version: '0.7.0',
       governance: {
         agents_md_present: true,
         charter_md_present: false,

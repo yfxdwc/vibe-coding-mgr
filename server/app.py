@@ -682,6 +682,47 @@ def api_peers():
         return jsonify({"peers": [], "note": f"error: {e}"}), 200
 
 
+# --- Skill registry (ADR-0008) -------------------------------------------
+# The local vcm skill registry at ~/.vcm/registry/ is owned by the CLI,
+# but the server exposes it read-only so the dashboard can render a
+# marketplace view. Pure read; no scope gate beyond 'read' (single-user
+# v0.5 compat is fine for v0.7 — the publish flow goes through CLI).
+import json as _json  # noqa: E402
+import glob as _glob  # noqa: E402
+
+
+@app.route("/api/registry/skills")
+@scopes_mod.require_scope("read")
+def api_registry_skills():
+    """List skills in the local registry (ADR-0008).
+
+    Reads from ~/.vcm/registry/skills/*.json (or $VCM_REGISTRY_DIR).
+    Returns sorted by validation_count desc, then name.
+    """
+    import os
+    registry_dir = os.environ.get("VCM_REGISTRY_DIR") or \
+        str(Path.home() / ".vcm" / "registry" / "skills")
+    if not os.path.isdir(registry_dir):
+        return jsonify({"skills": [], "note": "no registry dir"})
+    results = []
+    for path in _glob.glob(os.path.join(registry_dir, "*.json")):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                fm = _json.load(f)
+            results.append({
+                "name": fm.get("name", os.path.basename(path).replace(".json", "")),
+                "description": (fm.get("description") or "")[:80],
+                "tags": fm.get("tags") or [],
+                "authority": fm.get("authority"),
+                "phase": (fm.get("lifecycle") or {}).get("phase"),
+                "validation_count": (fm.get("stewardship") or {}).get("validation_count", 0),
+            })
+        except Exception:
+            continue
+    results.sort(key=lambda r: (-(r.get("validation_count") or 0), r.get("name") or ""))
+    return jsonify({"skills": results, "count": len(results)})
+
+
 @app.route("/docs/<path:filename>")
 def docs_view(filename):
     """Serve any /docs/*.md (or .md inside docs/adr/, docs/adr/0001-*, etc.)
