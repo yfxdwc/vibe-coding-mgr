@@ -26,9 +26,9 @@ describe('vcm CLI', () => {
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it('vcm --version shows 0.1.0', () => {
+  it('vcm --version shows 0.2.0', () => {
     const out = run(`node ${VCM_ROOT}/bin/vcm.js --version`);
-    expect(out.trim()).toBe('0.1.0');
+    expect(out.trim()).toBe('0.2.0');
   });
 
   it('vcm init creates AGENTS.md and CHARTER.md', () => {
@@ -78,8 +78,9 @@ describe('vcm CLI', () => {
     expect(html).toContain('<title>vcm status');
   });
 
-  it('vcm peers shows stub message', () => {
+  it('vcm peers lists (empty config)', () => {
     const out = run(`node ${VCM_ROOT}/bin/vcm.js peers list`);
-    expect(out).toContain('STUB');
+    // v0.2.0+ uses real GitHub API; with no peers configured, shows "(no peer projects tracked)"
+    expect(out).toContain('no peer projects tracked');
   });
 });
