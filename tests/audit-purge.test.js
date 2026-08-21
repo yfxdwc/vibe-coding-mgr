@@ -117,6 +117,20 @@ describe('POST /api/audit/purge (ADR-0016)', () => {
     expect(r.status).toBe(200);
     const j = await r.json();
     expect(j.deleted).toBe(2);
+
+    // Post-purge invariant (ADR-0016): the only surviving row must
+    // be the *recent* state_pushed we just seeded (the 2 past events
+    // were purged). The meta-audit row (`audit_purge`) is best-effort
+    // — see app.py:api_audit_purge, which wraps write_event in
+    // try/except/pass to avoid blocking the response on WAL races.
+    const listR = await fetch(`http://127.0.0.1:${PORT}/api/audit`,
+      { headers: { 'Authorization': `Bearer ${tok}` } });
+    expect(listR.status).toBe(200);
+    const listJ = await listR.json();
+    const surviving = (listJ.events || []).map(e => ({
+      type: e.event_type, project: e.project,
+    }));
+    expect(surviving).toContainEqual({ type: 'state_pushed', project: 'fresh' });
   });
 
   it('refuses without literal PURGE confirmation', async () => {

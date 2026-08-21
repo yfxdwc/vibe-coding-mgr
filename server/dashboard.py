@@ -398,3 +398,159 @@ def get_project_detail(name):
     result["latest_state"] = json.loads(latest["raw_json"]) if latest else {}
     result["history"] = [dict(h) for h in history]
     return result
+
+
+# --- ADR-0019: Cross-project drift detection ---------------------------------
+
+# Drift score weights (v0.10.0 hardcoded; future: per-installation config).
+# Designed so the maximum is 100 and missing AGENTS.md alone is a 25-pt hit,
+# the single most impactful signal per CHARTER §10.
+_DRIFT_WEIGHTS = {
+    "missing_agents": 25,
+    "missing_charter": 20,
+    "missing_adrs": 15,        # <3 ADRs (decision-record gap)
+    "no_skills": 10,           # skill registry is empty
+    "stale_30": 10,            # no push for > 30 days
+    "stale_90": 20,            # > 90 days (cumulative with stale_30 -> 30, capped)
+    "git_dirty": 10,
+}
+
+
+def _drift_score(project, now=None):
+    """Compute the 0-100 drift score for a single project (ADR-0019).
+
+    Returns (score: int, missing: list[str], recommendations: list[str]).
+    """
+    from datetime import timedelta
+    if now is None:
+        now = datetime.now(timezone.utc)
+
+    score = 0
+    missing = []
+    recs = []
+
+    gov = project or {}
+
+    if not gov.get("agents_md_present"):
+        score += _DRIFT_WEIGHTS["missing_agents"]
+        missing.append("AGENTS.md")
+        recs.append("Add AGENTS.md (CHARTER §10)")
+
+    if not gov.get("charter_md_present"):
+        score += _DRIFT_WEIGHTS["missing_charter"]
+        missing.append("CHARTER.md")
+        recs.append("Add CHARTER.md (project constitution)")
+
+    adrs = gov.get("adrs_count", 0) or 0
+    if adrs < 3:
+        score += _DRIFT_WEIGHTS["missing_adrs"]
+        recs.append(f"Write ≥3 ADRs (have {adrs})")
+
+    if gov.get("skills_count", 0) == 0:
+        score += _DRIFT_WEIGHTS["no_skills"]
+        recs.append("Register at least one skill")
+
+    last_seen = gov.get("last_seen_at")
+    days_idle = None
+    if last_seen:
+        try:
+            ls = datetime.fromisoformat(last_seen.replace("Z", "+00:00"))
+            days_idle = (now - ls).days
+            if days_idle > 90:
+                score += _DRIFT_WEIGHTS["stale_90"]
+                recs.append(f"Push a fresh snapshot (>90d idle: {days_idle}d)")
+            elif days_idle > 30:
+                score += _DRIFT_WEIGHTS["stale_30"]
+                recs.append(f"Push a fresh snapshot (>30d idle: {days_idle}d)")
+        except Exception:
+            pass
+
+    if gov.get("git_dirty"):
+        score += _DRIFT_WEIGHTS["git_dirty"]
+        recs.append("Commit or stash dirty changes")
+
+    score = min(score, 100)
+    return score, missing, recs, days_idle
+
+
+def get_drift(now=None):
+    """Cross-project drift view (ADR-0019).
+
+    Returns:
+        projects: list of {name, score, days_idle, missing, recommendations, severity}
+                 sorted by score desc (most drift first).
+        summary: {over_50_count, avg_score, max_days_idle, project_count}
+    """
+    projects = get_overview()
+    rows = []
+    over_50 = 0
+    total_score = 0
+    max_days = 0
+    for p in projects:
+        score, missing, recs, days_idle = _drift_score(p, now=now)
+        if score >= 50:
+            severity = "high"
+            over_50 += 1
+        elif score >= 30:
+            severity = "warn"
+        else:
+            severity = "ok"
+        total_score += score
+        if days_idle is not None and days_idle > max_days:
+            max_days = days_idle
+        rows.append({
+            "name": p["name"],
+            "score": score,
+            "severity": severity,
+            "days_idle": days_idle,
+            "missing": missing,
+            "recommendations": recs,
+            "last_seen_at": p.get("last_seen_at"),
+            "tds_count": p.get("tds_count", 0),
+            "adrs_count": p.get("adrs_count", 0),
+        })
+    rows.sort(key=lambda r: (-r["score"], r["name"]))
+    summary = {
+        "over_50_count": over_50,
+        "avg_score": (total_score / len(rows)) if rows else 0,
+        "max_days_idle": max_days,
+        "project_count": len(rows),
+    }
+    return {"projects": rows, "summary": summary}
+
+
+# --- Schema bootstrap ----------------------------------------------------
+
+def init_db():
+    """Create the projects + states tables if they don't exist.
+
+    Called by both the Flask app and the stdio MCP server. Idempotent.
+    Kept here (not in app.py) so MCP can call it without a circular import
+    on Flask.
+    """
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(DB_PATH))
+    conn.row_factory = sqlite3.Row
+    conn.executescript("""
+        CREATE TABLE IF NOT EXISTS projects (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE NOT NULL,
+            path TEXT NOT NULL,
+            first_seen_at TEXT NOT NULL,
+            last_seen_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS states (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_id INTEGER NOT NULL,
+            schema_version TEXT NOT NULL,
+            generated_at TEXT NOT NULL,
+            vcm_version TEXT,
+            raw_json TEXT NOT NULL,
+            received_at TEXT NOT NULL,
+            FOREIGN KEY (project_id) REFERENCES projects(id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_states_project
+            ON states(project_id, received_at DESC);
+    """)
+    conn.commit()
+    conn.close()

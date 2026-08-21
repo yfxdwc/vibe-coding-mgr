@@ -155,7 +155,7 @@ def _write_jsonl(rec: dict) -> None:
 
 # --- Read API (defaults to SQLite) ---------------------------------------
 
-def read_events(since=None, event_type=None, project=None, limit=100, offset=0):
+def read_events(since=None, event_type=None, project=None, source_ip=None, limit=100, offset=0):
     """Read events, newest-first.
 
     Filters (all AND):
@@ -176,14 +176,14 @@ def read_events(since=None, event_type=None, project=None, limit=100, offset=0):
     db_path = sqlite_path()
     if Path(db_path).exists():
         try:
-            return _read_sqlite(since, event_type, project, limit, offset)
+            return _read_sqlite(since, event_type, project, source_ip, limit, offset)
         except Exception as e:
             sys.stderr.write(f"[audit] sqlite read failed: {e}; falling back to JSONL\n")
 
-    return _read_jsonl_filtered(since, event_type, project, limit, offset)
+    return _read_jsonl_filtered(since, event_type, project, source_ip, limit, offset)
 
 
-def _read_sqlite(since, event_type, project, limit, offset):
+def _read_sqlite(since, event_type, project, source_ip, limit, offset):
     conn = sqlite3.connect(sqlite_path(), timeout=5.0); _enable_wal(conn)
     conn.row_factory = sqlite3.Row
     try:
@@ -197,6 +197,8 @@ def _read_sqlite(since, event_type, project, limit, offset):
             q += " AND event_type = ?"; params.append(event_type)
         if project is not None:
             q += " AND project = ?"; params.append(project)
+        if source_ip is not None:
+            q += " AND source_ip = ?"; params.append(source_ip)
         q += " ORDER BY ts DESC LIMIT ? OFFSET ?"
         params.extend([limit, offset])
         rows = conn.execute(q, params).fetchall()
@@ -220,7 +222,7 @@ def _row_to_event(row) -> dict:
     }
 
 
-def _read_jsonl_filtered(since, event_type, project, limit, offset):
+def _read_jsonl_filtered(since, event_type, project, source_ip, limit, offset):
     p = Path(audit_log_path())
     if not p.exists():
         return []
@@ -239,6 +241,8 @@ def _read_jsonl_filtered(since, event_type, project, limit, offset):
                 if since and (ev.get("ts", "") < since):
                     continue
                 if project is not None and ev.get("project") != project:
+                    continue
+                if source_ip is not None and ev.get("source_ip") != source_ip:
                     continue
                 events.append(ev)
     except Exception as e:
@@ -280,6 +284,55 @@ def _event_stats_sqlite(since):
             ).fetchall()
         by_type = {r["event_type"]: r["c"] for r in rows}
         return {"total": sum(by_type.values()), "by_type": by_type}
+    finally:
+        conn.close()
+
+
+
+
+def facets(since=None, event_type=None, project=None, source_ip=None) -> dict:
+    """Return counts grouped by (event_type, project, source_ip).
+
+    Used by the /audit UI to render facet chips (ADR-0024).
+    Returns: {"events": {event_type: count}, "projects": {slug: count},
+              "source_ips": {ip: count}, "total": int}
+    """
+    db_path = sqlite_path()
+    if not Path(db_path).exists():
+        return {"events": {}, "projects": {}, "source_ips": {}, "total": 0}
+    conn = sqlite3.connect(db_path, timeout=5.0); _enable_wal(conn)
+    conn.row_factory = sqlite3.Row
+    try:
+        ensure_events_table(conn)
+        base_conds = []
+        params = []
+        if since:
+            base_conds.append("ts >= ?"); params.append(since)
+        if event_type:
+            base_conds.append("event_type = ?"); params.append(event_type)
+        if project:
+            base_conds.append("project = ?"); params.append(project)
+        if source_ip:
+            base_conds.append("source_ip = ?"); params.append(source_ip)
+
+        def rows_for(field, extra_conds):
+            """GROUP BY `field`, applying base_conds (filters) + extra_conds
+            (e.g. 'project IS NOT NULL'). one wh_clause per call keeps the
+            SQL deterministic regardless of which filters are active."""
+            all_conds = base_conds + list(extra_conds)
+            wh_clause = (" WHERE " + " AND ".join(all_conds)) if all_conds else ""
+            sql = f"SELECT {field}, COUNT(*) AS c FROM audit_events{wh_clause} GROUP BY {field}"
+            return conn.execute(sql, params).fetchall()
+
+        events = {r["event_type"]: r["c"] for r in rows_for("event_type", [])}
+        projects = {r["project"]: r["c"]
+                    for r in rows_for("project", ["project IS NOT NULL"])
+                    if r["project"]}
+        ips = {r["source_ip"]: r["c"]
+               for r in rows_for("source_ip", ["source_ip IS NOT NULL"])
+               if r["source_ip"]}
+        total = sum(events.values())
+        return {"events": events, "projects": projects, "source_ips": ips, "total": total}
     finally:
         conn.close()
 

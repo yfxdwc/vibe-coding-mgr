@@ -65,6 +65,54 @@
                       color: var(--text-primary); padding: 6px 8px; border-radius: 6px;
                       font-family: var(--font-mono); font-size: var(--fs-meta);" />
       </label>
+      <label class="stack-2" style="min-width: 160px;">
+        <span class="text-label">Project</span>
+        <input type="text" x-model="filterProject" @change="applyFilter()" placeholder="all"
+               style="background: var(--surface-alt); border: 1px solid var(--border-subtle);
+                      color: var(--text-primary); padding: 6px 8px; border-radius: 6px;
+                      font-family: var(--font-mono); font-size: var(--fs-meta);" />
+      </label>
+      <label class="stack-2" style="min-width: 160px;">
+        <span class="text-label">Source IP</span>
+        <input type="text" x-model="filterSourceIp" @change="applyFilter()" placeholder="all"
+               style="background: var(--surface-alt); border: 1px solid var(--border-subtle);
+                      color: var(--text-primary); padding: 6px 8px; border-radius: 6px;
+                      font-family: var(--font-mono); font-size: var(--fs-meta);" />
+      </label>
+      <button class="btn btn--sm btn--ghost" @click="resetFilters()">clear</button>
+    </div>
+    <!-- ADR-0024: facet chips for discoverability -->
+    <div class="cluster-3" style="flex-wrap: wrap; margin-top: var(--space-3);"
+         x-show="Object.keys(facets.events || {}).length > 0
+                  || Object.keys(facets.projects || {}).length > 0
+                  || Object.keys(facets.source_ips || {}).length > 0">
+      <template x-for="t in Object.entries(facets.events || {}).sort(byCount)" :key="'ev-' + t[0]">
+        <button class="badge badge--idle"
+                :class="filterType === t[0] ? 'badge--warn' : ''"
+                @click="toggleFacet('event', t[0])"
+                style="cursor: pointer; border: 0; font-family: inherit;">
+          <span x-text="t[0]"></span>
+          <span class="text-meta" x-text="'× ' + t[1]" style="margin-left: 4px;"></span>
+        </button>
+      </template>
+      <template x-for="p in Object.entries(facets.projects || {}).sort(byCount).slice(0, 12)" :key="'pr-' + p[0]">
+        <button class="badge"
+                :class="filterProject === p[0] ? 'badge--warn' : 'badge--idle'"
+                @click="toggleFacet('project', p[0])"
+                style="cursor: pointer; border: 0; font-family: inherit;">
+          <span x-text="p[0]"></span>
+          <span class="text-meta" x-text="'× ' + p[1]" style="margin-left: 4px;"></span>
+        </button>
+      </template>
+      <template x-for="ip in Object.entries(facets.source_ips || {}).sort(byCount).slice(0, 12)" :key="'ip-' + ip[0]">
+        <button class="badge"
+                :class="filterSourceIp === ip[0] ? 'badge--warn' : 'badge--idle'"
+                @click="toggleFacet('source_ip', ip[0])"
+                style="cursor: pointer; border: 0; font-family: inherit;">
+          <span x-text="ip[0]"></span>
+          <span class="text-meta" x-text="'× ' + ip[1]" style="margin-left: 4px;"></span>
+        </button>
+      </template>
     </div>
   </div>
 
@@ -173,8 +221,11 @@ function page() {
     loaded: false,
     filterType: new URLSearchParams(location.search).get('event') || '',
     filterSince: new URLSearchParams(location.search).get('since') || '',
+    filterProject: new URLSearchParams(location.search).get('project') || '',
+    filterSourceIp: new URLSearchParams(location.search).get('source_ip') || '',
     limit: parseInt(new URLSearchParams(location.search).get('limit') || '100', 10),
     summary: {},
+    facets: {},  // ADR-0024
 
     async init() {
       const sum = await this.fetchJSON('/api/dashboard/summary');
@@ -189,22 +240,47 @@ function page() {
       const params = new URLSearchParams();
       if (this.filterType) params.set('event', this.filterType);
       if (this.filterSince) params.set('since', this.filterSince);
+      if (this.filterProject) params.set('project', this.filterProject);
+      if (this.filterSourceIp) params.set('source_ip', this.filterSourceIp);
       params.set('limit', String(this.limit));
-      const r = await this.fetchJSON(`/api/audit?${params.toString()}`);
-      this.events = r.events || [];
+      const [auditR, facetR] = await Promise.all([
+        this.fetchJSON(`/api/audit?${params.toString()}`),
+        this.fetchJSON(`/api/audit/facets?${params.toString()}`),
+      ]);
+      this.events = auditR.events || [];
+      this.facets = facetR || {};
     },
 
     applyFilter() {
       const u = new URL(location.href);
-      if (this.filterType) u.searchParams.set('event', this.filterType);
-      else u.searchParams.delete('event');
-      if (this.filterSince) u.searchParams.set('since', this.filterSince);
-      else u.searchParams.delete('since');
+      const setOrDel = (k, v) => v ? u.searchParams.set(k, v) : u.searchParams.delete(k);
+      setOrDel('event', this.filterType);
+      setOrDel('since', this.filterSince);
+      setOrDel('project', this.filterProject);
+      setOrDel('source_ip', this.filterSourceIp);
       if (this.limit !== 100) u.searchParams.set('limit', String(this.limit));
       else u.searchParams.delete('limit');
       history.replaceState(null, '', u);
       this.load();
     },
+
+    toggleFacet(kind, value) {
+      // Click a chip to toggle the matching filter.
+      if (kind === 'event') this.filterType = this.filterType === value ? '' : value;
+      else if (kind === 'project') this.filterProject = this.filterProject === value ? '' : value;
+      else if (kind === 'source_ip') this.filterSourceIp = this.filterSourceIp === value ? '' : value;
+      this.applyFilter();
+    },
+
+    resetFilters() {
+      this.filterType = '';
+      this.filterSince = '';
+      this.filterProject = '';
+      this.filterSourceIp = '';
+      this.applyFilter();
+    },
+
+    byCount(a, b) { return b[1] - a[1]; },
 
     get filtered() { return this.events; },
 

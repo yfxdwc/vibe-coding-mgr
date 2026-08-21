@@ -1,0 +1,169 @@
+{% extends "_layout.html" %}
+{# server/templates/drift.html — cross-project drift detection (ADR-0019)
+   Sorts all projects by drift score (0-100), most-drifted at top.
+   KPI row: over-50 project count, average score, longest idle.
+#}
+{% set nav_active = 'drift' %}
+
+{% block title %}drift{% endblock %}
+
+{% block page_head %}
+<header class="page-head">
+  <div class="crumbs">
+    <a href="/">cockpit</a>
+    <span class="sep">/</span>
+    <span class="crumb-current">drift</span>
+  </div>
+  <h1 class="text-display">Cross-project drift</h1>
+  <p class="text-meta">Projects sorted by drift score (highest = needs attention first). Score blends missing governance, low ADR count, stale snapshots, dirty trees, and empty skill registries.</p>
+</header>
+{% endblock %}
+
+{% block answers_line %}
+<div class="answers-line">
+  <span class="answers-tag">Answers</span>
+  <p>which project should the vcm operator upgrade next, and what is missing?</p>
+</div>
+{% endblock %}
+
+{% block content %}
+
+<section x-show="!loaded" class="empty-state">
+  <p>Loading drift…</p>
+</section>
+
+<section x-show="loaded" class="stack-5" data-c="drift">
+
+  <div class="kpi-grid">
+    <div class="c-card">
+      <div class="kpi-label">high-drift projects (≥ 50)</div>
+      <div class="kpi-value" :style="summary.over_50_count > 0 ? 'color: var(--fail)' : ''">
+        <span x-text="summary.over_50_count ?? 0"></span>
+      </div>
+    </div>
+    <div class="c-card">
+      <div class="kpi-label">avg score</div>
+      <div class="kpi-value"
+           :style="summary.avg_score >= 50 ? 'color: var(--fail)' :
+                   summary.avg_score >= 30 ? 'color: var(--warn)' :
+                                            'color: var(--ok)'">
+        <span x-text="Math.round(summary.avg_score || 0)"></span>
+      </div>
+    </div>
+    <div class="c-card">
+      <div class="kpi-label">longest idle</div>
+      <div class="kpi-value"
+           :style="summary.max_days_idle > 90 ? 'color: var(--fail)' :
+                   summary.max_days_idle > 30 ? 'color: var(--warn)' :
+                                                ''">
+        <span x-text="summary.max_days_idle != null ? (summary.max_days_idle + 'd') : '—'"></span>
+      </div>
+    </div>
+    <div class="c-card">
+      <div class="kpi-label">total projects</div>
+      <div class="kpi-value">
+        <span x-text="summary.project_count ?? 0"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="c-card" x-show="rows.length">
+    <div class="c-card-head">
+      <h2 class="text-section">Projects</h2>
+      <span class="text-meta">
+        <span x-text="rows.length"></span> project<span x-show="rows.length !== 1">s</span>
+      </span>
+    </div>
+    <div style="overflow-x: auto;">
+      <table class="data-table" data-c="drift-table">
+        <thead>
+          <tr>
+            <th class="num">#</th>
+            <th>Project</th>
+            <th class="num">Score</th>
+            <th>Missing</th>
+            <th>Recommendations</th>
+            <th class="num">Days idle</th>
+            <th class="num">ADRs</th>
+          </tr>
+        </thead>
+        <tbody>
+          <template x-for="(r, i) in rows" :key="r.name">
+            <tr @click="window.location = '/projects/' + r.name" style="cursor: pointer;">
+              <td class="num muted" x-text="i + 1"></td>
+              <td>
+                <a class="mono" :href="'/projects/' + r.name" @click.stop x-text="r.name"></a>
+              </td>
+              <td class="num">
+                <span class="tag"
+                      :style="r.score >= 50 ? 'background: var(--fail-dim); color: var(--fail)' :
+                              r.score >= 30 ? 'background: var(--warn-dim); color: var(--warn)' :
+                                              'background: var(--ok-dim); color: var(--ok)'">
+                  <span x-text="r.score"></span>
+                </span>
+              </td>
+              <td>
+                <span x-show="r.missing && r.missing.length">
+                  <template x-for="m in r.missing" :key="m">
+                    <code x-text="m"></code>
+                  </template>
+                </span>
+                <span x-show="!r.missing || !r.missing.length" class="muted">—</span>
+              </td>
+              <td>
+                <ul style="margin: 0; padding-left: var(--space-3); font-size: var(--fs-meta);">
+                  <template x-for="rec in r.recommendations" :key="rec">
+                    <li x-text="rec"></li>
+                  </template>
+                </ul>
+              </td>
+              <td class="num"
+                  :style="r.days_idle != null && r.days_idle > 90 ? 'color: var(--fail)' :
+                          r.days_idle != null && r.days_idle > 30 ? 'color: var(--warn)' : ''">
+                <span x-show="r.days_idle != null" x-text="r.days_idle + 'd'"></span>
+                <span x-show="r.days_idle == null" class="muted">—</span>
+              </td>
+              <td class="num" x-text="r.adrs_count ?? 0"></td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div x-show="loaded && !rows.length" class="empty-state">
+    <p>No projects registered yet — push a vcm snapshot from at least one project to see drift here.</p>
+  </div>
+
+</section>
+
+{% endblock %}
+
+{% block extra_body %}
+<script>
+function page() {
+  return {
+    rows: [],
+    summary: {},
+    loaded: false,
+
+    async init() {
+      const r = await this.fetchJSON('/api/dashboard/drift');
+      this.rows = (r && r.projects) || [];
+      this.summary = (r && r.summary) || {};
+      this.loaded = true;
+    },
+
+    async fetchJSON(url) {
+      try {
+        const resp = await fetch(url);
+        if (!resp.ok) return {};
+        return await resp.json();
+      } catch (_) {
+        return {};
+      }
+    },
+  };
+}
+</script>
+{% endblock %}

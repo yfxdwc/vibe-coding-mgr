@@ -54,7 +54,7 @@
   </aside>
 
   <article class="docs-body" data-c="docs-body">
-    <pre style="white-space: pre-wrap; margin: 0;">{{ body }}</pre>
+    <div class="markdown-body">{{ body | safe }}</div>
   </article>
 </div>
 
@@ -69,6 +69,34 @@
 }
 .docs-link:hover { background: var(--surface-alt); color: var(--accent); }
 .docs-link--active { background: var(--accent-dim); color: var(--accent); }
+.docs-link--active { background: var(--accent-dim); color: var(--accent); }
+/* ADR-0018: minimal markdown body styling */
+.markdown-body { font-family: var(--font-sans); color: var(--text-primary); line-height: 1.55; }
+.markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4 {
+  margin: var(--space-4) 0 var(--space-2); color: var(--text-primary);
+}
+.markdown-body h1 { font-size: var(--fs-display); border-bottom: 1px solid var(--border-subtle); padding-bottom: var(--space-2); }
+.markdown-body h2 { font-size: var(--fs-h2); }
+.markdown-body h3 { font-size: var(--fs-h3); }
+.markdown-body p { margin: 0 0 var(--space-3); }
+.markdown-body ul, .markdown-body ol { margin: 0 0 var(--space-3) var(--space-5); }
+.markdown-body li { margin-bottom: var(--space-1); }
+.markdown-body code {
+  font-family: var(--font-mono); font-size: 0.9em;
+  background: var(--surface-alt); padding: 1px 4px; border-radius: 3px;
+}
+.markdown-body pre {
+  background: var(--surface-alt); padding: var(--space-3); border-radius: 6px;
+  overflow-x: auto; margin: 0 0 var(--space-3);
+}
+.markdown-body pre code { background: transparent; padding: 0; }
+.markdown-body blockquote {
+  border-left: 3px solid var(--accent); padding-left: var(--space-3);
+  color: var(--text-secondary); margin: 0 0 var(--space-3);
+  font-style: italic;
+}
+.markdown-body a { color: var(--accent); text-decoration: underline; }
+.markdown-body strong { color: var(--text-primary); font-weight: 600; }
 </style>
 {% endblock %}
 
@@ -77,25 +105,85 @@
 function docsPage() {
   return {
     files: [],
+    // currentRel is set from the route via Jinja interpolation;
+    // Alpine reads it reactively for the sidebar :class binding.
     currentRel: '{{ relpath or "" }}',
     query: '',
+    // Plain property (HANDOFF §13.3 fix): Alpine 3.x reactivity wraps
+    // property assignments in Proxies, but it does not track get/set
+    // accessor functions the same way — the previous implementation
+    // silently dropped re-renders of <template x-for="f in filtered">.
+    filtered: [],
     init() {
       fetch('/api/docs/index')
         .then(r => r.ok ? r.json() : { files: [] })
-        .then(j => { this.files = j.files || []; });
+        .then(j => {
+          this.files = j.files || [];
+          this.filtered = this.files;
+        });
     },
     applyFilter() {
-      const q = this.query.trim().toLowerCase();
-      if (!q) return this.filtered = this.files;
-      // cheap fuzzy: every token in q must appear in title|filename|snippet
-      const tokens = q.split(/\s+/);
-      this.filtered = this.files.filter(f => {
-        const hay = (f.title + ' ' + f.filename + ' ' + f.snippet).toLowerCase();
-        return tokens.every(t => hay.includes(t));
-      });
+      const q = this.query.trim();
+      if (!q) { this.filtered = this.files; return; }
+
+      // ADR-0020: try server-side full-text search first (covers all docs
+      // including ADRs whose body, not title, mentions the term). Falls
+      // back to the client-side title/filename fuzzy if the fetch fails.
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 1500);
+      fetch('/api/docs/search?q=' + encodeURIComponent(q) + '&limit=40',
+            { signal: ctrl.signal })
+        .then(r => r.ok ? r.json() : Promise.reject(new Error('status ' + r.status)))
+        .then(j => {
+          // Group results by relpath; first snippet wins but we expose
+          // a count so the sidebar can show "N matches".
+          const byPath = new Map();
+          for (const r of (j.results || [])) {
+            if (!byPath.has(r.relpath)) {
+              byPath.set(r.relpath, { relpath: r.relpath, snippet: r.snippet, count: 0 });
+            }
+            byPath.get(r.relpath).count += 1;
+          }
+          // Preserve any sidebar entries that don't have a body match
+          // but match the query in title/filename (cheap client-side) — so
+          // a search for "leaderboard" still surfaces /leaderboard view.
+          const tokens = q.toLowerCase().split(/\s+/);
+          const titleHits = this.files.filter(f => {
+            const hay = (f.title + ' ' + f.filename).toLowerCase();
+            return tokens.every(t => hay.includes(t));
+          }).map(f => ({ relpath: f.relpath, snippet: '', count: 0 }));
+          const seen = new Set();
+          const merged = [];
+          for (const t of titleHits) {
+            if (!seen.has(t.relpath)) { merged.push(t); seen.add(t.relpath); }
+          }
+          for (const r of byPath.values()) {
+            if (!seen.has(r.relpath)) { merged.push(r); seen.add(r.relpath); }
+          }
+          // Title/filename-hit files may not be in /api/docs/index — they
+          // could be routes like /leaderboard. For those, fabricate an
+          // entry from the original files list if present.
+          this.filtered = merged.map(m => {
+            const file = this.files.find(f => f.relpath === m.relpath);
+            return {
+              relpath: m.relpath,
+              title: (file && file.title) || m.relpath,
+              filename: (file && file.filename) || m.relpath,
+              snippet: m.snippet || (file && file.snippet) || '',
+              match_count: m.count,
+            };
+          });
+        })
+        .catch(() => {
+          // Fallback: client-side title/filename fuzzy.
+          const tokens = q.toLowerCase().split(/\s+/);
+          this.filtered = this.files.filter(f => {
+            const hay = (f.title + ' ' + f.filename + ' ' + f.snippet).toLowerCase();
+            return tokens.every(t => hay.includes(t));
+          });
+        })
+        .finally(() => clearTimeout(timer));
     },
-    get filtered() { return this._filtered || (this._filtered = this.files); },
-    set filtered(v) { this._filtered = v; },
   };
 }
 </script>

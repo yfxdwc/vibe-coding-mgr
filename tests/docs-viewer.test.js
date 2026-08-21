@@ -104,3 +104,34 @@ describe('docs viewer (ADR-0017)', () => {
     expect(r.status).toBe(404);
   });
 });
+
+describe('docs nav highlight (HANDOFF §13.3 regression)', () => {
+  it('inline JS initializes currentRel from the route path', async () => {
+    const r = await fetch(`http://127.0.0.1:${PORT}/docs/DESIGN.md`);
+    expect(r.status).toBe(200);
+    const body = await r.text();
+    expect(body).toContain("currentRel: 'DESIGN.md'");
+    expect(body).not.toContain("currentRel: '{{");
+  });
+
+  it('uses a plain `filtered: []` property, not get/set accessors', async () => {
+    const r = await fetch(`http://127.0.0.1:${PORT}/docs/ARCHITECTURE.md`);
+    const body = await r.text();
+    expect(body).toMatch(/filtered:\s*\[\]/);
+    expect(body).not.toContain('get filtered()');
+    expect(body).not.toContain('set filtered(v)');
+  });
+
+  it(':class binding still references currentRel for active highlight', async () => {
+    const r = await fetch(`http://127.0.0.1:${PORT}/docs/DESIGN.md`);
+    const body = await r.text();
+    expect(body).toContain('f.relpath === currentRel');
+    expect(body).toContain('docs-link--active');
+  });
+
+  it('currentRel reflects the nested adr/ sub-path too', async () => {
+    const r = await fetch(`http://127.0.0.1:${PORT}/docs/adr/0011-per-user-acl.md`);
+    const body = await r.text();
+    expect(body).toContain("currentRel: 'adr/0011-per-user-acl.md'");
+  });
+});

@@ -12,7 +12,7 @@ import binascii
 import time
 import threading
 import queue
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from flask import Flask, request, jsonify, render_template, abort, Response, stream_with_context, g
@@ -30,7 +30,11 @@ from dashboard import (
     get_overview, get_skill_matrix, get_attention,
     get_recent_activity, get_skill_aging, get_attention_summary,
     get_project_detail, get_leaderboard, get_trend,
+    get_drift,
 )
+import docs_search  # ADR-0020
+import mcp_server  # ADR-0021 (HTTP transport; stdio lives in mcp_server.__main__)
+import peers  # ADR-0022
 
 ROOT = Path(__file__).resolve().parent.parent
 DB_PATH = Path(os.environ.get("VCM_SERVER_DB", str(ROOT / "server" / "vcm.db")))
@@ -217,32 +221,10 @@ def get_db():
 
 
 def init_db():
-    """Create tables if they don't exist."""
-    conn = get_db()
-    conn.executescript("""
-        CREATE TABLE IF NOT EXISTS projects (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT UNIQUE NOT NULL,
-            path TEXT NOT NULL,
-            first_seen_at TEXT NOT NULL,
-            last_seen_at TEXT NOT NULL
-        );
-
-        CREATE TABLE IF NOT EXISTS states (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            project_id INTEGER NOT NULL,
-            schema_version TEXT NOT NULL,
-            generated_at TEXT NOT NULL,
-            vcm_version TEXT,
-            raw_json TEXT NOT NULL,
-            received_at TEXT NOT NULL,
-            FOREIGN KEY (project_id) REFERENCES projects(id)
-        );
-
-        CREATE INDEX IF NOT EXISTS idx_states_project ON states(project_id, received_at DESC);
-    """)
-    conn.commit()
-    conn.close()
+    """Create tables if they don't exist. Delegates to dashboard.init_db
+    so MCP stdio transport and the Flask HTTP server share one bootstrap."""
+    from dashboard import init_db as _init_db
+    _init_db()
 
 
 @app.route("/api/health")
@@ -380,6 +362,7 @@ def api_audit():
     since = request.args.get("since")
     event_type = request.args.get("event")
     project = request.args.get("project")
+    source_ip = request.args.get("source_ip")
     try:
         limit = int(request.args.get("limit", "100"))
     except ValueError:
@@ -390,9 +373,25 @@ def api_audit():
         offset = 0
     events = audit.read_events(
         since=since, event_type=event_type, project=project,
-        limit=limit, offset=offset,
+        source_ip=source_ip, limit=limit, offset=offset,
     )
     return jsonify({"events": events, "count": len(events)})
+
+
+@app.route("/api/audit/facets")
+@scopes_mod.require_scope("read")
+def api_audit_facets():
+    """ADR-0024: facet chips for the /audit UI.
+
+    Returns counts grouped by (event_type, project, source_ip),
+    optionally filtered by the same query params as /api/audit.
+    """
+    return jsonify(audit.facets(
+        since=request.args.get("since"),
+        event_type=request.args.get("event"),
+        project=request.args.get("project"),
+        source_ip=request.args.get("source_ip"),
+    ))
 
 
 @app.route("/api/audit/stats")
@@ -563,6 +562,96 @@ def api_dashboard_attention():
 @scopes_mod.require_scope("read")
 def api_dashboard_activity():
     return jsonify(get_recent_activity())
+
+
+@app.route("/api/peer/summary", methods=["GET", "POST"])
+@scopes_mod.require_scope("read")
+def api_peer_summary():
+    """ADR-0022: peer gossip cache.
+
+    GET: list cached peer summaries (or refresh from the network when
+         ?refresh=1 is set, then return the merged view).
+    POST: receive a peer's summary and stash it in the in-memory cache.
+    """
+    if request.method == "POST":
+        body = request.get_json(force=True) or {}
+        peers.post_peer_summary(body.get("peer", "unknown"), body)
+        return jsonify({"ack": True})
+    if request.args.get("refresh") == "1":
+        rows = peers.all_peer_summaries()
+    else:
+        rows = peers.peer_status_list()
+    return jsonify({"peers": rows, "config": peers.list_peers(),
+                    "config_path": peers.config_path()})
+
+
+@app.route("/api/peer/summary/local")
+@scopes_mod.require_scope("read")
+def api_peer_summary_local():
+    """ADR-0022: this server's drift summary, for peer pull."""
+    import dashboard
+    drift = dashboard.get_drift()
+    return jsonify({
+        "peer": "self",
+        "fetched_at": datetime.now(timezone.utc).isoformat(),
+        "projects": [
+            {"name": p["name"], "drift_score": p["score"],
+             "last_seen_at": p.get("last_seen_at"),
+             "adrs_count": p.get("adrs_count", 0)}
+            for p in drift["projects"]
+        ],
+    })
+
+
+@app.route("/api/dashboard/leaderboard")
+@scopes_mod.require_scope("read")
+def api_dashboard_leaderboard_with_peers():
+    """ADR-0022: extended leaderboard that can include peer projects."""
+    scope = request.args.get("scope", "local")
+    sort = request.args.get("sort", "td_count")
+    order = request.args.get("order", "desc")
+    lb = get_leaderboard(sort=sort, order=order)
+    if scope != "all":
+        return jsonify(lb)
+    # scope=all: append peer rows. Tag them with origin.
+    peer_rows = peers.merge_peer_projects()
+    # Lightweight row shape so the frontend can render uniformly.
+    merged_local = [
+        {**r, "origin": "local",
+         "drift_score": r.get("td_count", 0)  # cheap stand-in if no drift
+        } for r in lb.get("rows", lb) if isinstance(r, dict)
+    ]
+    # Some leaderboard variants return {rows: [...]} not a list directly.
+    if isinstance(lb, dict) and "rows" in lb:
+        base_rows = lb["rows"]
+    elif isinstance(lb, list):
+        base_rows = lb
+    else:
+        base_rows = []
+    tagged_peer_rows = [
+        {"name": pr["name"], "td_count": 0, "skills": 0, "adrs": pr.get("adrs_count", 0),
+         "branch": None, "compliance": 0, "stale_days": None, "dirty": False,
+         "drift_score": pr.get("drift_score"), "origin": pr["origin"]}
+        for pr in peer_rows if pr.get("name")
+    ]
+    new_rows = list(base_rows) + tagged_peer_rows
+    if isinstance(lb, dict):
+        return jsonify({**lb, "rows": new_rows, "scope": scope,
+                        "peer_count": len(peer_rows)})
+    return jsonify(new_rows)
+
+
+@app.route("/api/dashboard/drift")
+@scopes_mod.require_scope("read")
+def api_dashboard_drift():
+    """ADR-0019: cross-project drift score, sorted desc."""
+    return jsonify(get_drift())
+
+
+@app.route("/drift")
+def drift_view():
+    """ADR-0019: HTML view of drift per project."""
+    return _render("drift.html")
 
 
 @app.route("/api/dashboard/skill-aging")
@@ -780,7 +869,86 @@ def api_registry_skills():
         except Exception:
             continue
     results.sort(key=lambda r: (-(r.get("validation_count") or 0), r.get("name") or ""))
-    return jsonify({"skills": results, "count": len(results)})
+    # Local-first (CHARTER §7). Tag with origin="local".
+    local_results = [{**r, "origin": "local"} for r in results]
+    if request.args.get("scope", "local") != "all":
+        return jsonify({"skills": results, "count": len(results), "scope": "local"})
+
+    # scope=all: merge peer skills (ADR-0023). Local wins on name+name conflict.
+    peer_skills = peers.merge_peer_skills()
+    seen_names = {r["name"] for r in results if r.get("name")}
+    merged = list(local_results)
+    for s in peer_skills:
+        if s.get("name") and s["name"] not in seen_names:
+            merged.append({**s, "validation_count": s.get("validation_count", 0)})
+            seen_names.add(s["name"])
+    merged.sort(key=lambda r: (-(r.get("validation_count") or 0), r.get("name") or ""))
+    return jsonify({
+        "skills": merged,
+        "count": len(merged),
+        "scope": "all",
+        "local_count": len(results),
+        "peer_count": len(merged) - len(results),
+    })
+
+
+@app.route("/api/peer/registry")
+@scopes_mod.require_scope("read")
+def api_peer_registry():
+    """ADR-0023: this server's skill registry, for peer pull.
+
+    Returns the same shape as /api/registry/skills but pinned to local.
+    """
+    import os
+    registry_dir = os.environ.get("VCM_REGISTRY_DIR") or \
+        str(Path.home() / ".vcm" / "registry" / "skills")
+    if not os.path.isdir(registry_dir):
+        return jsonify({"peer": "self", "skills": [], "fetched_at":
+                        datetime.now(timezone.utc).isoformat()})
+    skills = []
+    for path in glob.glob(os.path.join(registry_dir, "*.json")):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                fm = json.load(f)
+            skills.append({
+                "name": fm.get("name", os.path.basename(path).replace(".json", "")),
+                "description": (fm.get("description") or "")[:120],
+                "tags": fm.get("tags") or [],
+                "version": fm.get("version"),
+                "authority": fm.get("authority"),
+                "validation_count":
+                    (fm.get("stewardship") or {}).get("validation_count", 0),
+            })
+        except Exception:
+            continue
+    return jsonify({
+        "peer": "self",
+        "skills": skills,
+        "fetched_at": datetime.now(timezone.utc).isoformat(),
+    })
+
+
+@app.route("/mcp", methods=["POST", "OPTIONS"])
+def mcp_http():
+    """ADR-0021: MCP Streamable HTTP transport (POST = JSON-RPC request)."""
+    if request.method == "OPTIONS":
+        return ("", 204, {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        })
+    try:
+        body = request.get_json(force=True)
+    except Exception:
+        return jsonify({"jsonrpc": "2.0", "id": None,
+                        "error": {"code": -32700, "message": "Parse error"}}), 400
+    resp = mcp_server.handle_jsonrpc(body)
+    if resp is None:
+        return ("", 202, {"Content-Type": "application/json"})
+    if "error" in resp and "result" not in resp:
+        code = resp["error"].get("code", -32603)
+        return jsonify(resp), 200 if code == -32601 else 400
+    return jsonify(resp)
 
 
 @app.route("/api/registry/publish", methods=["POST"])
@@ -893,6 +1061,18 @@ def api_docs_index():
     return jsonify({"files": files, "count": len(files)})
 
 
+@app.route("/api/docs/search")
+@scopes_mod.require_scope("read")
+def api_docs_search():
+    """ADR-0020: full-text search across docs/*.md (case-insensitive)."""
+    q = (request.args.get("q") or "").strip()
+    try:
+        limit = int(request.args.get("limit") or 20)
+    except (TypeError, ValueError):
+        limit = 20
+    return jsonify(docs_search.search_docs(q, limit=limit))
+
+
 @app.route("/docs/<path:filename>")
 def docs_view(filename):
     """Serve any /docs/*.md with sidebar + search (ADR-0017).
@@ -928,6 +1108,7 @@ def not_found(e):
 
 # Initialize DB at import time so test_client and CLI both work
 init_db()
+peers.load_peers()  # ADR-0022: register peer URLs at startup
 
 
 def main():
