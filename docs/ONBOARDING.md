@@ -92,6 +92,43 @@ vcm push --server http://your-dev-server:7338
 # → See all projects at http://your-dev-server:7338/
 ```
 
+## Step 7b: (Optional) Run `vcm-server` persistently (systemd, v0.13.0+)
+
+For a long-lived dashboard that survives logout, reboot, and crashes,
+install as a systemd user unit (ADR-0025; Linux only):
+
+```bash
+cd vibe-coding-mgr
+bash scripts/install-service.sh
+# → vcm-server installed: http://127.0.0.1:7338/
+
+# Day-to-day:
+systemctl --user status vcm-server
+journalctl --user -u vcm-server -n 50 -f
+
+# Edit config without restart:
+$EDITOR ~/.vcm/server.env
+systemctl --user restart vcm-server
+
+# Uninstall (keeps ~/.vcm/server.env and any DB files):
+bash scripts/uninstall-service.sh
+```
+
+Notes:
+
+- No `sudo` / root required; the unit lives at
+  `~/.config/systemd/user/vcm-server.service` (XDG).
+- No `pm2` / `supervisord` / Node global tools required — CHARTER §8
+  says local-first, 0 new deps. systemd is already on the OS.
+- If port 7338 is taken (e.g. by another service), the installer
+  auto-picks a free one in 7338..7399 and writes the choice to
+  `~/.vcm/server.env` so `/api/health` reflects it on first call.
+- `loginctl enable-linger $USER` is enabled so the unit survives SSH
+  logout.
+- macOS / Windows: use `tmux` to keep `python3 server/app.py` alive
+  across logout, OR run inside WSL where the Linux path applies.
+  A `vcm-server.plist` for launchd is on the v0.14.0 roadmap.
+
 ## Daily workflow
 
 ```bash

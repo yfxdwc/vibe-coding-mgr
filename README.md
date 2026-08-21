@@ -108,6 +108,56 @@ exposes 5 read-only tools over stdio:
 ]}}
 ```
 
+## Running persistently (systemd user unit, v0.13.0+)
+
+For a long-lived `vcm-server` that survives logout, reboot, and crashes,
+install it as a systemd user unit (ADR-0025; Linux only):
+
+```bash
+# One-shot install: picks a free port (7338..7399), writes env to
+# ~/.vcm/server.env (chmod 600), renders the unit, daemon-reloads,
+# and enable+starts vcm-server. Idempotent.
+bash scripts/install-service.sh
+
+# Expected final line:
+#   vcm-server installed: http://127.0.0.1:7338/
+
+# Day-to-day:
+systemctl --user status vcm-server          # current state
+journalctl --user -u vcm-server -n 50 -f   # live logs
+
+# Edit config (port, DB path, auth, audit log) without restarting
+# by hand: $EDITOR ~/.vcm/server.env then
+systemctl --user restart vcm-server
+```
+
+The installer:
+
+- **Does NOT** require sudo. The unit lives at
+  `~/.config/systemd/user/vcm-server.service` (XDG-default).
+- **Does NOT** depend on pm2 / supervisord / forever. systemd is already
+  on every modern Linux; this respects CHARTER §8 (0 new deps).
+- **Auto-picks a free port** if 7338 is taken (e.g. by `repowise serve`).
+  The chosen port is written to `~/.vcm/server.env` and surfaced in the
+  install script's success line.
+- **Enables `loginctl enable-linger`** so the unit survives SSH logout.
+
+Uninstall:
+
+```bash
+bash scripts/uninstall-service.sh    # stops the unit, removes it,
+                                    # preserves ~/.vcm/server.env
+                                    # and any DB files
+```
+
+macOS / Windows users fall back to the manual launch path (above):
+
+```bash
+python3 server/app.py &              # or inside tmux for survival
+```
+
+A `vcm-server.plist` for launchd is on the v0.14.0 roadmap.
+
 ## Install
 
 ### Global install (recommended for personal use)
