@@ -2,96 +2,102 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>vcm-server: {{ project_name }}</title>
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 960px; margin: 2rem auto; padding: 0 1rem; color: #1f2937; }
-    h1 { border-bottom: 2px solid #e5e7eb; padding-bottom: 0.5rem; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-top: 1.5rem; }
-    .card { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem; }
-    .card .label { font-size: 0.875rem; color: #6b7280; text-transform: uppercase; }
-    .card .value { font-size: 1.5rem; font-weight: 600; margin-top: 0.5rem; }
-    pre { background: #1f2937; color: #f9fafb; padding: 1rem; border-radius: 8px; overflow-x: auto; font-size: 0.875rem; }
-    a { color: #4f46e5; }
-  </style>
+  <title>vcm-server · {{ project_name }}</title>
+  <link rel="stylesheet" href="/static/css/dashboard.css">
+  <script defer src="/static/js/alpine.min.js"></script>
 </head>
-<body>
-  <h1>📦 {{ project_name }}</h1>
-  <p><a href="/">← back to dashboard</a></p>
+<body x-data="projectView()" x-init="init()">
 
-  <div id="content">
-    <p>Loading…</p>
-  </div>
+  <header>
+    <h1>📦 {{ project_name }}</h1>
+    <div class="subtitle">
+      <a href="/">← back to cockpit</a> &middot;
+      <a :href="'/api/projects/' + encodeURIComponent('{{ project_name }}') + '/full'">JSON</a>
+    </div>
+  </header>
+
+  <div x-show="loading" class="empty">Loading…</div>
+  <div x-show="!data" class="empty">Project not found.</div>
+
+  <template x-if="data">
+    <div>
+      <h2>📂 Path</h2>
+      <div class="panel"><code x-text="data.path"></code></div>
+
+      <h2>🧬 Governance</h2>
+      <div class="grid">
+        <div class="panel" style="text-align: center;">
+          <h3>AGENTS.md</h3>
+          <div class="metric" :style="data.latest_state.governance?.agents_md_present ? 'color:#86efac' : 'color:#fca5a5'">
+            <span x-text="data.latest_state.governance?.agents_md_present ? '✓' : '✗'"></span>
+          </div>
+        </div>
+        <div class="panel" style="text-align: center;">
+          <h3>CHARTER.md</h3>
+          <div class="metric" :style="data.latest_state.governance?.charter_md_present ? 'color:#86efac' : 'color:#fbbf24'">
+            <span x-text="data.latest_state.governance?.charter_md_present ? '✓' : '✗'"></span>
+          </div>
+        </div>
+        <div class="panel" style="text-align: center;"><h3>Skills</h3><div class="metric" x-text="data.latest_state.governance?.skills_count || 0"></div></div>
+        <div class="panel" style="text-align: center;"><h3>ADRs</h3><div class="metric" x-text="data.latest_state.governance?.adrs_count || 0"></div></div>
+        <div class="panel" style="text-align: center;"><h3>TDs</h3><div class="metric" x-text="data.latest_state.governance?.tds_count || 0"></div></div>
+        <div class="panel" style="text-align: center;"><h3>Post-mortems</h3><div class="metric" x-text="data.latest_state.governance?.post_mortems_count || 0"></div></div>
+      </div>
+
+      <h2>🔧 Git</h2>
+      <div class="grid">
+        <div class="panel"><h3>Branch</h3><div class="metric" style="font-size: 1.25rem;" x-text="data.latest_state.git?.branch || '—'"></div></div>
+        <div class="panel"><h3>HEAD</h3><div class="metric" style="font-family: monospace; font-size: 1rem;" x-text="(data.latest_state.git?.head_commit || '').slice(0, 7) || '—'"></div></div>
+        <div class="panel" style="text-align: center;"><h3>Tree</h3><div class="metric" :style="data.latest_state.git?.dirty ? 'color:#fbbf24' : 'color:#86efac'"><span x-text="data.latest_state.git?.dirty ? '⚠ dirty' : '✓ clean'"></span></div></div>
+      </div>
+
+      <h2>🧩 Skills <span style="color: #64748b; font-size: 0.75rem;" x-text="'(' + (data.latest_state.governance?.skills_registered || []).length + ')'"></span></h2>
+      <div class="panel" x-show="!(data.latest_state.governance?.skills_registered || []).length" class="empty">No skills registered.</div>
+      <div class="panel" x-show="(data.latest_state.governance?.skills_registered || []).length">
+        <template x-for="s in (data.latest_state.governance?.skills_registered || [])" :key="s">
+          <span class="skill-tag" x-text="s"></span>
+        </template>
+      </div>
+
+      <h2>🕐 History <span style="color: #64748b; font-size: 0.75rem;" x-text="'(' + data.history.length + ' states)'"></span></h2>
+      <div class="panel">
+        <template x-for="h in data.history" :key="h.id">
+          <div class="timeline-item">
+            <div class="time" x-text="(h.received_at || '').slice(0, 19).replace('T', ' ')"></div>
+            <div>
+              vcm <span x-text="h.vcm_version || '?'"></span> ·
+              schema <span x-text="h.schema_version || '?'"></span> ·
+              state #<span x-text="h.id"></span>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <h2>👁️ First / Last seen</h2>
+      <div class="panel">
+        <div>First: <code x-text="data.first_seen_at || '—'"></code></div>
+        <div>Last:  <code x-text="data.last_seen_at || '—'"></code></div>
+      </div>
+    </div>
+  </template>
 
   <script>
-    async function load() {
-      const resp = await fetch('/api/projects/{{ project_name }}');
-      if (!resp.ok) {
-        document.getElementById('content').innerHTML = '<p>Project not found.</p>';
-        return;
-      }
-      const data = await resp.json();
-      const state = data.state || {};
-      const g = state.governance || {};
-      const git = state.git || {};
-
-      document.getElementById('content').innerHTML = `
-        <h2>Path</h2>
-        <pre>${data.path || 'unknown'}</pre>
-
-        <h2>Governance</h2>
-        <div class="grid">
-          <div class="card">
-            <div class="label">AGENTS.md</div>
-            <div class="value">${g.agents_md_present ? '✓' : '✗'}</div>
-          </div>
-          <div class="card">
-            <div class="label">CHARTER.md</div>
-            <div class="value">${g.charter_md_present ? '✓' : '✗'}</div>
-          </div>
-          <div class="card">
-            <div class="label">Skills</div>
-            <div class="value">${g.skills_count ?? '—'}</div>
-          </div>
-          <div class="card">
-            <div class="label">ADRs</div>
-            <div class="value">${g.adrs_count ?? '—'}</div>
-          </div>
-          <div class="card">
-            <div class="label">TDs</div>
-            <div class="value">${g.tds_count ?? '—'}</div>
-          </div>
-          <div class="card">
-            <div class="label">Post-mortems</div>
-            <div class="value">${g.post_mortems_count ?? '—'}</div>
-          </div>
-        </div>
-
-        <h2>Git</h2>
-        <div class="grid">
-          <div class="card">
-            <div class="label">Branch</div>
-            <div class="value">${git.branch || '—'}</div>
-          </div>
-          <div class="card">
-            <div class="label">HEAD</div>
-            <div class="value" style="font-family: monospace; font-size: 0.875rem;">${(git.head_commit || '').slice(0, 7) || '—'}</div>
-          </div>
-          <div class="card">
-            <div class="label">Working tree</div>
-            <div class="value">${git.dirty ? '⚠ dirty' : '✓ clean'}</div>
-          </div>
-        </div>
-
-        ${g.skills_registered && g.skills_registered.length ? `
-          <h2>Registered Skills</h2>
-          <p>${g.skills_registered.map(s => `<code>${s}</code>`).join(' ')}</p>
-        ` : ''}
-
-        <h2>First seen / Last seen</h2>
-        <p>First: <code>${data.first_seen_at || '—'}</code><br>Last: <code>${data.last_seen_at || '—'}</code></p>
-      `;
+    function projectView() {
+      return {
+        data: null,
+        loading: true,
+        async init() {
+          try {
+            const r = await fetch('/api/projects/{{ project_name }}/full');
+            if (r.ok) this.data = await r.json();
+          } catch (e) {
+            console.error(e);
+          }
+          this.loading = false;
+        },
+      };
     }
-    load();
   </script>
+
 </body>
 </html>
