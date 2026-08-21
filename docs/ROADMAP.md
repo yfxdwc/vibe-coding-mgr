@@ -52,14 +52,29 @@
 - 5 adapter modules + 5 new CLI commands + 2 new HTTP endpoints
 - 8 new HTML pages / partials
 
-## v0.5.0 (next, ~1 month)
+## v0.5.0 ✅ DONE (2026-08-21)
 
-- [ ] **WebSocket** transport for MCP (stdio current; v0.5 adds HTTP/WS)
-- [ ] **Skill marketplace / publish** (`vcm skill publish`, status field gate)
-- [ ] **Audit log** (auth 401 events currently silent)
-- [ ] **Cross-server leaderboard** (gossip protocol, no central DB)
-- [ ] **Trend dashboards** (governance metrics over time)
+- [x] **Audit log** (ADR-0009) — JSONL append-only at `~/.vcm/audit.log` /
+      `$VCM_AUDIT_LOG`; auth_failure + state_pushed + state_rejected events
+- [x] **Trend dashboard** (ADR-0010) — `/api/dashboard/trend` weekly
+      buckets, no schema change (pure function on states table)
+- [x] **Skill marketplace** (ADR-0008) — local registry at
+      `~/.vcm/registry/`, publish/unpublish/discover/install
+
+### v0.5.0 metrics
+- 155/155 unit tests pass (was 122 in v0.4.0 → +33 tests)
+- 6/6 hard checks pass
+- 10 ADRs (0001–0010)
+- 4 new endpoints (/api/audit, /api/dashboard/trend, /audit, /trends)
+- 5 new CLI sub-commands (publish, unpublish, discover, install)
+
+## v0.6.0 (next, ~2 months)
+
+- [ ] **WebSocket** transport for MCP (stdio current; v0.6 adds HTTP/WS)
 - [ ] **Per-user ACLs** (replace single-password BasicAuth)
+- [ ] **Cross-server leaderboard** (gossip protocol, no central DB)
+- [ ] **Audit log: SQLite backing** + filtering UI
+- [ ] **Skill marketplace: GitHub / GitLab sync**
 
 ## v1.0.0 (~3 months, stability milestone)
 
