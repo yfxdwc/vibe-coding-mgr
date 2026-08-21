@@ -1,0 +1,106 @@
+{% extends "_layout.html" %}
+{# server/templates/peers.html — cross-project OSS attention (v0.3.0)
+   视角: vcm peers add/list — 关注的项目仓库, 治理视角看它们
+#}
+{% set nav_active = 'peers' %}
+
+{% block title %}peers{% endblock %}
+
+{% block page_head %}
+<header class="page-head">
+  <div class="crumbs">
+    <a href="/">cockpit</a>
+    <span class="sep">/</span>
+    <span class="crumb-current">peers</span>
+  </div>
+  <h1 class="text-display">Peers (OSS we follow)</h1>
+  <p class="text-meta">Public repositories we track for governance patterns.</p>
+</header>
+{% endblock %}
+
+{% block answers_line %}
+<div class="answers-line">
+  <span class="answers-tag">Answers</span>
+  <p>which OSS projects shape our governance decisions, and what's their latest signal?</p>
+</div>
+{% endblock %}
+
+{% block content %}
+
+<section x-show="!loaded" class="empty-state">
+  <p>Loading peer config…</p>
+</section>
+
+<section x-show="loaded && !peers.length" class="empty-state" style="border-color: var(--accent);">
+  <p>No peers configured yet.</p>
+  <p class="text-meta">
+    On a project, run:
+    <code>vcm peers add owner/name</code>
+    to start tracking an OSS repo as a peer.
+  </p>
+</section>
+
+<section x-show="loaded && peers.length" class="stack-5" data-c="peers-list">
+  <div class="c-card">
+    <div class="c-card-head">
+      <h2 class="text-section">Watch list</h2>
+      <span class="text-meta">
+        <span x-text="peers.length"></span> repo<span x-show="peers.length !== 1">s</span> tracked
+      </span>
+    </div>
+    <div style="overflow-x: auto;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Repo</th>
+            <th class="num">Stars</th>
+            <th>What we learn from it</th>
+            <th>Last fetched</th>
+          </tr>
+        </thead>
+        <tbody>
+          <template x-for="p in peers" :key="p.repo">
+            <tr :data-repo="p.repo">
+              <td>
+                <a class="mono" :href="'https://github.com/' + p.repo" target="_blank" rel="noopener"
+                   x-text="p.repo"></a>
+              </td>
+              <td class="num" x-text="p.stars ?? '—'"></td>
+              <td class="text-meta" x-text="p.note || '—'"></td>
+              <td class="text-meta mono" x-text="p.fetched_at || 'never'"></td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+{% endblock %}
+
+{% block extra_body %}
+<script>
+function page() {
+  return {
+    peers: [],
+    loaded: false,
+    summary: {},
+    async init() {
+      const sum = await this.fetchJSON('/api/dashboard/summary');
+      this.summary = { ...sum };
+
+      // Peers list lives at the user's home dir; we expose via API
+      try {
+        const r = await fetch('/api/peers');
+        if (r.ok) {
+          const j = await r.json();
+          this.peers = j.peers || [];
+        }
+      } catch (e) { console.error(e); }
+      this.loaded = true;
+    },
+    async fetchJSON(url) { const r = await fetch(url); return r.ok ? r.json() : {}; },
+  };
+}
+</script>
+{% endblock %}

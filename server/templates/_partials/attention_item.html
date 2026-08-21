@@ -1,0 +1,15 @@
+{# server/templates/_partials/attention_item.html — attention 单条 (DESIGN.md §4)
+   用法：{% include "_partials/attention_item.html" %}
+   依赖：父级 Alpine 上下文提供 `item` 对象 (含 .project / .reasons / .severity)
+#}
+<div class="attention" :class="item.severity === 'critical' ? 'attention--critical' : ''">
+  <div class="cluster-3" style="justify-content: space-between;">
+    <h3 x-text="item.project"></h3>
+    <a class="btn btn--sm btn--ghost" :href="'/projects/' + item.project + '?tab=health'">view</a>
+  </div>
+  <div class="reasons">
+    <template x-for="r in item.reasons" :key="r">
+      <span class="reason" x-text="r"></span>
+    </template>
+  </div>
+</div>

@@ -1,60 +1,102 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>vcm-server · cockpit</title>
-  <link rel="stylesheet" href="/static/css/dashboard.css">
-  <script defer src="/static/js/alpine.min.js"></script>
-  <script src="/static/js/echarts.min.js"></script>
-</head>
-<body x-data="cockpit()" x-init="init()">
+{% extends "_layout.html" %}
+{# server/templates/dashboard.html — multi-project cockpit
+   v0.3.0 redesign (ADR-0001): 3-KPI grid + tabbed view + URL state
+   Tabs: ?tab=overview | attention | activity
+#}
+{% set nav_active = 'cockpit' %}
 
-  <header>
-    <h1>🛠️ vcm-server cockpit</h1>
-    <div class="subtitle">
-      Multi-project governance &middot; <span x-text="summary.total_projects || 0"></span> projects &middot;
-      <span x-text="summary.total_skills || 0"></span> skills &middot;
-      <span x-text="summary.total_adrs || 0"></span> ADRs &middot;
-      <a href="/skills">→ skill registry</a>
-    </div>
-  </header>
+{% block title %}cockpit{% endblock %}
 
-  <!-- Top metric strip -->
-  <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); margin-bottom: 1.5rem;">
-    <div class="panel" style="text-align: center;">
-      <h3>Projects</h3>
-      <div class="metric" x-text="summary.total_projects || '—'"></div>
-    </div>
-    <div class="panel" style="text-align: center;">
-      <h3>Healthy</h3>
-      <div class="metric" style="color: #86efac;" x-text="summary.healthy || 0"></div>
-    </div>
-    <div class="panel" style="text-align: center;">
-      <h3>Warning</h3>
-      <div class="metric" style="color: #fbbf24;" x-text="summary.warning || 0"></div>
-    </div>
-    <div class="panel" style="text-align: center;">
-      <h3>Needs attention</h3>
-      <div class="metric" style="color: #fca5a5;" x-text="summary.needs_attention || 0"></div>
-    </div>
+{% block page_head %}
+<header class="page-head">
+  <div class="crumbs">
+    <span class="crumb-current">cockpit</span>
+  </div>
+  <h1 class="text-display">Multi-project cockpit</h1>
+  <p class="text-meta">All projects that have pushed state to this server, ranked by attention needed.</p>
+</header>
+{% endblock %}
+
+{% block answers_line %}
+<div class="answers-line">
+  <span class="answers-tag">Answers</span>
+  <p>which projects are unhealthy, what they lack, and what's changed since you last looked.</p>
+</div>
+{% endblock %}
+
+{% block top_kpi %}
+<section class="kpi-grid" data-c="kpi-grid" aria-label="Top KPIs">
+
+  <div class="kpi-cell" data-c="kpi" data-kpi="projects">
+    <span class="kpi-label">Projects</span>
+    <span class="kpi-value"><span x-text="summary.total_projects ?? '—'"></span></span>
+    <span class="kpi-meta"><span x-text="summary.healthy ?? 0"></span> fully healthy ·
+      <span x-text="summary.warning ?? 0"></span> with warnings</span>
   </div>
 
-  <!-- Main 4-panel grid -->
-  <div class="grid" style="grid-template-columns: 2fr 1fr;">
+  <div class="kpi-cell" data-c="kpi" data-kpi="attention">
+    <span class="kpi-label">Needs attention</span>
+    <span class="kpi-value" :style="(summary.needs_attention ?? 0) > 0 ? 'color: var(--fail)' : ''">
+      <span x-text="summary.needs_attention ?? 0"></span>
+    </span>
+    <span class="kpi-meta">
+      <span x-show="(summary.needs_attention ?? 0) > 0" style="color: var(--fail);">critical projects</span>
+      <span x-show="(summary.needs_attention ?? 0) === 0" style="color: var(--ok);">all quiet ✓</span>
+    </span>
+  </div>
 
-    <!-- Panel 1: Project health matrix -->
-    <div class="panel">
-      <h2>📊 Project health matrix</h2>
-      <div x-show="!overview.length" class="empty">No projects yet — run <code>vcm push</code> from each.</div>
-      <table class="matrix-table" x-show="overview.length">
+  <div class="kpi-cell" data-c="kpi" data-kpi="registries">
+    <span class="kpi-label">Registry footprint</span>
+    <span class="kpi-value"><span x-text="summary.total_skills ?? 0"></span><span class="unit">skills</span></span>
+    <span class="kpi-meta">
+      <span x-text="summary.total_adrs ?? 0"></span> ADRs ·
+      <span x-show="summary.total_post_mortems != null"><span x-text="summary.total_post_mortems"></span> post-mortems</span>
+    </span>
+  </div>
+
+</section>
+{% endblock %}
+
+{% block tabs %}
+<nav class="tabs" role="tablist">
+  <button class="tab" role="tab" :class="{ active: tab === 'overview' }"
+          @click="setTab('overview')" data-tab="overview">Overview</button>
+  <button class="tab" role="tab" :class="{ active: tab === 'attention' }"
+          @click="setTab('attention')" data-tab="attention">
+    Attention <span x-text="`(${attention.length})`" class="text-meta" x-show="attention.length"></span>
+  </button>
+  <button class="tab" role="tab" :class="{ active: tab === 'activity' }"
+          @click="setTab('activity')" data-tab="activity">Activity</button>
+</nav>
+{% endblock %}
+
+{% block content %}
+
+<!-- —— tab=overview : 项目健康矩阵 + 跨项目 skill —————————————————————— -->
+<section x-show="tab === 'overview'" class="stack-5" data-c="tab-panel" data-tab="overview">
+  <div class="c-card" data-c="card-projects">
+    <div class="c-card-head">
+      <h2 class="text-section">Project health matrix</h2>
+      <span class="text-meta">
+        <span x-text="overview.length"></span> registered ·
+        click row for detail
+      </span>
+    </div>
+
+    <div x-show="!overview.length" class="empty-state">
+      <p>No projects yet — run <code>vcm push</code> from each.</p>
+    </div>
+
+    <div x-show="overview.length" style="overflow-x: auto;">
+      <table class="data-table" data-c="projects-table">
         <thead>
           <tr>
             <th>Project</th>
             <th>AGENTS</th>
             <th>CHARTER</th>
-            <th>Skills</th>
-            <th>ADRs</th>
-            <th>TDs</th>
+            <th class="num">Skills</th>
+            <th class="num">ADRs</th>
+            <th class="num">TDs</th>
             <th>Branch</th>
             <th>Tree</th>
             <th>Last seen</th>
@@ -62,156 +104,259 @@
         </thead>
         <tbody>
           <template x-for="p in overview" :key="p.id">
-            <tr @click="window.location='/projects/' + p.name">
-              <td><a :href="'/projects/' + p.name" @click.stop x-text="p.name"></a></td>
-              <td :class="p.agents_md_present ? 'cell-ok' : 'cell-fail'">
-                <span x-text="p.agents_md_present ? '✓' : '✗'"></span>
+            <tr @click="window.location='/projects/' + p.name"
+                :class="rowClass(p)"
+                :data-project="p.name">
+
+              <td>
+                <a :href="'/projects/' + p.name" @click.stop
+                   style="color: var(--text-primary); font-weight: 500;" x-text="p.name"></a>
               </td>
-              <td :class="p.charter_md_present ? 'cell-ok' : 'cell-warn'">
-                <span x-text="p.charter_md_present ? '✓' : '✗'"></span>
+
+              <td>
+                <span class="badge" :class="p.agents_md_present ? 'badge--ok' : 'badge--fail'">
+                  <span x-text="p.agents_md_present ? '✓' : '✗'"></span>
+                </span>
               </td>
-              <td x-text="p.skills_count"></td>
-              <td x-text="p.adrs_count"></td>
-              <td x-text="p.tds_count"></td>
-              <td><code x-text="p.git_branch || '—'"></code></td>
-              <td :class="p.git_dirty ? 'cell-warn' : 'cell-ok'">
-                <span x-text="p.git_dirty ? '⚠ dirty' : '✓ clean'"></span>
+
+              <td>
+                <span class="badge" :class="p.charter_md_present ? 'badge--ok' : 'badge--warn'">
+                  <span x-text="p.charter_md_present ? '✓' : '⚠'"></span>
+                </span>
               </td>
-              <td style="color: #64748b; font-size: 0.75rem;" x-text="(p.last_seen_at || '').slice(0, 16)"></td>
+
+              <td class="num" x-text="p.skills_count"></td>
+              <td class="num" x-text="p.adrs_count"></td>
+              <td class="num" :style="(p.tds_count ?? 0) > 30 ? 'color: var(--fail)' : ''"
+                  x-text="p.tds_count"></td>
+
+              <td><code x-text="p.git_branch || '—'" class="nowrap"></code></td>
+              <td>
+                <span class="badge" :class="p.git_dirty ? 'badge--warn' : 'badge--ok'">
+                  <span x-text="p.git_dirty ? '⚠ dirty' : '✓ clean'"></span>
+                </span>
+              </td>
+
+              <td class="nowrap text-meta" x-text="(p.last_seen_at || '').slice(0, 16).replace('T', ' ')"></td>
             </tr>
           </template>
         </tbody>
       </table>
     </div>
+  </div>
 
-    <!-- Panel 2: Skills cross-project -->
-    <div class="panel">
-      <h2>🧩 Skill cross-project</h2>
-      <div x-show="!skillMatrix.length" class="empty">No skills yet.</div>
-      <div x-show="skillMatrix.length">
-        <template x-for="row in skillMatrix.slice(0, 15)" :key="row.skill">
-          <div class="metric-row">
-            <div>
-              <span class="skill-tag" x-text="row.skill"></span>
-              <span style="color: #64748b; font-size: 0.75rem; margin-left: 0.5rem;" x-text="'×' + row.project_count"></span>
-            </div>
-            <div style="font-size: 0.75rem; color: #64748b;" x-text="row.projects.slice(0, 3).join(', ') + (row.projects.length > 3 ? '…' : '')"></div>
-          </div>
-        </template>
-      </div>
+  <div class="c-card" data-c="card-skills-xref">
+    <div class="c-card-head">
+      <h2 class="text-section">Skill cross-project</h2>
+      <a class="btn btn--sm btn--ghost" href="/skills">view registry →</a>
     </div>
-
-    <!-- Panel 3: Needs attention -->
-    <div class="panel tall" style="grid-column: 1 / -1;">
-      <h2>⚠️ Needs attention</h2>
-      <div x-show="!attention.length" class="empty" style="color: #86efac;">✓ All projects healthy.</div>
-      <div x-show="attention.length">
-        <template x-for="item in attention" :key="item.project">
-          <div :class="item.severity === 'critical' ? 'attention-item critical' : 'attention-item'">
-            <div class="title" x-text="item.project"></div>
-            <div style="font-size: 0.875rem; color: #cbd5e1; margin-top: 0.25rem;">
-              <template x-for="r in item.reasons" :key="r">
-                <span style="margin-right: 0.5rem;">• <span x-text="r"></span></span>
-              </template>
-            </div>
-          </div>
-        </template>
-      </div>
+    <div x-show="!skillMatrix.length" class="empty-state">
+      <p>No skills yet.</p>
     </div>
-
-    <!-- Panel 4: Recent activity + chart -->
-    <div class="panel tall">
-      <h2>🕐 Recent activity</h2>
-      <div id="health-chart"></div>
-      <template x-for="act in activity.slice(0, 8)" :key="act.id">
-        <div class="timeline-item">
-          <div class="time" x-text="(act.received_at || '').slice(0, 19).replace('T', ' ')"></div>
-          <div><span class="name" x-text="act.project_name"></span> pushed state</div>
+    <div class="stack-3" x-show="skillMatrix.length">
+      <template x-for="row in skillMatrix.slice(0, 12)" :key="row.skill">
+        <div class="cluster-4" style="justify-content: space-between;">
+          <div class="cluster-2">
+            <span class="tag" x-text="row.skill"></span>
+            <span class="text-meta mono">× <span x-text="row.project_count"></span></span>
+          </div>
+          <div class="text-meta" style="text-align: right;">
+            <span x-text="row.projects.slice(0, 4).join(', ') + (row.projects.length > 4 ? '…' : '')"></span>
+          </div>
         </div>
       </template>
     </div>
+  </div>
+</section>
 
+<!-- —— tab=attention : 治理风险项目 —————————————————————————————— -->
+<section x-show="tab === 'attention'" class="stack-5" data-c="tab-panel" data-tab="attention">
+  <div class="c-card" :class="attention.some(a => a.severity === 'critical') ? 'c-card--featured' : ''"
+       data-c="card-attention">
+    <div class="c-card-head">
+      <h2 class="text-section">
+        <span x-text="attention.length"></span> project<span x-show="attention.length !== 1">s</span> need attention
+      </h2>
+      <span class="text-meta">click <em>view</em> to inspect</span>
+    </div>
+
+    <div x-show="!attention.length" class="empty-state" style="border-style: solid; border-color: var(--ok-dim);">
+      <p style="color: var(--ok); font-family: var(--font-serif); font-size: var(--fs-section);">✓ all projects healthy</p>
+      <p>No outstanding alerts. Last scan: <span class="mono" x-text="now"></span>.</p>
+    </div>
+
+    <div class="stack-3" x-show="attention.length">
+      <template x-for="item in attention" :key="item.project">
+        {% include "_partials/attention_item.html" %}
+      </template>
+    </div>
+  </div>
+</section>
+
+<!-- —— tab=activity : 最近 push + 健康雷达 —————————————————————————— -->
+<section x-show="tab === 'activity'" class="stack-5" data-c="tab-panel" data-tab="activity">
+  <div class="c-card">
+    <div class="c-card-head">
+      <h2 class="text-section">Health radar</h2>
+      <span class="text-meta">snapshot at <span class="mono" x-text="now"></span></span>
+    </div>
+    <div id="health-chart" class="chart-frame"></div>
   </div>
 
-  <footer>
-    vcm-server v0.2.0 &middot; powered by Flask + Alpine.js + ECharts
-  </footer>
+  <div class="c-card">
+    <div class="c-card-head">
+      <h2 class="text-section">Recent pushes</h2>
+      <span class="text-meta"><span x-text="activity.length"></span> events</span>
+    </div>
+    <div x-show="!activity.length" class="empty-state">
+      <p>Nothing pushed yet — once projects call <code>vcm push</code>, events show here.</p>
+    </div>
+    <div class="timeline" x-show="activity.length">
+      <template x-for="act in activity.slice(0, 12)" :key="act.id">
+        <div class="timeline-item">
+          <span class="timeline-dot"></span>
+          <div class="timeline-body">
+            <span class="timeline-time" x-text="(act.received_at || '').slice(0, 19).replace('T', ' ')"></span>
+            <span class="timeline-text">
+              <a :href="'/projects/' + act.project_name" x-text="act.project_name"></a>
+              pushed state
+            </span>
+          </div>
+        </div>
+      </template>
+    </div>
+  </div>
+</section>
 
-  <script>
-    function cockpit() {
-      return {
-        summary: {},
-        overview: [],
-        skillMatrix: [],
-        attention: [],
-        activity: [],
-        async init() {
-          await Promise.all([
-            this.loadSummary(),
-            this.loadOverview(),
-            this.loadSkillMatrix(),
-            this.loadAttention(),
-            this.loadActivity(),
-          ]);
-          this.$nextTick(() => this.renderChart());
-        },
-        async fetchJSON(url) {
-          const r = await fetch(url);
-          return r.json();
-        },
-        async loadSummary() { this.summary = await this.fetchJSON('/api/dashboard/summary'); },
-        async loadOverview() { this.overview = await this.fetchJSON('/api/dashboard/overview'); },
-        async loadSkillMatrix() { this.skillMatrix = await this.fetchJSON('/api/dashboard/skill-matrix'); },
-        async loadAttention() { this.attention = await this.fetchJSON('/api/dashboard/attention'); },
-        async loadActivity() { this.activity = await this.fetchJSON('/api/dashboard/activity'); },
-        renderChart() {
-          const el = document.getElementById('health-chart');
-          if (!el || !window.echarts) return;
-          const chart = echarts.init(el, 'dark');
-          const projects = this.overview;
-          const data = projects.map(p => ({
-            name: p.name,
-            value: [
-              p.agents_md_present ? 1 : 0,
-              p.charter_md_present ? 1 : 0,
-              p.skills_count || 0,
-              p.adrs_count || 0,
-              p.tds_count || 0,
-              p.git_dirty ? 0 : 1,
-            ],
-          }));
-          chart.setOption({
-            backgroundColor: 'transparent',
-            tooltip: { trigger: 'item' },
-            legend: { textStyle: { color: '#94a3b8' }, bottom: 0 },
-            radar: {
-              indicator: [
-                { name: 'AGENTS', max: 1 },
-                { name: 'CHARTER', max: 1 },
-                { name: 'Skills', max: 30 },
-                { name: 'ADRs', max: 50 },
-                { name: 'TDs', max: 100 },
-                { name: 'Clean', max: 1 },
-              ],
-              shape: 'polygon',
-              splitNumber: 4,
-              axisName: { color: '#cbd5e1', fontSize: 10 },
-              splitLine: { lineStyle: { color: '#334155' } },
-              splitArea: { areaStyle: { color: ['rgba(30,41,59,0.3)', 'rgba(30,41,59,0.1)'] } },
-              axisLine: { lineStyle: { color: '#334155' } },
-            },
-            series: [{
-              type: 'radar',
-              data: data,
-              areaStyle: { opacity: 0.2 },
-              lineStyle: { width: 2 },
-            }],
-          });
-          window.addEventListener('resize', () => chart.resize());
-        },
-      };
-    }
-  </script>
+{% endblock %}
 
-</body>
-</html>
+{% block extra_head %}
+<script src="/static/js/echarts.min.js"></script>
+{% endblock %}
+
+{% block extra_body %}
+<script>
+function page() {
+  return {
+    version: '?',
+    now: new Date().toISOString().slice(0, 19).replace('T', ' '),
+
+    // URL-routed state (DESIGN.md §5)
+    tab: new URLSearchParams(location.search).get('tab') || 'overview',
+
+    // data
+    summary: { health_label: '…' },
+    overview: [],
+    skillMatrix: [],
+    attention: [],
+    activity: [],
+
+    async init() {
+      // top-nav universal summary
+      try {
+        const r = await fetch('/api/health');
+        if (r.ok) {
+          const j = await r.json();
+          this.version = j.version || '?';
+        }
+      } catch {}
+      const sum = await this.fetchJSON('/api/dashboard/summary');
+      this.summary = { ...sum, health_label: this._healthLabel(sum) };
+
+      await Promise.all([
+        this.loadOverview(),
+        this.loadSkillMatrix(),
+        this.loadAttention(),
+        this.loadActivity(),
+      ]);
+      this.$nextTick(() => this.renderChart());
+    },
+
+    _healthLabel(s) {
+      if (!s) return '—';
+      if (s.needs_attention > 0) return `${s.needs_attention} need attention`;
+      if (s.warning > 0)        return `${s.warning} warning`;
+      if (s.healthy > 0)        return 'all healthy';
+      return 'no projects';
+    },
+
+    async fetchJSON(url) { const r = await fetch(url); return r.ok ? r.json() : {}; },
+    async loadOverview()    { this.overview    = await this.fetchJSON('/api/dashboard/overview'); },
+    async loadSkillMatrix() { this.skillMatrix = await this.fetchJSON('/api/dashboard/skill-matrix'); },
+    async loadAttention()   { this.attention   = await this.fetchJSON('/api/dashboard/attention'); },
+    async loadActivity()    { this.activity    = await this.fetchJSON('/api/dashboard/activity'); },
+
+    setTab(t) {
+      this.tab = t;
+      const u = new URL(location.href);
+      if (t === 'overview') u.searchParams.delete('tab'); else u.searchParams.set('tab', t);
+      history.replaceState(null, '', u);
+    },
+
+    rowClass(p) {
+      if (!p.charter_md_present || (p.tds_count ?? 0) > 30 || p.git_dirty) return 'row-warn';
+      if (!p.agents_md_present) return 'row-fail';
+      return 'row-ok';
+    },
+
+    toggleTheme() {
+      const h = document.documentElement;
+      h.dataset.theme = h.dataset.theme === 'light' ? 'dark' : 'light';
+      localStorage.setItem('vcm-theme', h.dataset.theme);
+    },
+
+    renderChart() {
+      const el = document.getElementById('health-chart');
+      if (!el || !window.echarts) return;
+      const chart = echarts.init(el, 'dark');
+      const indicator = [
+        { name: 'AGENTS',  max: 1 },
+        { name: 'CHARTER', max: 1 },
+        { name: 'Skills',  max: 30 },
+        { name: 'ADRs',    max: 50 },
+        { name: 'Clean',   max: 1 },
+      ];
+      const data = this.overview.map(p => ({
+        name: p.name,
+        value: [
+          p.agents_md_present  ? 1 : 0,
+          p.charter_md_present ? 1 : 0,
+          p.skills_count || 0,
+          p.adrs_count   || 0,
+          p.git_dirty    ? 0 : 1,
+        ],
+      }));
+      chart.setOption({
+        backgroundColor: 'transparent',
+        tooltip: { trigger: 'item' },
+        legend: { textStyle: { color: '#a8a29e' }, bottom: 0, type: 'scroll' },
+        radar: {
+          indicator,
+          shape: 'polygon',
+          splitNumber: 4,
+          axisName: { color: '#cbd5e1', fontSize: 11 },
+          splitLine: { lineStyle: { color: '#3f3f46' } },
+          splitArea: { areaStyle: { color: ['rgba(15,15,16,0.5)', 'rgba(22,22,24,0.3)'] } },
+          axisLine: { lineStyle: { color: '#3f3f46' } },
+        },
+        series: [{
+          type: 'radar',
+          data,
+          areaStyle: { opacity: 0.18 },
+          lineStyle: { width: 2 },
+        }],
+      });
+      window.addEventListener('resize', () => chart.resize());
+    },
+  };
+}
+
+// honour persisted theme
+(function(){
+  try {
+    const t = localStorage.getItem('vcm-theme');
+    if (t) document.documentElement.dataset.theme = t;
+  } catch {}
+})();
+</script>
+{% endblock %}

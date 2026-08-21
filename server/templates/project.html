@@ -1,103 +1,300 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>vcm-server · {{ project_name }}</title>
-  <link rel="stylesheet" href="/static/css/dashboard.css">
-  <script defer src="/static/js/alpine.min.js"></script>
-</head>
-<body x-data="projectView()" x-init="init()">
+{% extends "_layout.html" %}
+{# server/templates/project.html — single-project detail (v0.3.0 redesign)
+   Tabs: ?tab=overview | governance | git | health | history
+#}
+{% set nav_active = 'projects' %}
+{% set project_name = project_name %}
 
-  <header>
-    <h1>📦 {{ project_name }}</h1>
-    <div class="subtitle">
-      <a href="/">← back to cockpit</a> &middot;
-      <a :href="'/api/projects/' + encodeURIComponent('{{ project_name }}') + '/full'">JSON</a>
+{% block title %}{{ project_name }}{% endblock %}
+
+{% block page_head %}
+<header class="page-head">
+  <div class="crumbs">
+    <a href="/">cockpit</a>
+    <span class="sep">/</span>
+    <span class="crumb-current">{{ project_name }}</span>
+  </div>
+  <h1 class="text-display" x-text="data?.name || '{{ project_name }}'"></h1>
+  <p class="text-meta">
+    <code x-text="data?.path || 'loading…'"></code>
+    · first seen <span class="mono" x-text="(data?.first_seen_at || '').slice(0, 10) || '—'"></span>
+    · last seen <span class="mono" x-text="(data?.last_seen_at || '').slice(0, 16).replace('T', ' ') || '—'"></span>
+  </p>
+</header>
+{% endblock %}
+
+{% block answers_line %}
+<div class="answers-line">
+  <span class="answers-tag">Answers</span>
+  <p>is this project governable, what state is it in, and what's the last known snapshot?</p>
+</div>
+{% endblock %}
+
+{% block top_kpi %}
+<section class="kpi-grid" data-c="kpi-grid" x-show="data" x-cloak>
+
+  <div class="kpi-cell">
+    <span class="kpi-label">Governance</span>
+    <span class="kpi-value">
+      <span x-text="kpiGovernanceScore() + '%'" :style="governanceTone()"></span>
+    </span>
+    <span class="kpi-meta">
+      <span x-text="data?.latest_state?.governance?.skills_count ?? 0"></span> skills
+      · <span x-text="data?.latest_state?.governance?.adrs_count ?? 0"></span> ADRs
+    </span>
+  </div>
+
+  <div class="kpi-cell">
+    <span class="kpi-label">Tech debt</span>
+    <span class="kpi-value">
+      <span x-text="data?.latest_state?.governance?.tds_count ?? 0"
+            :style="(data?.latest_state?.governance?.tds_count ?? 0) > 30 ? 'color: var(--fail)' : ''"></span>
+      <span class="unit">TDs</span>
+    </span>
+    <span class="kpi-meta">
+      <span x-show="(data?.latest_state?.governance?.post_mortems_count ?? 0) > 0">
+        <span x-text="data.latest_state.governance.post_mortems_count"></span> post-mortems
+      </span>
+    </span>
+  </div>
+
+  <div class="kpi-cell">
+    <span class="kpi-label">Working tree</span>
+    <span class="kpi-value" :style="data?.latest_state?.git?.dirty ? 'color: var(--warn)' : 'color: var(--ok)'">
+      <span x-text="data?.latest_state?.git?.dirty ? 'dirty' : 'clean'"></span>
+    </span>
+    <span class="kpi-meta">
+      branch <code x-text="data?.latest_state?.git?.branch || '—'"></code>
+      · HEAD <code x-text="(data?.latest_state?.git?.head_commit || '').slice(0, 7) || '—'"></code>
+    </span>
+  </div>
+
+</section>
+{% endblock %}
+
+{% block tabs %}
+<nav class="tabs" x-show="data" x-cloak>
+  <button class="tab" :class="{ active: tab === 'overview' }" @click="setTab('overview')">Overview</button>
+  <button class="tab" :class="{ active: tab === 'governance' }" @click="setTab('governance')">Governance</button>
+  <button class="tab" :class="{ active: tab === 'health' }" @click="setTab('health')">Health</button>
+  <button class="tab" :class="{ active: tab === 'history' }" @click="setTab('history')">History</button>
+</nav>
+{% endblock %}
+
+{% block content %}
+
+<div x-show="loading" class="empty-state">
+  <p>Loading project state…</p>
+</div>
+
+<div x-show="!loading && !data" class="empty-state" style="border-color: var(--fail-dim);">
+  <p style="color: var(--fail);">Project not found.</p>
+  <p class="text-meta">It may have been removed, or <code>vcm push</code> was never called.</p>
+  <a class="btn btn--ghost" href="/">← back to cockpit</a>
+</div>
+
+<!-- —— overview ———————————————————————————————————————————————— -->
+<section x-show="data && tab === 'overview'" class="stack-5" data-c="tab-panel" data-tab="overview">
+
+  <div class="c-card">
+    <div class="c-card-head">
+      <h2 class="text-section">Skills registered</h2>
+      <span class="text-meta">
+        <span x-text="(data?.latest_state?.governance?.skills_registered || []).length"></span> skill<span x-show="(data?.latest_state?.governance?.skills_registered || []).length !== 1">s</span>
+      </span>
     </div>
-  </header>
+    <div x-show="!(data?.latest_state?.governance?.skills_registered || []).length" class="empty-state">
+      <p>No skills registered. Run <code>vcm skill add &lt;name&gt;</code> in the project.</p>
+    </div>
+    <div class="cluster-2" x-show="(data?.latest_state?.governance?.skills_registered || []).length">
+      <template x-for="s in (data?.latest_state?.governance?.skills_registered || [])" :key="s">
+        <a class="tag tag--soft" :href="'/skills?focus=' + encodeURIComponent(s)" x-text="s"></a>
+      </template>
+    </div>
+  </div>
 
-  <div x-show="loading" class="empty">Loading…</div>
-  <div x-show="!data" class="empty">Project not found.</div>
+  <div class="c-card">
+    <div class="c-card-head">
+      <h2 class="text-section">Quick facts</h2>
+    </div>
+    <dl class="stack-3">
+      <div class="cluster-3">
+        <dt class="text-label" style="width: 120px;">Project name</dt>
+        <dd class="mono" x-text="data?.name"></dd>
+      </div>
+      <div class="cluster-3">
+        <dt class="text-label" style="width: 120px;">Path</dt>
+        <dd class="mono" x-text="data?.path"></dd>
+      </div>
+      <div class="cluster-3">
+        <dt class="text-label" style="width: 120px;">First push</dt>
+        <dd class="mono" x-text="(data?.first_seen_at || '').slice(0, 19).replace('T', ' ')"></dd>
+      </div>
+      <div class="cluster-3">
+        <dt class="text-label" style="width: 120px;">Last push</dt>
+        <dd class="mono" x-text="(data?.last_seen_at || '').slice(0, 19).replace('T', ' ')"></dd>
+      </div>
+    </dl>
+  </div>
+</section>
 
-  <template x-if="data">
-    <div>
-      <h2>📂 Path</h2>
-      <div class="panel"><code x-text="data.path"></code></div>
+<!-- —— governance ——————————————————————————————————————————————— -->
+<section x-show="data && tab === 'governance'" class="stack-5" data-c="tab-panel" data-tab="governance">
 
-      <h2>🧬 Governance</h2>
-      <div class="grid">
-        <div class="panel" style="text-align: center;">
-          <h3>AGENTS.md</h3>
-          <div class="metric" :style="data.latest_state.governance?.agents_md_present ? 'color:#86efac' : 'color:#fca5a5'">
-            <span x-text="data.latest_state.governance?.agents_md_present ? '✓' : '✗'"></span>
+  <div class="c-card">
+    <div class="c-card-head">
+      <h2 class="text-section">Governance documents</h2>
+    </div>
+    <table class="data-table">
+      <thead>
+        <tr><th>Document</th><th>Status</th><th>Required by CHARTER</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>AGENTS.md</code></td>
+          <td>
+            <span class="badge" :class="data?.latest_state?.governance?.agents_md_present ? 'badge--ok' : 'badge--fail'">
+              <span x-text="data?.latest_state?.governance?.agents_md_present ? 'present' : 'missing'"></span>
+            </span>
+          </td>
+          <td class="text-meta">Yes — project rules</td>
+        </tr>
+        <tr>
+          <td><code>CHARTER.md</code></td>
+          <td>
+            <span class="badge" :class="data?.latest_state?.governance?.charter_md_present ? 'badge--ok' : 'badge--warn'">
+              <span x-text="data?.latest_state?.governance?.charter_md_present ? 'present' : 'missing'"></span>
+            </span>
+          </td>
+          <td class="text-meta">Yes — constitutional rules</td>
+        </tr>
+        <tr>
+          <td><code>post-mortems/</code></td>
+          <td>
+            <span class="badge" :class="(data?.latest_state?.governance?.post_mortems_count ?? 0) > 0 ? 'badge--ok' : 'badge--idle'">
+              <span x-text="(data?.latest_state?.governance?.post_mortems_count ?? 0) + ' entries'"></span>
+            </span>
+          </td>
+          <td class="text-meta">Encouraged — incident history</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi-cell">
+      <span class="kpi-label">ADRs</span>
+      <span class="kpi-value" x-text="data?.latest_state?.governance?.adrs_count ?? 0"></span>
+      <span class="kpi-meta">Architecture Decision Records</span>
+    </div>
+    <div class="kpi-cell">
+      <span class="kpi-label">Tech debts</span>
+      <span class="kpi-value"
+            :style="(data?.latest_state?.governance?.tds_count ?? 0) > 30 ? 'color: var(--fail)' : ''"
+            x-text="data?.latest_state?.governance?.tds_count ?? 0"></span>
+      <span class="kpi-meta">TD-XXX entries in <code>TECH_DEBT.md</code></span>
+    </div>
+    <div class="kpi-cell">
+      <span class="kpi-label">Skills</span>
+      <span class="kpi-value" x-text="data?.latest_state?.governance?.skills_count ?? 0"></span>
+      <span class="kpi-meta">across <span x-text="(data?.latest_state?.governance?.skills_registered || []).length"></span> registered</span>
+    </div>
+  </div>
+</section>
+
+<!-- —— health ————————————————————————————————————————————————— -->
+<section x-show="data && tab === 'health'" class="stack-5" data-c="tab-panel" data-tab="health">
+  <div class="c-card">
+    <div class="c-card-head">
+      <h2 class="text-section">Health snapshot</h2>
+    </div>
+    <dl class="stack-4">
+      <template x-for="(v, k) in (data?.latest_state?.health || {})" :key="k">
+        <div class="cluster-3" style="justify-content: space-between;">
+          <dt class="text-label" x-text="k"></dt>
+          <dd class="mono" x-text="typeof v === 'object' ? JSON.stringify(v) : v"></dd>
+        </div>
+      </template>
+      <div x-show="!Object.keys(data?.latest_state?.health || {}).length" class="empty-state">
+        <p>No health metrics reported yet. They appear after CI runs <code>vcm validate</code>.</p>
+      </div>
+    </dl>
+  </div>
+</section>
+
+<!-- —— history ———————————————————————————————————————————————— -->
+<section x-show="data && tab === 'history'" class="stack-5" data-c="tab-panel" data-tab="history">
+  <div class="c-card">
+    <div class="c-card-head">
+      <h2 class="text-section">Push history</h2>
+      <span class="text-meta"><span x-text="data?.history?.length ?? 0"></span> states retained</span>
+    </div>
+    <div class="timeline">
+      <template x-for="h in (data?.history || [])" :key="h.id">
+        <div class="timeline-item">
+          <span class="timeline-dot"></span>
+          <div class="timeline-body">
+            <span class="timeline-time" x-text="(h.received_at || '').slice(0, 19).replace('T', ' ')"></span>
+            <span class="timeline-text">
+              vcm <code x-text="h.vcm_version || '?'"></code>
+              · schema <code x-text="h.schema_version || '?'"></code>
+              · state #<span x-text="h.id"></span>
+            </span>
           </div>
         </div>
-        <div class="panel" style="text-align: center;">
-          <h3>CHARTER.md</h3>
-          <div class="metric" :style="data.latest_state.governance?.charter_md_present ? 'color:#86efac' : 'color:#fbbf24'">
-            <span x-text="data.latest_state.governance?.charter_md_present ? '✓' : '✗'"></span>
-          </div>
-        </div>
-        <div class="panel" style="text-align: center;"><h3>Skills</h3><div class="metric" x-text="data.latest_state.governance?.skills_count || 0"></div></div>
-        <div class="panel" style="text-align: center;"><h3>ADRs</h3><div class="metric" x-text="data.latest_state.governance?.adrs_count || 0"></div></div>
-        <div class="panel" style="text-align: center;"><h3>TDs</h3><div class="metric" x-text="data.latest_state.governance?.tds_count || 0"></div></div>
-        <div class="panel" style="text-align: center;"><h3>Post-mortems</h3><div class="metric" x-text="data.latest_state.governance?.post_mortems_count || 0"></div></div>
-      </div>
-
-      <h2>🔧 Git</h2>
-      <div class="grid">
-        <div class="panel"><h3>Branch</h3><div class="metric" style="font-size: 1.25rem;" x-text="data.latest_state.git?.branch || '—'"></div></div>
-        <div class="panel"><h3>HEAD</h3><div class="metric" style="font-family: monospace; font-size: 1rem;" x-text="(data.latest_state.git?.head_commit || '').slice(0, 7) || '—'"></div></div>
-        <div class="panel" style="text-align: center;"><h3>Tree</h3><div class="metric" :style="data.latest_state.git?.dirty ? 'color:#fbbf24' : 'color:#86efac'"><span x-text="data.latest_state.git?.dirty ? '⚠ dirty' : '✓ clean'"></span></div></div>
-      </div>
-
-      <h2>🧩 Skills <span style="color: #64748b; font-size: 0.75rem;" x-text="'(' + (data.latest_state.governance?.skills_registered || []).length + ')'"></span></h2>
-      <div class="panel" x-show="!(data.latest_state.governance?.skills_registered || []).length" class="empty">No skills registered.</div>
-      <div class="panel" x-show="(data.latest_state.governance?.skills_registered || []).length">
-        <template x-for="s in (data.latest_state.governance?.skills_registered || [])" :key="s">
-          <span class="skill-tag" x-text="s"></span>
-        </template>
-      </div>
-
-      <h2>🕐 History <span style="color: #64748b; font-size: 0.75rem;" x-text="'(' + data.history.length + ' states)'"></span></h2>
-      <div class="panel">
-        <template x-for="h in data.history" :key="h.id">
-          <div class="timeline-item">
-            <div class="time" x-text="(h.received_at || '').slice(0, 19).replace('T', ' ')"></div>
-            <div>
-              vcm <span x-text="h.vcm_version || '?'"></span> ·
-              schema <span x-text="h.schema_version || '?'"></span> ·
-              state #<span x-text="h.id"></span>
-            </div>
-          </div>
-        </template>
-      </div>
-
-      <h2>👁️ First / Last seen</h2>
-      <div class="panel">
-        <div>First: <code x-text="data.first_seen_at || '—'"></code></div>
-        <div>Last:  <code x-text="data.last_seen_at || '—'"></code></div>
+      </template>
+      <div x-show="!data?.history?.length" class="empty-state">
+        <p>No prior states recorded.</p>
       </div>
     </div>
-  </template>
+  </div>
+</section>
 
-  <script>
-    function projectView() {
-      return {
-        data: null,
-        loading: true,
-        async init() {
-          try {
-            const r = await fetch('/api/projects/{{ project_name }}/full');
-            if (r.ok) this.data = await r.json();
-          } catch (e) {
-            console.error(e);
-          }
-          this.loading = false;
-        },
-      };
-    }
-  </script>
+{% endblock %}
 
-</body>
-</html>
+{% block extra_body %}
+<script>
+function page() {
+  return {
+    data: null,
+    loading: true,
+    tab: new URLSearchParams(location.search).get('tab') || 'overview',
+    summary: {},
+
+    async init() {
+      const sum = await this.fetchJSON('/api/dashboard/summary');
+      this.summary = { ...sum, health_label: '' };
+
+      try {
+        const r = await fetch('/api/projects/{{ project_name }}/full');
+        if (r.ok) this.data = await r.json();
+      } catch (e) { console.error(e); }
+      this.loading = false;
+    },
+
+    async fetchJSON(url) { const r = await fetch(url); return r.ok ? r.json() : {}; },
+
+    setTab(t) {
+      this.tab = t;
+      const u = new URL(location.href);
+      if (t === 'overview') u.searchParams.delete('tab'); else u.searchParams.set('tab', t);
+      history.replaceState(null, '', u);
+    },
+
+    kpiGovernanceScore() {
+      const g = this.data?.latest_state?.governance || {};
+      const checks = [g.agents_md_present, g.charter_md_present, (g.skills_count || 0) > 0];
+      const pass = checks.filter(Boolean).length;
+      return Math.round((pass / checks.length) * 100);
+    },
+
+    governanceTone() {
+      const s = this.kpiGovernanceScore();
+      if (s >= 80) return 'color: var(--ok)';
+      if (s >= 50) return 'color: var(--warn)';
+      return 'color: var(--fail)';
+    },
+  };
+}
+</script>
+{% endblock %}

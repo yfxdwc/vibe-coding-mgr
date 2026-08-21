@@ -1,105 +1,235 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>vcm-server · skill registry</title>
-  <link rel="stylesheet" href="/static/css/dashboard.css">
-  <script defer src="/static/js/alpine.min.js"></script>
-  <script src="/static/js/echarts.min.js"></script>
-</head>
-<body x-data="skillsView()" x-init="init()">
+{% extends "_layout.html" %}
+{# server/templates/skills.html — cross-project skill registry (v0.3.0 redesign)
+   Tabs / filters: ?tab=matrix | coverage | registry  (DESIGN.md §5 URL state)
+#}
+{% set nav_active = 'skills' %}
 
-  <header>
-    <h1>🧩 Skill registry (cross-project)</h1>
-    <div class="subtitle">
-      <a href="/">← back to cockpit</a> &middot;
-      <span x-text="skills.length"></span> skills tracked &middot;
-      <span x-text="topShared.length"></span> shared across multiple projects
-    </div>
-  </header>
+{% block title %}skill registry{% endblock %}
 
-  <!-- Top: stats -->
-  <div class="grid" style="margin-bottom: 1.5rem;">
-    <div class="panel" style="text-align: center;">
-      <h3>Total unique skills</h3>
-      <div class="metric" x-text="skills.length"></div>
-    </div>
-    <div class="panel" style="text-align: center;">
-      <h3>Shared (2+ projects)</h3>
-      <div class="metric" style="color: #60a5fa;" x-text="topShared.length"></div>
-    </div>
-    <div class="panel" style="text-align: center;">
-      <h3>Most popular</h3>
-      <div class="metric" style="font-size: 1rem; color: #c7d2fe;" x-text="topShared[0]?.skill || '—'"></div>
-      <div style="color: #64748b; font-size: 0.875rem;" x-text="topShared[0] ? ('used by ' + topShared[0].project_count + ' projects') : ''"></div>
-    </div>
+{% block page_head %}
+<header class="page-head">
+  <div class="crumbs">
+    <a href="/">cockpit</a>
+    <span class="sep">/</span>
+    <span class="crumb-current">skill registry</span>
   </div>
+  <h1 class="text-display">Skill registry</h1>
+  <p class="text-meta">All skills used by any project. Sorted by cross-project reach.</p>
+</header>
+{% endblock %}
 
-  <!-- Chart -->
-  <div class="panel tall">
-    <h2>📊 Top 15 shared skills</h2>
-    <div id="skill-chart" style="height: 320px;"></div>
+{% block answers_line %}
+<div class="answers-line">
+  <span class="answers-tag">Answers</span>
+  <p>which skills are reusable across projects, and which are stuck behind a single project?</p>
+</div>
+{% endblock %}
+
+{% block top_kpi %}
+<section class="kpi-grid">
+  <div class="kpi-cell">
+    <span class="kpi-label">Unique skills</span>
+    <span class="kpi-value"><span x-text="skills.length"></span></span>
+    <span class="kpi-meta">across <span x-text="uniqueProjects.size"></span> project<span x-show="uniqueProjects.size !== 1">s</span></span>
   </div>
+  <div class="kpi-cell">
+    <span class="kpi-label">Shared (≥ 2 projects)</span>
+    <span class="kpi-value" :style="topShared.length > 0 ? 'color: var(--accent)' : ''">
+      <span x-text="topShared.length"></span>
+    </span>
+    <span class="kpi-meta">good candidates for <code>.vcm-skill.json</code></span>
+  </div>
+  <div class="kpi-cell">
+    <span class="kpi-label">Most popular</span>
+    <span class="kpi-value" style="font-size: var(--fs-section);"
+          x-text="topShared[0]?.skill || '—'"></span>
+    <span class="kpi-meta">
+      <span x-show="topShared[0]">used by <span x-text="topShared[0]?.project_count"></span> projects</span>
+    </span>
+  </div>
+</section>
+{% endblock %}
 
-  <!-- Full list -->
-  <div class="panel">
-    <h2>📋 All skills (sorted by usage)</h2>
-    <table class="matrix-table">
-      <thead>
-        <tr>
-          <th>Skill</th>
-          <th>Projects</th>
-          <th>Used in</th>
-        </tr>
-      </thead>
-      <tbody>
-        <template x-for="row in skills" :key="row.skill">
+{% block tabs %}
+<nav class="tabs">
+  <button class="tab" :class="{ active: tab === 'matrix' }"     @click="setTab('matrix')">Chart</button>
+  <button class="tab" :class="{ active: tab === 'coverage' }"  @click="setTab('coverage')">Full list</button>
+  <button class="tab" :class="{ active: tab === 'registry' }"  @click="setTab('registry')">Projects</button>
+</nav>
+{% endblock %}
+
+{% block content %}
+
+<!-- —— tab=matrix : top 15 bar ————————————————————————————————————— -->
+<section x-show="tab === 'matrix'" class="stack-5" data-c="tab-panel" data-tab="matrix">
+  <div class="c-card">
+    <div class="c-card-head">
+      <h2 class="text-section">Top 15 shared skills</h2>
+      <span class="text-meta">bars show number of projects using each</span>
+    </div>
+    <div id="skill-chart" class="chart-frame" style="height: 360px;"></div>
+  </div>
+</section>
+
+<!-- —— tab=coverage : full ranked table ———————————————————————————— -->
+<section x-show="tab === 'coverage'" class="stack-5" data-c="tab-panel" data-tab="coverage">
+  <div class="c-card">
+    <div class="c-card-head">
+      <h2 class="text-section">All skills, sorted by usage</h2>
+      <span class="text-meta">
+        filter: <input type="text" x-model="filter" placeholder="name substring"
+                       style="background: var(--surface-alt); border: 1px solid var(--border-subtle);
+                              color: var(--text-primary); padding: 4px 8px; border-radius: 6px;
+                              font-family: var(--font-mono); font-size: var(--fs-meta);" />
+      </span>
+    </div>
+    <div x-show="!filtered.length" class="empty-state">
+      <p>No skills match <code x-text="filter"></code>.</p>
+    </div>
+    <div x-show="filtered.length" style="overflow-x: auto;">
+      <table class="data-table">
+        <thead>
           <tr>
-            <td><span class="skill-tag" x-text="row.skill"></span></td>
-            <td x-text="row.project_count"></td>
-            <td style="color: #94a3b8;" x-text="row.projects.join(', ')"></td>
+            <th>Skill</th>
+            <th class="num">Projects</th>
+            <th>Used in</th>
+            <th>Decision</th>
           </tr>
-        </template>
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          <template x-for="row in filtered" :key="row.skill">
+            <tr>
+              <td><span class="tag" x-text="row.skill"></span></td>
+              <td class="num" x-text="row.project_count"></td>
+              <td class="text-meta" x-text="row.projects.join(', ')"></td>
+              <td>
+                <span class="badge"
+                      :class="row.project_count > 1 ? 'badge--ok' : 'badge--idle'"
+                      x-text="row.project_count > 1 ? 'promote to canonical?' : 'single-project'"></span>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
   </div>
+</section>
 
-  <footer>
-    vcm-server v0.2.0 &middot; skill registry across all registered projects
-  </footer>
+<!-- —— tab=registry : 项目 × skill 矩阵 ———————————————————————— -->
+<section x-show="tab === 'registry'" class="stack-5" data-c="tab-panel" data-tab="registry">
+  <div class="c-card">
+    <div class="c-card-head">
+      <h2 class="text-section">Project × skill matrix</h2>
+      <span class="text-meta">rows = projects, columns = skills</span>
+    </div>
+    <div x-show="!matrix.length" class="empty-state">
+      <p>No skills reported yet. Run <code>vcm push</code> in your projects.</p>
+    </div>
+    <div x-show="matrix.length" style="overflow-x: auto;">
+      <table class="data-table" style="font-size: var(--fs-meta);">
+        <thead>
+          <tr>
+            <th style="position: sticky; left: 0; background: var(--bg); z-index: 1;">Project</th>
+            <template x-for="s in skills" :key="s.skill">
+              <th class="text-meta" style="writing-mode: vertical-lr; padding: var(--space-3) 4px;" x-text="s.skill"></th>
+            </template>
+          </tr>
+        </thead>
+        <tbody>
+          <template x-for="row in matrix" :key="row.project">
+            <tr>
+              <td style="position: sticky; left: 0; background: var(--bg); z-index: 1;">
+                <a :href="'/projects/' + row.project" x-text="row.project"></a>
+              </td>
+              <template x-for="s in skills" :key="s.skill">
+                <td style="text-align: center;">
+                  <span x-text="row.has.includes(s.skill) ? '●' : ''" :style="row.has.includes(s.skill) ? 'color: var(--accent)' : ''"></span>
+                </td>
+              </template>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
 
-  <script>
-    function skillsView() {
-      return {
-        skills: [],
-        get topShared() { return this.skills.filter(s => s.project_count > 1); },
-        async init() {
-          this.skills = await fetch('/api/dashboard/skill-matrix').then(r => r.json());
-          this.$nextTick(() => this.renderChart());
-        },
-        renderChart() {
-          const el = document.getElementById('skill-chart');
-          if (!el || !window.echarts) return;
-          const chart = echarts.init(el, 'dark');
-          const top = this.topShared.slice(0, 15);
-          chart.setOption({
-            backgroundColor: 'transparent',
-            tooltip: { trigger: 'axis' },
-            grid: { left: 100, right: 30, top: 20, bottom: 30 },
-            xAxis: { type: 'value', axisLabel: { color: '#94a3b8' }, splitLine: { lineStyle: { color: '#334155' } } },
-            yAxis: { type: 'category', data: top.map(s => s.skill), axisLabel: { color: '#cbd5e1' } },
-            series: [{
-              type: 'bar',
-              data: top.map(s => s.project_count),
-              itemStyle: { color: '#60a5fa' },
-              label: { show: true, position: 'right', color: '#f1f5f9' },
-            }],
-          });
-          window.addEventListener('resize', () => chart.resize());
-        },
-      };
-    }
-  </script>
+{% endblock %}
 
-</body>
-</html>
+{% block extra_head %}
+<script src="/static/js/echarts.min.js"></script>
+{% endblock %}
+
+{% block extra_body %}
+<script>
+function page() {
+  return {
+    skills: [],
+    matrix: [],
+    tab: new URLSearchParams(location.search).get('tab') || 'matrix',
+    filter: new URLSearchParams(location.search).get('focus') || '',
+    summary: {},
+
+    async init() {
+      const sum = await this.fetchJSON('/api/dashboard/summary');
+      this.summary = { ...sum };
+
+      this.skills = await this.fetchJSON('/api/dashboard/skill-matrix');
+      // Build the project × skill matrix from overview
+      const overview = await this.fetchJSON('/api/dashboard/overview');
+      this.matrix = overview.map(p => ({
+        project: p.name,
+        has: p.skills_registered || [],
+      }));
+
+      this.$nextTick(() => this.renderChart());
+    },
+
+    async fetchJSON(url) { const r = await fetch(url); return r.ok ? r.json() : []; },
+
+    get topShared() { return this.skills.filter(s => s.project_count > 1); },
+    get uniqueProjects() {
+      const set = new Set();
+      this.skills.forEach(s => s.projects.forEach(p => set.add(p)));
+      return set;
+    },
+    get filtered() {
+      const q = this.filter.trim().toLowerCase();
+      if (!q) return this.skills;
+      return this.skills.filter(s => s.skill.toLowerCase().includes(q));
+    },
+
+    setTab(t) {
+      this.tab = t;
+      const u = new URL(location.href);
+      if (t === 'matrix') u.searchParams.delete('tab'); else u.searchParams.set('tab', t);
+      history.replaceState(null, '', u);
+    },
+
+    renderChart() {
+      const el = document.getElementById('skill-chart');
+      if (!el || !window.echarts) return;
+      const chart = echarts.init(el, 'dark');
+      const top = this.topShared.slice(0, 15);
+      chart.setOption({
+        backgroundColor: 'transparent',
+        tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+        grid: { left: 140, right: 30, top: 20, bottom: 30 },
+        xAxis: { type: 'value', axisLabel: { color: '#a8a29e' },
+                 splitLine: { lineStyle: { color: '#3f3f46' } } },
+        yAxis: { type: 'category', data: top.map(s => s.skill),
+                 axisLabel: { color: '#cbd5e1' } },
+        series: [{
+          type: 'bar',
+          data: top.map(s => s.project_count),
+          itemStyle: { color: '#f59520', borderRadius: [0, 4, 4, 0] },
+          label: { show: true, position: 'right', color: '#f5f5f4',
+                   fontFamily: 'ui-monospace', fontSize: 11 },
+        }],
+      });
+      window.addEventListener('resize', () => chart.resize());
+    },
+  };
+}
+</script>
+{% endblock %}

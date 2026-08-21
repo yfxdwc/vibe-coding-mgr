@@ -1,0 +1,139 @@
+{% extends "_layout.html" %}
+{# server/templates/settings.html — server meta + health (v0.3.0)
+   pure information view (no edit): honest about the runtime state
+#}
+{% set nav_active = 'settings' %}
+
+{% block title %}settings{% endblock %}
+
+{% block page_head %}
+<header class="page-head">
+  <div class="crumbs">
+    <a href="/">cockpit</a>
+    <span class="sep">/</span>
+    <span class="crumb-current">settings</span>
+  </div>
+  <h1 class="text-display">Server settings</h1>
+  <p class="text-meta">Runtime configuration &middot; read-only mirror of <code>vcm-server</code> state.</p>
+</header>
+{% endblock %}
+
+{% block answers_line %}
+<div class="answers-line">
+  <span class="answers-tag">Answers</span>
+  <p>what is this server, where does it store things, and what's the live connection?</p>
+</div>
+{% endblock %}
+
+{% block content %}
+
+<section x-show="!loaded" class="empty-state">
+  <p>Loading server info…</p>
+</section>
+
+<section x-show="loaded" class="stack-5">
+
+  <div class="c-card">
+    <div class="c-card-head">
+      <h2 class="text-section">Runtime</h2>
+      <a class="btn btn--sm btn--ghost" href="/api/health" target="_blank">/api/health</a>
+    </div>
+    <dl class="stack-3">
+      <div class="cluster-3" style="justify-content: space-between;">
+        <dt class="text-label">Version</dt>
+        <dd class="mono" x-text="health.version || '—'"></dd>
+      </div>
+      <div class="cluster-3" style="justify-content: space-between;">
+        <dt class="text-label">Service</dt>
+        <dd class="mono" x-text="health.service || '—'"></dd>
+      </div>
+      <div class="cluster-3" style="justify-content: space-between;">
+        <dt class="text-label">Status</dt>
+        <dd>
+          <span class="badge" :class="health.status === 'healthy' ? 'badge--ok' : 'badge--fail'">
+            <span x-text="health.status || '—'"></span>
+          </span>
+        </dd>
+      </div>
+      <div class="cluster-3" style="justify-content: space-between;">
+        <dt class="text-label">Database</dt>
+        <dd>
+          <span class="badge" :class="health.db === 'ok' ? 'badge--ok' : 'badge--warn'">
+            <span x-text="health.db || '—'"></span>
+          </span>
+        </dd>
+      </div>
+    </dl>
+  </div>
+
+  <div class="c-card">
+    <div class="c-card-head">
+      <h2 class="text-section">Design tokens (DESIGN.md §2)</h2>
+    </div>
+    <p class="text-meta" style="margin-bottom: var(--space-3);">
+      The UI you are looking at reads tokens from <code>server/static/css/tokens.css</code>.
+      Override <code>--accent</code> etc. at <code>:root</code> to re-theme.
+    </p>
+    <div class="cluster-3">
+      <span class="btn btn--sm btn--ghost" disabled style="opacity:.7;">--accent <span class="mono" style="color: var(--accent); margin-left: 6px;">●</span></span>
+      <span class="btn btn--sm btn--ghost" disabled style="opacity:.7;">--ok <span style="color: var(--ok); margin-left: 6px;">●</span></span>
+      <span class="btn btn--sm btn--ghost" disabled style="opacity:.7;">--warn <span style="color: var(--warn); margin-left: 6px;">●</span></span>
+      <span class="btn btn--sm btn--ghost" disabled style="opacity:.7;">--fail <span style="color: var(--fail); margin-left: 6px;">●</span></span>
+      <span class="btn btn--sm btn--ghost" disabled style="opacity:.7;">--idle <span style="color: var(--idle); margin-left: 6px;">●</span></span>
+    </div>
+    <p class="text-meta" style="margin-top: var(--space-3);">
+      Toggle the theme with the
+      <code>☀/☾</code>
+      button in the nav — your choice is persisted in <code>localStorage</code>.
+    </p>
+  </div>
+
+  <div class="c-card">
+    <div class="c-card-head">
+      <h2 class="text-section">Documentation</h2>
+    </div>
+    <ul class="stack-2">
+      <li>
+        <a class="mono" href="/static/../docs/DESIGN.md">docs/DESIGN.md</a>
+        <span class="text-meta">— the design system source</span>
+      </li>
+      <li>
+        <a class="mono" href="/static/../docs/adr/0001-repowise-inspired-frontend.md">docs/adr/0001-repowise-inspired-frontend.md</a>
+        <span class="text-meta">— why this redesign happened</span>
+      </li>
+      <li>
+        <a class="mono" href="/static/../docs/ARCHITECTURE.md">docs/ARCHITECTURE.md</a>
+        <span class="text-meta">— the 5-domain architecture</span>
+      </li>
+      <li>
+        <a class="mono" href="/static/../CHARTER.md">CHARTER.md</a>
+        <span class="text-meta">— constitutional rules</span>
+      </li>
+    </ul>
+  </div>
+
+</section>
+
+{% endblock %}
+
+{% block extra_body %}
+<script>
+function page() {
+  return {
+    loaded: false,
+    health: {},
+    summary: {},
+    async init() {
+      const sum = await this.fetchJSON('/api/dashboard/summary');
+      this.summary = { ...sum };
+      try {
+        const r = await fetch('/api/health');
+        if (r.ok) this.health = await r.json();
+      } catch (e) { console.error(e); }
+      this.loaded = true;
+    },
+    async fetchJSON(url) { const r = await fetch(url); return r.ok ? r.json() : {}; },
+  };
+}
+</script>
+{% endblock %}

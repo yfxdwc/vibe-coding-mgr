@@ -18,12 +18,22 @@
 - [x] Alpine.js + ECharts + HTMX
 - [x] Server dashboard tests
 
-## v0.3.0 (next, ~1 month)
+## v0.3.0 ✅ DONE (2026-08-21)
 
-- [ ] **vcm peers — full implementation**
-  - GitHub API integration (rate-limit-aware)
-  - Watch list config (`.vcm-peers.yaml`)
-  - Dashboard "OSS I'm following" view
+- [x] **Frontend redesign — repowise-inspired** (ADR-0001)
+  - 3-layer CSS (tokens.css / base.css / components.css) with design system
+  - Common layout (`_layout.html`) + per-tab URL state
+  - "Answers:" header on every page, 3 parallel KPIs (no blended score)
+  - New views: `/peers`, `/settings`
+  - Dark theme by default, light via `data-theme`
+- [x] **Design system docs** — `docs/DESIGN.md` (single source of truth)
+- [x] **peers dashboard view** + `/api/peers` (reads `~/.vcm/peers.yaml`)
+- [x] **CSS-token-based themability** — re-theme via `--accent` etc.
+- [x] **6 hard check still passes**
+- [x] **27/27 unit tests pass**
+
+## v0.4.0 (next, ~1 month)
+
 - [ ] **MCP server** (server/mcp.py)
   - 3-5 MCP tools for AI agents
   - Compatible with Claude Code / Codex
@@ -33,15 +43,11 @@
   - AAS Core adapter
   - addyosmani/agent-skills adapter
 - [ ] **CI/CD**
-  - GitHub Actions workflow (already drafted)
+  - GitHub Actions workflow
   - npm publish on tag
-
-## v0.3.0 (~1 month)
-
 - [ ] **Optional BasicAuth** for vcm-server
 - [ ] **Cross-project comparisons** (which project has more TDs?)
 - [ ] **Skill lifecycle automation** (deprecate unused, archive old)
-- [ ] **Self-update mechanism** (vcm updates itself via npm)
 - [ ] **WebSocket live dashboard** (real-time status updates)
 
 ## v1.0.0 (~3 months, stability milestone)

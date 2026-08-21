@@ -1,0 +1,34 @@
+{# server/templates/_partials/nav.html — 顶部导航 (DESIGN.md §5)
+   - 来自 _layout.html 自动 include
+   - 高亮由 page.nav_active 决定，可被各 page 覆写
+#}
+<nav class="nav" x-data="{ active: '{{ nav_active or 'cockpit' }}' }">
+  <a class="nav-brand" href="/">
+    <span class="nav-mark">vcm</span>
+    <span>vibe coding mgr</span>
+  </a>
+
+  <div class="nav-links">
+    <a class="nav-link" :class="{ active: active === 'cockpit' }" href="/">cockpit</a>
+    <a class="nav-link" :class="{ active: active === 'skills' }" href="/skills">skills</a>
+    <a class="nav-link" :class="{ active: active === 'peers' }" href="/peers">peers</a>
+    <a class="nav-link" :class="{ active: active === 'settings' }" href="/settings">settings</a>
+  </div>
+
+  <div class="nav-meta">
+    <span><b x-text="summary.total_projects || 0"></b> projects</span>
+    <span>·</span>
+    <span><b x-text="summary.total_skills || 0"></b> skills</span>
+    <span>·</span>
+    <span><b x-text="summary.total_adrs || 0"></b> adrs</span>
+    <span>·</span>
+    <span class="badge" :class="
+      summary.needs_attention > 0 ? 'badge--warn' :
+      summary.warning     > 0 ? 'badge--warn' :
+      (summary.healthy > 0 ? 'badge--ok' : 'badge--idle')
+    ">
+      <span x-text="summary.health_label || '—'"></span>
+    </span>
+    <button class="btn btn--sm btn--ghost" @click="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">☀/☾</button>
+  </div>
+</nav>

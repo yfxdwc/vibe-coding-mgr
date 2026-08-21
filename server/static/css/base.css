@@ -1,0 +1,113 @@
+/* server/static/css/base.css — reset + 全局排版 (DESIGN.md §3)
+ * 依赖 tokens.css。禁上调：本文件不 import components.css。
+ */
+
+@import url("./tokens.css");
+
+/* —— Reset ———————————————————————————————————————————————— */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body { height: 100%; }
+
+body {
+  background: var(--bg);
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: var(--fs-body);
+  line-height: var(--lh-relaxed);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+a {
+  color: var(--text-link);
+  text-decoration: none;
+  transition: color var(--t-base) var(--ease);
+}
+a:hover { color: var(--accent); }
+
+/* —— 排版层 (DESIGN.md §3) ———————————————————————————————— */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--text-primary);
+  font-family: var(--font-serif);
+  font-weight: 200;
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--lh-snug);
+}
+
+h1 { font-size: var(--fs-display); margin-bottom: var(--space-3); }
+h2 { font-size: var(--fs-section); margin: var(--space-6) 0 var(--space-3); }
+h3 { font-size: var(--fs-card); margin: var(--space-4) 0 var(--space-2); font-weight: 400; }
+
+code, kbd, samp, pre {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  background: var(--surface-alt);
+  padding: 1px 6px;
+  border-radius: 4px;
+  color: var(--text-primary);
+}
+
+pre {
+  display: block;
+  padding: var(--space-3) var(--space-4);
+  overflow-x: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-button);
+}
+
+hr {
+  border: 0;
+  border-top: 1px solid var(--border-subtle);
+  margin: var(--space-5) 0;
+}
+
+/* 排版原子类 — 一致命名，可复用 */
+.text-display { font: 200 var(--fs-display) / var(--lh-snug) var(--font-serif); color: var(--text-primary); letter-spacing: var(--tracking-tight); }
+.text-section { font: 200 var(--fs-section) / var(--lh-snug) var(--font-serif); color: var(--text-primary); letter-spacing: var(--tracking-tight); }
+.text-card    { font: 400 var(--fs-card)  / var(--lh-snug) var(--font-serif); color: var(--text-primary); }
+.text-body    { font-size: var(--fs-body); color: var(--text-secondary); }
+.text-meta    { font-size: var(--fs-meta); color: var(--text-muted); }
+.text-label   {
+  font-size: var(--fs-label);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.text-mono    { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.text-accent  { color: var(--accent); }
+
+/* —— 工具类 ———————————————————————————————————————————— */
+.muted    { color: var(--text-muted); }
+.secondary{ color: var(--text-secondary); }
+.primary  { color: var(--text-primary); }
+.mono     { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+.stack-2 > * + * { margin-top: var(--space-2); }
+.stack-3 > * + * { margin-top: var(--space-3); }
+.stack-4 > * + * { margin-top: var(--space-4); }
+.stack-5 > * + * { margin-top: var(--space-5); }
+.stack-6 > * + * { margin-top: var(--space-6); }
+
+.cluster-2 { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; }
+.cluster-3 { display: flex; gap: var(--space-3); align-items: center; flex-wrap: wrap; }
+.cluster-4 { display: flex; gap: var(--space-4); align-items: center; flex-wrap: wrap; }
+
+.divide-y > * + * { border-top: 1px solid var(--border-subtle); }
+
+/* —— 链接项 hover ———————————————————————————————————————— */
+.lnk {
+  color: var(--text-secondary);
+  transition: color var(--t-base) var(--ease);
+  cursor: pointer;
+}
+.lnk:hover { color: var(--accent); }
+
+/* —— 焦点环 ———————————————————————————————————————————— */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}

@@ -1,0 +1,55 @@
+{# server/templates/_layout.html — 全站公共骨架 (DESIGN.md §5)
+
+   用法: {% extends "_layout.html" %}
+
+   块:
+     title                 — <title> 内容
+     nav_active            — nav 高亮 key (cockpit / projects / skills / peers / settings)
+     page_head             — 整段 page-head（标题 + breadcrumb + subtitle）
+     answers_line          — "Answers:" 行（可选，但强烈建议提供）
+     top_kpi               — 顶部 KPI grid（可选；KPI 页必备）
+     tabs                  — tab bar（可选；多 tab 页面使用）
+     content               — 主体内容（必填）
+
+   约定：
+     - 所有 Alpine 状态挂在 body[x-data] 上，名称为 `page()`
+     - URL 状态 (?tab=) 由 JS 读 + 写
+     - 主题切换：document.documentElement.dataset.theme = ...
+#}
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <title>vcm-server · {% block title %}cockpit{% endblock %}</title>
+  <link rel="stylesheet" href="/static/css/dashboard.css">
+  <script defer src="/static/js/alpine.min.js"></script>
+  {% block extra_head %}{% endblock %}
+</head>
+<body x-data="page()" x-init="init()" data-page="{{ nav_active or 'cockpit' }}">
+
+  {% include "_partials/nav.html" %}
+
+  <main class="shell">
+
+    {% block page_head %}{% endblock %}
+
+    {% if self.answers_line is defined %}
+      {% block answers_line %}{% endblock %}
+    {% endif %}
+
+    {% block top_kpi %}{% endblock %}
+
+    {% block tabs %}{% endblock %}
+
+    {% block content %}{% endblock %}
+
+    <footer class="foot">
+      vcm-server v<span x-text="version"></span>
+      · powered by Flask + Alpine.js + ECharts
+      · <a href="/api/health">/api/health</a>
+    </footer>
+  </main>
+
+  {% block extra_body %}{% endblock %}
+</body>
+</html>

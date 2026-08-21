@@ -1,0 +1,414 @@
+/* server/static/css/components.css — 组件 (DESIGN.md §4)
+ * 依赖 tokens.css / base.css。禁上调：本文件不 import 任何东西（只暴露类名）。
+ */
+
+/* —————— Top Navigation ———————————————————————————————————— */
+.nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  padding: var(--space-3) var(--space-5);
+  background: var(--bg);
+  border-bottom: 1px solid var(--border-subtle);
+  position: sticky; top: 0;
+  z-index: 50;
+}
+.nav-brand {
+  display: flex; align-items: center; gap: var(--space-2);
+  color: var(--text-primary);
+  font-family: var(--font-serif);
+  font-size: var(--fs-section);
+  font-weight: 300;
+  letter-spacing: var(--tracking-tight);
+}
+.nav-mark {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-dim);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+.nav-links { display: flex; gap: var(--space-3); flex: 1; }
+.nav-link {
+  padding: 6px var(--space-2);
+  color: var(--text-secondary);
+  border-radius: var(--radius-button);
+  font-size: var(--fs-meta);
+  transition: color var(--t-base) var(--ease), background var(--t-base) var(--ease);
+}
+.nav-link:hover { color: var(--text-primary); background: var(--surface-alt); }
+.nav-link.active {
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+.nav-meta {
+  display: flex; gap: var(--space-3); align-items: center;
+  font-family: var(--font-mono);
+  font-size: var(--fs-meta);
+  color: var(--text-muted);
+}
+.nav-meta b { color: var(--text-primary); font-weight: 500; }
+
+/* —————— Page shell ————————————————————————————————————— */
+.shell {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.page-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.page-head h1 { margin: 0; }
+.page-head .crumbs {
+  display: flex; gap: var(--space-2); align-items: center;
+  color: var(--text-muted);
+  font-size: var(--fs-meta);
+}
+.page-head .crumbs a { color: var(--text-muted); }
+.page-head .crumbs a:hover { color: var(--text-secondary); }
+.page-head .crumbs .sep { opacity: 0.5; }
+.page-head .crumb-current { color: var(--text-primary); }
+
+/* "Answers:" 一行 (DESIGN.md §5) —————————————————————————————— */
+.answers-line {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-left: 2px solid var(--border-accent);
+  background: var(--accent-dim);
+  border-radius: 0 var(--radius-button) var(--radius-button) 0;
+}
+.answers-line .answers-tag {
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.answers-line p { color: var(--text-primary); font-size: var(--fs-body); }
+
+/* —————— KPI Grid (DESIGN.md §4: 永远 3 个等宽柱子) —————— */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+.kpi-cell {
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-height: 120px;
+}
+.kpi-cell--feature { border-color: var(--border-accent); }
+.kpi-cell .kpi-label { color: var(--text-muted); }
+.kpi-cell .kpi-value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-kpi);
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1;
+}
+.kpi-cell .kpi-value .unit {
+  font-size: var(--fs-card);
+  color: var(--text-muted);
+  margin-left: 4px;
+}
+.kpi-cell .kpi-meta {
+  font-size: var(--fs-meta);
+  color: var(--text-muted);
+  margin-top: auto;
+}
+.kpi-cell .kpi-meta code { font-size: var(--fs-meta); }
+.kpi-cell .kpi-trend {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-meta);
+}
+.kpi-cell .kpi-trend.up   { color: var(--ok); }
+.kpi-cell .kpi-trend.down { color: var(--fail); }
+.kpi-cell .kpi-trend.flat { color: var(--text-muted); }
+
+/* —————— Card ———————————————————————————————————————— */
+.c-card {
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.c-card--interactive {
+  cursor: pointer;
+  transition:
+    border-color var(--t-base) var(--ease),
+    transform var(--t-base) var(--ease),
+    background var(--t-base) var(--ease);
+}
+.c-card--interactive:hover {
+  border-color: var(--border-medium);
+  background: var(--surface-alt);
+  transform: translateY(-1px);
+}
+.c-card--featured {
+  border-color: var(--border-accent);
+  background: linear-gradient(180deg, var(--accent-dim) 0%, var(--surface) 60%);
+}
+.c-card-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--space-3);
+}
+.c-card-head h2 { margin: 0; }
+.c-card-head .actions { display: flex; gap: var(--space-2); }
+
+/* —————— Tabs (URL state, DESIGN.md §4) ————————————————— */
+.tabs {
+  display: flex;
+  gap: var(--space-1);
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 0 var(--space-1);
+  margin-bottom: var(--space-4);
+}
+.tab {
+  padding: var(--space-2) var(--space-3);
+  color: var(--text-secondary);
+  font-size: var(--fs-body);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color var(--t-base) var(--ease), border-color var(--t-base) var(--ease);
+}
+.tab:hover { color: var(--text-primary); }
+.tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* —————— Data table ————————————————————————————————— */
+.data-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--fs-body);
+}
+.data-table th, .data-table td {
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  border-bottom: 1px solid var(--border-subtle);
+  vertical-align: middle;
+}
+.data-table th {
+  color: var(--text-muted);
+  font-size: var(--fs-label);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  font-weight: 600;
+  border-bottom: 1px solid var(--border-medium);
+}
+.data-table tbody tr { cursor: pointer; transition: background var(--t-base) var(--ease); }
+.data-table tbody tr:hover { background: var(--surface-alt); }
+.data-table tbody tr.row-ok    { box-shadow: inset 3px 0 0 var(--ok); }
+.data-table tbody tr.row-warn  { box-shadow: inset 3px 0 0 var(--warn); }
+.data-table tbody tr.row-fail  { box-shadow: inset 3px 0 0 var(--fail); }
+.data-table .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.data-table .nowrap { white-space: nowrap; }
+
+/* —————— Badge ————————————————————————————————————————— */
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-meta);
+  font-family: var(--font-mono);
+  font-weight: 500;
+  line-height: 1.2;
+}
+.badge--ok   { background: var(--ok-dim);   color: var(--ok); }
+.badge--warn { background: var(--warn-dim); color: var(--warn); }
+.badge--fail { background: var(--fail-dim); color: var(--fail); }
+.badge--idle { background: var(--idle-dim); color: var(--text-secondary); }
+
+/* —————— Tag (skill / ADR / TD 编号) —————————————— */
+.tag {
+  display: inline-block;
+  padding: 2px var(--space-2);
+  margin: 2px 2px 2px 0;
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-meta);
+  font-family: var(--font-mono);
+  background: var(--accent-dim);
+  color: var(--accent);
+  border: 1px solid transparent;
+}
+.tag--soft    { background: transparent; border-color: var(--accent-border); }
+.tag--muted   { background: var(--surface-alt); color: var(--text-secondary); }
+.tag--withdrawn { text-decoration: line-through; color: var(--text-muted); }
+
+/* —————— Attention item (needs attention 区) ———————————————— */
+.attention {
+  padding: var(--space-4);
+  border-radius: var(--radius-card);
+  background: var(--warn-dim);
+  border-left: 3px solid var(--warn);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.attention--critical {
+  background: var(--fail-dim);
+  border-left-color: var(--fail);
+}
+.attention h3 { color: var(--text-primary); font-family: var(--font-sans); font-size: var(--fs-card); font-weight: 500; margin: 0; }
+.attention--critical h3 { color: var(--fail); }
+.attention .reasons { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.attention .reason {
+  font-size: var(--fs-meta);
+  background: rgba(0,0,0,0.2);
+  color: var(--text-secondary);
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+}
+
+/* —————— Empty state ———————————————————————————————— */
+.empty-state {
+  padding: var(--space-7) var(--space-5);
+  text-align: center;
+  color: var(--text-muted);
+  border: 1px dashed var(--border-subtle);
+  border-radius: var(--radius-card);
+  display: flex; flex-direction: column; align-items: center; gap: var(--space-3);
+}
+.empty-state code { color: var(--accent); background: transparent; }
+
+/* —————— Buttons ——————————————————————————————————— */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-pill);
+  border: 0;
+  cursor: pointer;
+  font-size: var(--fs-body);
+  font-weight: 500;
+  font-family: var(--font-sans);
+  transition:
+    filter var(--t-quick) var(--ease),
+    transform var(--t-quick) var(--ease),
+    background var(--t-base) var(--ease),
+    color var(--t-base) var(--ease);
+}
+.btn--primary {
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font-weight: 600;
+}
+.btn--primary:hover { filter: brightness(1.10); }
+.btn--primary:active { transform: scale(0.96); }
+.btn--ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-medium);
+}
+.btn--ghost:hover { color: var(--accent); border-color: var(--border-accent); }
+.btn--sm { min-height: 32px; padding: 0 var(--space-3); font-size: var(--fs-meta); }
+
+/* —————— Drawer (右侧上下文抽屉) ———————————————————— */
+.drawer-mask {
+  position: fixed; inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--t-base) var(--ease);
+  z-index: 90;
+}
+.drawer-mask.open { opacity: 1; pointer-events: auto; }
+
+.drawer {
+  position: fixed; top: 0; right: 0; bottom: 0;
+  width: 420px;
+  background: var(--bg-elevated);
+  border-left: 1px solid var(--border-medium);
+  box-shadow: var(--shadow-elevated);
+  transform: translateX(100%);
+  transition: transform var(--t-slow) var(--ease);
+  z-index: 100;
+  display: flex; flex-direction: column;
+}
+.drawer.open { transform: translateX(0); }
+.drawer-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.drawer-body { padding: var(--space-5); overflow-y: auto; flex: 1; }
+.drawer-close {
+  background: transparent; border: 0; cursor: pointer;
+  color: var(--text-muted);
+  font-size: var(--fs-card);
+  padding: 4px 8px;
+  border-radius: var(--radius-button);
+}
+.drawer-close:hover { color: var(--text-primary); background: var(--surface-alt); }
+
+/* —————— Timeline (history) ———————————————————————————— */
+.timeline { display: flex; flex-direction: column; gap: 0; }
+.timeline-item {
+  display: flex; gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--border-subtle);
+}
+.timeline-item:first-child { border-top: 0; }
+.timeline-dot {
+  width: 8px; height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  margin-top: 8px;
+  flex-shrink: 0;
+}
+.timeline-body { display: flex; flex-direction: column; gap: 2px; }
+.timeline-time { color: var(--text-muted); font-size: var(--fs-meta); font-family: var(--font-mono); }
+.timeline-text { color: var(--text-primary); font-size: var(--fs-body); }
+
+/* —————— Helpers for chart areas ——————————————————— */
+.chart-frame {
+  width: 100%; height: 280px;
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  padding: var(--space-4);
+}
+
+/* —————— Footer ———————————————————————————————————————— */
+.foot {
+  margin-top: var(--space-7);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  font-size: var(--fs-meta);
+  text-align: center;
+  font-family: var(--font-mono);
+}
+
+/* —————— Reduced motion ————————————————————————————— */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}

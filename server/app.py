@@ -266,6 +266,42 @@ def skills_view():
     return render_template("skills.html")
 
 
+@app.route("/peers")
+def peers_view():
+    """Cross-project OSS attention (peer-config driven)."""
+    return render_template("peers.html")
+
+
+@app.route("/settings")
+def settings_view():
+    """Server meta + live health view."""
+    return render_template("settings.html")
+
+
+@app.route("/api/peers")
+def api_peers():
+    """Read peer list from ~/.vcm/peers.yaml if present (best-effort).
+
+    v0.3.0: server does not own peers storage — clients push via `vcm peers`.
+    The endpoint is here so the UI has a single source of truth; if the file
+    is missing we return an empty list, and the UI shows the empty-state CTA.
+    """
+    import os
+    try:
+        import yaml  # PyYAML; already in transitive deps via Flask ecosystem
+        path = Path(os.environ.get("VCM_PEERS_CONFIG", str(Path.home() / ".vcm" / "peers.yaml")))
+        if not path.exists():
+            return jsonify({"peers": [], "note": "no ~/.vcm/peers.yaml found"}), 200
+        with open(path) as f:
+            data = yaml.safe_load(f) or {}
+        peers = data.get("peers", []) if isinstance(data, dict) else data
+        return jsonify({"peers": peers, "note": ""})
+    except ImportError:
+        return jsonify({"peers": [], "note": "PyYAML not installed; run pip install pyyaml"}), 200
+    except Exception as e:
+        return jsonify({"peers": [], "note": f"error: {e}"}), 200
+
+
 @app.errorhandler(404)
 def not_found(e):
     return jsonify({"error": "not found"}), 404
