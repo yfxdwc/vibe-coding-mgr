@@ -1,6 +1,7 @@
 {# server/templates/_partials/nav.html — 顶部导航 (DESIGN.md §5)
    - 来自 _layout.html 自动 include
    - 高亮由 page.nav_active 决定，可被各 page 覆写
+   - auth_required 由 app.py 注入
 #}
 <nav class="nav" x-data="{ active: '{{ nav_active or 'cockpit' }}' }">
   <a class="nav-brand" href="/">
@@ -29,6 +30,7 @@
     ">
       <span x-text="summary.health_label || '—'"></span>
     </span>
+    <span class="badge badge--idle" x-show="{{ 'true' if auth_required else 'false' }}" title="API requires HTTP Basic Auth (ADR-0004)">🔒</span>
     <button class="btn btn--sm btn--ghost" @click="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">☀/☾</button>
   </div>
 </nav>

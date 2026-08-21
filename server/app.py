@@ -5,10 +5,13 @@ Run: python3 server/app.py
 import json
 import sqlite3
 import os
+import hmac
+import base64
+import binascii
 from datetime import datetime
 from pathlib import Path
 
-from flask import Flask, request, jsonify, render_template, abort
+from flask import Flask, request, jsonify, render_template, abort, Response
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from dashboard import (
@@ -22,11 +25,69 @@ DB_PATH = Path(os.environ.get("VCM_SERVER_DB", str(ROOT / "server" / "vcm.db")))
 TEMPLATES_DIR = ROOT / "server" / "templates"
 STATIC_DIR = ROOT / "server" / "static"
 
+# --- Optional BasicAuth (ADR-0004) ---------------------------------------
+# Both unset → no auth (v0.3.0 backward-compat).
+# Both set  → all /api/* routes require `Authorization: Basic …`.
+AUTH_USER = os.environ.get("VCM_AUTH_USER")
+AUTH_PASS = os.environ.get("VCM_AUTH_PASS")
+if (AUTH_USER and not AUTH_PASS) or (AUTH_PASS and not AUTH_USER):
+    raise SystemExit("VCM_AUTH_USER and VCM_AUTH_PASS must be set together (or both unset)")
+AUTH_ENABLED = bool(AUTH_USER and AUTH_PASS)
+
+
+def _check_basic_auth():
+    """Return (ok, error_response_or_None). Reads Authorization header."""
+    if not AUTH_ENABLED:
+        return True, None
+    header = request.headers.get("Authorization", "")
+    if not header.startswith("Basic "):
+        return False, (jsonify({"error": "auth required"}), 401,
+                       {"WWW-Authenticate": 'Basic realm="vcm-server"'})
+    try:
+        raw = base64.b64decode(header[6:].strip(), validate=True)
+        decoded = raw.decode("utf-8", errors="replace")
+        if ":" not in decoded:
+            raise ValueError
+        u, p = decoded.split(":", 1)
+    except (binascii.Error, ValueError, UnicodeDecodeError):
+        return False, (jsonify({"error": "malformed Authorization header"}), 400,
+                       {"WWW-Authenticate": 'Basic realm="vcm-server"'})
+    # Constant-time compare (prevents timing-based username enumeration)
+    if hmac.compare_digest(u, AUTH_USER or "") and hmac.compare_digest(p, AUTH_PASS or ""):
+        return True, None
+    return False, (jsonify({"error": "invalid credentials"}), 401,
+                   {"WWW-Authenticate": 'Basic realm="vcm-server"'})
+
+
 app = Flask(
     __name__,
     template_folder=str(TEMPLATES_DIR),
     static_folder=str(STATIC_DIR),
 )
+
+
+# --- BasicAuth (ADR-0004) -------------------------------------------------
+@app.before_request
+def _enforce_auth():
+    """Apply BasicAuth only to /api/* (dashboard HTML stays public-readable).
+
+    Rationale: dashboard pages are themselves vcm-server\'s \"own state\";
+    protecting them would mean the user can\'t see the warning that
+    auth is enabled. /static/* is also public.
+    """
+    if not request.path.startswith("/api/"):
+        return None
+    if request.path == "/api/health":  # health check is intentionally public
+        return None
+    ok, err = _check_basic_auth()
+    if not ok:
+        body, status, headers = err
+        resp = Response(body.get_data(), status=status, mimetype="application/json")
+        for k, v in headers.items():
+            resp.headers[k] = v
+        return resp
+    return None
+
 
 # Initialize DB schema at startup (idempotent)
 with app.app_context():
@@ -84,6 +145,7 @@ def health():
         "service": "vcm-server",
         "version": version,
         "db": "ok" if DB_PATH.exists() else "initializing",
+        "auth_required": AUTH_ENABLED,  # ADR-0004: UI shows "lock" badge
     })
 
 
@@ -248,34 +310,41 @@ def api_project_full(name):
     return jsonify(data)
 
 
+def _render(template_name, **kwargs):
+    """Wrap render_template to inject auth_required context (ADR-0004)."""
+    ctx = {"auth_required": AUTH_ENABLED}
+    ctx.update(kwargs)
+    return render_template(template_name, **ctx)
+
+
 @app.route("/")
 def dashboard():
     """Multi-project dashboard."""
-    return render_template("dashboard.html")
+    return _render("dashboard.html")
 
 
 @app.route("/projects/<name>")
 def project_view(name):
     """Single-project detail view."""
-    return render_template("project.html", project_name=name)
+    return _render("project.html", project_name=name)
 
 
 @app.route("/skills")
 def skills_view():
     """Cross-project skill registry index."""
-    return render_template("skills.html")
+    return _render("skills.html")
 
 
 @app.route("/peers")
 def peers_view():
     """Cross-project OSS attention (peer-config driven)."""
-    return render_template("peers.html")
+    return _render("peers.html")
 
 
 @app.route("/settings")
 def settings_view():
     """Server meta + live health view."""
-    return render_template("settings.html")
+    return _render("settings.html")
 
 
 @app.route("/api/peers")
