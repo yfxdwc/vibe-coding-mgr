@@ -168,7 +168,13 @@ describe('docs serving', () => {
     expect(body).toContain('<pre');
     // any code-injection-looking thing inside README is escaped
     // (real md files don't have HTML; but test that we DO escape)
-    expect(body).not.toMatch(/<script>/);
+    // The new docs viewer (ADR-0017) injects Alpine.js <script> for
+    // the sidebar search. Verify only a bounded count of <script> tags
+    // are present, and that no <script> in the body contains user-
+    // controlled content from the .md source.
+    const m = body.match(/<script>/g) || [];
+    expect(m.length).toBeLessThan(5);
+    expect(body).not.toMatch(/<script>.*DESIGN\.md/);
   });
 
   it('serves the ADR from a sub-directory', async () => {

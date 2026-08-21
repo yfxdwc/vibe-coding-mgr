@@ -845,19 +845,60 @@ def _regen_registry_index(registry_dir):
         json.dump(index, f, indent=2)
 
 
+# --- Docs viewer (ADR-0017) -----------------------------------------------
+# /docs/<path>.md has a thin wrapper that escapes content into <pre>.
+# The /api/docs/index endpoint enumerates the docs tree, and the
+# /docs view renders a sidebar with client-side fuzzy search.
+
+
+@app.route("/api/docs/index")
+@scopes_mod.require_scope("read")
+def api_docs_index():
+    """Enumerate all .md files under docs/ (ADR-0017).
+
+    Returns a dict with 'files' list, each entry being
+    {filename, relpath, title, snippet (first 200 chars)}.
+    """
+    md_root = ROOT / "docs"
+    if not md_root.exists():
+        return jsonify({"files": []})
+    files = []
+    for path in sorted(md_root.rglob("*.md")):
+        try:
+            rel = str(path.relative_to(md_root))
+        except ValueError:
+            continue
+        try:
+            content = path.read_text(encoding="utf-8", errors="replace")
+        except Exception:
+            continue
+        # extract first heading as title
+        title = path.stem
+        snippet = ""
+        for line in content.splitlines():
+            if line.startswith("# "):
+                title = line.lstrip("# ").strip()
+                continue
+            if line.strip() and not snippet:
+                snippet = line.strip()
+        if not snippet:
+            snippet = path.stem
+        files.append({
+            "filename": path.name,
+            "relpath": rel,
+            "title": title,
+            "snippet": snippet[:200],
+        })
+    return jsonify({"files": files, "count": len(files)})
+
+
 @app.route("/docs/<path:filename>")
 def docs_view(filename):
-    """Serve any /docs/*.md (or .md inside docs/adr/, docs/adr/0001-*, etc.)
-    with a thin HTML wrapper using only the standard library.
-
-    Zero-dependency implementation: markdown stays as text inside <pre>;
-    users copy-paste it into their editor, or read it raw. This avoids
-    adding markdown libs (mistune, markdown-it) to requirements.txt.
+    """Serve any /docs/*.md with sidebar + search (ADR-0017).
 
     Safety: `filename` is constrained to live under ROOT/docs/. Path
     traversal (`../etc/passwd`) is rejected at `target.relative_to()`.
     """
-    from flask import Response
     import html as html_stdlib
     md_root = ROOT / "docs"
     target = (md_root / filename).resolve()
@@ -867,25 +908,9 @@ def docs_view(filename):
         abort(404)
     if not target.exists() or not target.is_file():
         abort(404)
-    body = target.read_text(encoding="utf-8")
-    escaped = html_stdlib.escape(body)
-    title = target.stem
-    rel = str(filename)
-    html = (
-        f'<!DOCTYPE html><html lang="en" data-theme="dark"><head>'
-        f'<meta charset="UTF-8"><title>vcm-server · {title}</title>'
-        f'<link rel="stylesheet" href="/static/css/dashboard.css">'
-        f'</head><body><main class="shell">'
-        f'<header class="page-head"><div class="crumbs">'
-        f'<a href="/settings">settings</a><span class="sep">/</span>'
-        f'<span class="crumb-current">{title}</span></div>'
-        f'<h1 class="text-display">{title}</h1>'
-        f'<p class="text-meta">docs/{rel}</p></header>'
-        f'<div class="c-card"><pre style="white-space: pre-wrap;">{escaped}</pre></div>'
-        f'<a href="/settings" class="btn btn--ghost">← back to settings</a>'
-        f'</main></body></html>'
-    )
-    return Response(html, mimetype="text/html")
+    body_raw = target.read_text(encoding="utf-8", errors="replace")
+    body = html_stdlib.escape(body_raw)
+    return _render("_docs.html", title=target.stem, body=body, relpath=str(filename))
 
 
 
