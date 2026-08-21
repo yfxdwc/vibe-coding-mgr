@@ -38,3 +38,5 @@ test-results/
 # Project-local artifact dirs that `vcm` creates on demand
 .pi/
 .vcm/
+vcm.db
+*.db

@@ -9,6 +9,7 @@ import { statusCommand } from '../lib/cli/status.js';
 import { validateCommand } from '../lib/cli/validate.js';
 import { pushCommand } from '../lib/cli/push.js';
 import { peersCommand } from '../lib/cli/peers.js';
+import { userTokenCommand } from '../lib/cli/user.js';
 
 const VERSION = "0.5.0";
 
@@ -77,6 +78,25 @@ program
   .argument('<action>', 'add | list | refresh | config')
   .argument('[repo]', 'Repository (owner/name) — for add/config')
   .action(peersCommand);
+
+program
+  .command('user')
+  .description('Manage users (ADR-0011 per-user ACL)')
+  .argument('<action>', 'add | list | passwd | delete')
+  .argument('[name]', 'Username (for add/passwd/delete)')
+  .option('--scope <scope>', 'User scope: read | push | admin', 'push')
+  .option('--password <pw>', 'Password (CI use; prefer stdin/TTY)')
+  .action((action, name, opts) => userTokenCommand('user', action, name, opts));
+
+program
+  .command('token')
+  .description('Manage bearer tokens (ADR-0011 per-user ACL)')
+  .argument('<action>', 'grant | revoke | list')
+  .argument('[name]', 'Username (for grant) or token id (for revoke); empty=list all')
+  .option('--label <label>', 'Token label (e.g. "ci-runner")')
+  .option('--scope <scope>', 'Token scope override')
+  .option('--days <N>', 'Token expiry in days')
+  .action((action, name, opts) => userTokenCommand('token', action, name, opts));
 
 // Default help text styling
 program.configureHelp({

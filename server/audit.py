@@ -25,6 +25,15 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
+def _enable_wal(conn) -> None:
+    """Allow CLI + server to share the DB via WAL journal mode."""
+    try:
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA synchronous=NORMAL")
+    except Exception:
+        pass
+
+
 # --- Configuration --------------------------------------------------------
 
 def audit_log_path() -> str:
@@ -109,7 +118,7 @@ def _write_sqlite(rec: dict) -> None:
     # short-lived connection per write; SQLite is fast at single inserts.
     # We are not using the long-lived get_db() because Flask thread safety
     # makes it tricky to share with CLI tooling.
-    conn = sqlite3.connect(db_path, timeout=5.0)
+    conn = sqlite3.connect(db_path, timeout=5.0); _enable_wal(conn)
     try:
         ensure_events_table(conn)
         conn.execute(
@@ -175,7 +184,7 @@ def read_events(since=None, event_type=None, project=None, limit=100, offset=0):
 
 
 def _read_sqlite(since, event_type, project, limit, offset):
-    conn = sqlite3.connect(sqlite_path(), timeout=5.0)
+    conn = sqlite3.connect(sqlite_path(), timeout=5.0); _enable_wal(conn)
     conn.row_factory = sqlite3.Row
     try:
         ensure_events_table(conn)
@@ -256,7 +265,7 @@ def event_stats(since: str | None = None) -> dict:
 
 
 def _event_stats_sqlite(since):
-    conn = sqlite3.connect(sqlite_path(), timeout=5.0)
+    conn = sqlite3.connect(sqlite_path(), timeout=5.0); _enable_wal(conn)
     conn.row_factory = sqlite3.Row
     try:
         ensure_events_table(conn)

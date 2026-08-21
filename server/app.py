@@ -17,6 +17,7 @@ from pathlib import Path
 from flask import Flask, request, jsonify, render_template, abort, Response, stream_with_context
 
 import audit  # ADR-0009
+import users as users_mod  # ADR-0011
 from pathlib import Path as _Path
 import os as _os
 import sys
@@ -39,31 +40,64 @@ AUTH_USER = os.environ.get("VCM_AUTH_USER")
 AUTH_PASS = os.environ.get("VCM_AUTH_PASS")
 if (AUTH_USER and not AUTH_PASS) or (AUTH_PASS and not AUTH_USER):
     raise SystemExit("VCM_AUTH_USER and VCM_AUTH_PASS must be set together (or both unset)")
-AUTH_ENABLED = bool(AUTH_USER and AUTH_PASS)
+BASIC_AUTH_ENABLED = bool(AUTH_USER and AUTH_PASS)
+# ADR-0011: also enable auth when a users table has at least one row.
+# We compute this lazily in _check_basic_auth so test fixtures that add
+# users after server startup are still respected.
+if BASIC_AUTH_ENABLED and users_mod.has_any_user():
+    raise SystemExit("both VCM_AUTH_USER/PASS and users table are set; pick one mode")
+AUTH_ENABLED = BASIC_AUTH_ENABLED  # legacy flag; we still consult users_mod live.
 
 
 def _check_basic_auth():
-    """Return (ok, error_response_or_None). Reads Authorization header."""
-    if not AUTH_ENABLED:
+    """Return (ok, error_response_or_None). Reads Authorization header.
+
+    ADR-0011 users-mode: if a users table has any rows, accept either:
+      - Bearer token (preferred): 'Authorization: Bearer vcm_<uid>.<secret>'
+      - HTTP Basic: 'Authorization: Basic <b64(user:pass)>'
+    """
+    if not AUTH_ENABLED and not users_mod.has_any_user():
         return True, None
+    # Live recheck: users table may have been populated since startup.
     header = request.headers.get("Authorization", "")
-    if not header.startswith("Basic "):
+    if not header:
         return False, (jsonify({"error": "auth required"}), 401,
+                       {"WWW-Authenticate": 'Basic realm="vcm-server", Bearer'})
+    # Try Bearer first (preferred path)
+    if header.startswith("Bearer "):
+        raw = header[7:].strip()
+        # If users-mode is on, look up token
+        if users_mod.has_any_user():
+            res = users_mod.verify_token(raw)
+            if res:
+                return True, None
+        # Otherwise silently fall through to next check
+        return False, (jsonify({"error": "invalid bearer token"}), 401,
+                       {"WWW-Authenticate": 'Bearer realm="vcm-server"'})
+    elif header.startswith("Basic "):
+        try:
+            raw = base64.b64decode(header[6:].strip(), validate=True)
+            decoded = raw.decode("utf-8", errors="replace")
+            if ":" not in decoded:
+                raise ValueError
+            u, p = decoded.split(":", 1)
+        except (binascii.Error, ValueError, UnicodeDecodeError):
+            return False, (jsonify({"error": "malformed Authorization header"}), 400,
+                           {"WWW-Authenticate": 'Basic realm="vcm-server"'})
+        # 1) BasicAuth env mode: works for any user (v0.5 compat)
+        if AUTH_ENABLED and AUTH_USER:
+            if hmac.compare_digest(u, AUTH_USER or "") and hmac.compare_digest(p, AUTH_PASS or ""):
+                return True, None
+        # 2) Users mode: validate username+password against users table
+        if users_mod.has_any_user():
+            res = users_mod.authenticate(u, p)
+            if res:
+                return True, None
+        return False, (jsonify({"error": "invalid credentials"}), 401,
                        {"WWW-Authenticate": 'Basic realm="vcm-server"'})
-    try:
-        raw = base64.b64decode(header[6:].strip(), validate=True)
-        decoded = raw.decode("utf-8", errors="replace")
-        if ":" not in decoded:
-            raise ValueError
-        u, p = decoded.split(":", 1)
-    except (binascii.Error, ValueError, UnicodeDecodeError):
-        return False, (jsonify({"error": "malformed Authorization header"}), 400,
-                       {"WWW-Authenticate": 'Basic realm="vcm-server"'})
-    # Constant-time compare (prevents timing-based username enumeration)
-    if hmac.compare_digest(u, AUTH_USER or "") and hmac.compare_digest(p, AUTH_PASS or ""):
-        return True, None
-    return False, (jsonify({"error": "invalid credentials"}), 401,
-                   {"WWW-Authenticate": 'Basic realm="vcm-server"'})
+    else:
+        return False, (jsonify({"error": "auth required"}), 401,
+                       {"WWW-Authenticate": 'Basic realm="vcm-server", Bearer'})
 
 
 app = Flask(
