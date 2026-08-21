@@ -1,0 +1,195 @@
+{% extends "_layout.html" %}
+{# server/templates/audit.html — audit log viewer (ADR-0009)
+   Filter URL-state: ?event=auth_failure&since=2026-08-01&limit=200
+#}
+{% set nav_active = 'audit' %}
+
+{% block title %}audit{% endblock %}
+
+{% block page_head %}
+<header class="page-head">
+  <div class="crumbs">
+    <a href="/">cockpit</a>
+    <span class="sep">/</span>
+    <span class="crumb-current">audit</span>
+  </div>
+  <h1 class="text-display">Audit log</h1>
+  <p class="text-meta">Append-only JSONL at <code>$VCM_AUDIT_LOG</code> or <code>~/.vcm/audit.log</code>.</p>
+</header>
+{% endblock %}
+
+{% block answers_line %}
+<div class="answers-line">
+  <span class="answers-tag">Answers</span>
+  <p>who tried to do what, when, and was it allowed?</p>
+</div>
+{% endblock %}
+
+{% block content %}
+
+<section x-show="!loaded" class="empty-state"><p>Loading audit log…</p></section>
+
+<section x-show="loaded" class="stack-5" data-c="audit">
+
+  <div class="c-card">
+    <div class="c-card-head">
+      <h2 class="text-section">Filter</h2>
+      <span class="text-meta"><span x-text="filtered.length"></span> events shown</span>
+    </div>
+    <div class="cluster-3" style="flex-wrap: wrap; align-items: flex-end;">
+      <label class="stack-2" style="min-width: 180px;">
+        <span class="text-label">Event type</span>
+        <select x-model="filterType" @change="applyFilter()"
+                style="background: var(--surface-alt); border: 1px solid var(--border-subtle);
+                       color: var(--text-primary); padding: 6px 8px; border-radius: 6px;
+                       font-family: inherit; font-size: var(--fs-body);">
+          <option value="">all</option>
+          <option value="auth_failure">auth_failure</option>
+          <option value="state_pushed">state_pushed</option>
+          <option value="state_rejected">state_rejected</option>
+          <option value="registry_publish">registry_publish</option>
+          <option value="registry_unpublish">registry_unpublish</option>
+        </select>
+      </label>
+      <label class="stack-2" style="min-width: 200px;">
+        <span class="text-label">Since (ISO date)</span>
+        <input type="text" x-model="filterSince" @change="applyFilter()" placeholder="2026-08-01"
+               style="background: var(--surface-alt); border: 1px solid var(--border-subtle);
+                      color: var(--text-primary); padding: 6px 8px; border-radius: 6px;
+                      font-family: var(--font-mono); font-size: var(--fs-meta);" />
+      </label>
+      <label class="stack-2" style="min-width: 120px;">
+        <span class="text-label">Limit</span>
+        <input type="number" x-model.number="limit" @change="applyFilter()" min="1" max="5000"
+               style="background: var(--surface-alt); border: 1px solid var(--border-subtle);
+                      color: var(--text-primary); padding: 6px 8px; border-radius: 6px;
+                      font-family: var(--font-mono); font-size: var(--fs-meta);" />
+      </label>
+    </div>
+  </div>
+
+  <div class="c-card" x-show="events.length">
+    <div class="c-card-head">
+      <h2 class="text-section">Events</h2>
+      <span class="text-meta">
+        <span class="mono" x-text="events.length"></span> total ·
+        <span class="badge badge--fail"   x-show="countByType('auth_failure')   > 0">
+          <span x-text="countByType('auth_failure')"></span> auth_failure
+        </span>
+        <span class="badge badge--ok"     x-show="countByType('state_pushed')    > 0">
+          <span x-text="countByType('state_pushed')"></span> state_pushed
+        </span>
+        <span class="badge badge--warn"   x-show="countByType('state_rejected')  > 0">
+          <span x-text="countByType('state_rejected')"></span> state_rejected
+        </span>
+        <span class="badge badge--idle"   x-show="countByType('registry_publish') > 0">
+          <span x-text="countByType('registry_publish')"></span> registry_publish
+        </span>
+      </span>
+    </div>
+
+    <div style="overflow-x: auto;">
+      <table class="data-table" data-c="audit-table">
+        <thead>
+          <tr>
+            <th class="nowrap">Timestamp (UTC)</th>
+            <th>Event</th>
+            <th>Subject</th>
+            <th>Detail</th>
+          </tr>
+        </thead>
+        <tbody>
+          <template x-for="(ev, i) in filtered" :key="i">
+            <tr>
+              <td class="mono nowrap text-meta" x-text="(ev.ts || '').slice(0, 19).replace('T', ' ')"></td>
+              <td>
+                <span class="badge"
+                      :class="eventClass(ev.event_type)"
+                      x-text="ev.event_type"></span>
+              </td>
+              <td class="mono" x-text="ev.project || ev.path || ev.skill_name || '—'"></td>
+              <td class="text-meta mono" style="font-size: 11px;"
+                  x-text="detail(ev)"></td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div x-show="loaded && !events.length" class="empty-state">
+    <p>No audit events yet.</p>
+    <p class="text-meta">Once any <code>/api/collect</code> or auth attempt happens,
+       a JSONL line will appear here.</p>
+  </div>
+
+</section>
+
+{% endblock %}
+
+{% block extra_body %}
+<script>
+function page() {
+  return {
+    events: [],
+    loaded: false,
+    filterType: new URLSearchParams(location.search).get('event') || '',
+    filterSince: new URLSearchParams(location.search).get('since') || '',
+    limit: parseInt(new URLSearchParams(location.search).get('limit') || '100', 10),
+    summary: {},
+
+    async init() {
+      const sum = await this.fetchJSON('/api/dashboard/summary');
+      this.summary = { ...sum };
+      await this.load();
+      this.loaded = true;
+    },
+
+    async fetchJSON(url) { const r = await fetch(url); return r.ok ? r.json() : {}; },
+
+    async load() {
+      const params = new URLSearchParams();
+      if (this.filterType) params.set('event', this.filterType);
+      if (this.filterSince) params.set('since', this.filterSince);
+      params.set('limit', String(this.limit));
+      const r = await this.fetchJSON(`/api/audit?${params.toString()}`);
+      this.events = r.events || [];
+    },
+
+    applyFilter() {
+      const u = new URL(location.href);
+      if (this.filterType) u.searchParams.set('event', this.filterType);
+      else u.searchParams.delete('event');
+      if (this.filterSince) u.searchParams.set('since', this.filterSince);
+      else u.searchParams.delete('since');
+      if (this.limit !== 100) u.searchParams.set('limit', String(this.limit));
+      else u.searchParams.delete('limit');
+      history.replaceState(null, '', u);
+      this.load();
+    },
+
+    get filtered() { return this.events; },
+
+    countByType(t) { return this.events.filter(e => e.event_type === t).length; },
+
+    eventClass(t) {
+      return {
+        auth_failure:    'badge--fail',
+        state_rejected:  'badge--warn',
+        state_pushed:    'badge--ok',
+        registry_publish:'badge--idle',
+        registry_unpublish: 'badge--idle',
+      }[t] || 'badge--idle';
+    },
+
+    detail(ev) {
+      const skip = new Set(['ts', 'event_type', 'project', 'skill_name']);
+      return Object.entries(ev)
+        .filter(([k]) => !skip.has(k))
+        .map(([k, v]) => k + '=' + (typeof v === 'string' ? v : JSON.stringify(v)))
+        .join(' ');
+    },
+  };
+}
+</script>
+{% endblock %}

@@ -15,6 +15,10 @@ from datetime import datetime
 from pathlib import Path
 
 from flask import Flask, request, jsonify, render_template, abort, Response, stream_with_context
+
+import audit  # ADR-0009
+from pathlib import Path as _Path
+import os as _os
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from dashboard import (
@@ -85,6 +89,19 @@ def _enforce_auth():
     ok, err = _check_basic_auth()
     if not ok:
         body, status, headers = err
+        # ADR-0009: log auth failure (do NOT leak whether user exists)
+        reason = "wrong_or_missing_credentials"
+        if (body.get_data().decode("utf-8", errors="replace")
+                .find("malformed") >= 0):
+            reason = "malformed_authorization_header"
+        audit.write_event(
+            "auth_failure",
+            path=request.path,
+            method=request.method,
+            reason=reason,
+            remote=request.remote_addr,
+            user_agent=request.headers.get("User-Agent", ""),
+        )
         resp = Response(body.get_data(), status=status, mimetype="application/json")
         for k, v in headers.items():
             resp.headers[k] = v
@@ -122,6 +139,15 @@ def sse_publish(event, data):
 # Initialize DB schema at startup (idempotent)
 with app.app_context():
     pass  # placeholder; init_db() called below
+
+# ADR-0009: ensure audit log file exists at startup so the dashboard
+# has something to read on first access.
+try:
+    _audit_path = audit.audit_log_path()
+    if not _audit_path.exists() and not audit.audit_disabled():
+        _audit_path.touch(mode=0o600)
+except Exception:
+    pass
 
 
 def get_db():
@@ -185,6 +211,15 @@ def collect():
     try:
         state = request.get_json(force=True)
         if not state or "project" not in state:
+            # Audit log (ADR-0009): log rejection cause before returning.
+            try:
+                audit.write_event(
+                    "state_rejected",
+                    reason="invalid_state_no_project",
+                    remote=request.remote_addr,
+                )
+            except Exception:
+                pass
             return jsonify({"error": "invalid state"}), 400
 
         project_name = state["project"]["name"]
@@ -225,6 +260,18 @@ def collect():
         )
         conn.commit()
 
+        # Audit log (ADR-0009): state_pushed event.
+        try:
+            audit.write_event(
+                "state_pushed",
+                project=project_name,
+                vcm_version=state.get("vcm_version"),
+                schema_version=state.get("schema_version"),
+                remote=request.remote_addr,
+            )
+        except Exception:
+            pass
+
         # Get latest summary
         summary = {
             "project_id": project_id,
@@ -245,7 +292,49 @@ def collect():
         return jsonify(summary), 200
 
     except Exception as e:
+        # Audit log (ADR-0009) — capture the rejection cause.
+        try:
+            payload = request.get_json(silent=True) or {}
+            audit.write_event(
+                "state_rejected",
+                project=(payload.get("project") or {}).get("name"),
+                reason=str(e),
+                remote=request.remote_addr,
+            )
+        except Exception:
+            pass
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/audit")
+def api_audit():
+    """ADR-0009: read-only access to the audit log.
+
+    Query params:
+      ?since    ISO date-time (lower bound, inclusive)
+      ?event    filter by event_type (exact match)
+      ?limit    1..5000; default 100
+    """
+    since = request.args.get("since")
+    event_type = request.args.get("event")
+    try:
+        limit = int(request.args.get("limit", "100"))
+    except ValueError:
+        limit = 100
+    events = audit.read_events(since=since, event_type=event_type, limit=limit)
+    return jsonify({"events": events, "count": len(events)})
+
+
+@app.route("/audit")
+def audit_view():
+    """ADR-0009: dashboard-side audit log viewer."""
+    return _render("audit.html")
+
+
+@app.route("/trends")
+def trends_view():
+    """ADR-0010 placeholder — full trends UI ships in step 3."""
+    return _render("trends.html")
 
 
 @app.route("/api/projects")
