@@ -1,0 +1,42 @@
+# scripts/vcm-server.service — systemd user unit for vcm-server.
+#
+# This file is a TEMPLATE. `scripts/install-service.sh` substitutes the
+# markers below with the actual install-time paths and writes the real
+# unit to `~/.config/systemd/user/vcm-server.service`. Do NOT enable
+# this file directly via `systemctl --user link`.
+#
+# Markers (search for these to substitute):
+#   @VCM_REPO_DIR@       — absolute path to the repo checkout
+#   @VCM_PYTHON@         — absolute path to .venv/bin/python3
+#   @VCM_ENV_FILE@       — absolute path to ~/.vcm/server.env
+
+[Unit]
+Description=vibe-coding-mgr dashboard server (vcm-server)
+Documentation=https://github.com/your-org/vibe-coding-mgr
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=@VCM_REPO_DIR@
+EnvironmentFile=@VCM_ENV_FILE@
+ExecStart=@VCM_PYTHON@ @VCM_REPO_DIR@/server/app.py
+Restart=on-failure
+RestartSec=5s
+StartLimitBurst=5
+StartLimitIntervalSec=60s
+
+# Lightweight hardening (Ubuntu 24.04 / systemd 255 minimum).
+# These follow `man systemd.exec`. If vcm-server fails to start on
+# older systemd (< 235), see ADR-0025 §"Hardening".
+NoNewPrivileges=yes
+ProtectHome=read-only
+PrivateTmp=yes
+MemoryDenyWriteExecute=yes
+LockPersonality=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+UMask=0077
+
+[Install]
+WantedBy=default.target
