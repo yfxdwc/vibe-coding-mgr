@@ -35,11 +35,15 @@ program
 
 program
   .command('skill')
-  .description('Manage skills (add/list/validate)')
-  .argument('<action>', 'add | list | validate')
+  .description('Manage skills (add/list/validate/convert)')
+  .argument('<action>', 'add | list | validate | convert')
   .argument('[name]', 'Skill name (for add/validate)')
   .option('-d, --desc <description>', 'Skill description (for add)')
   .option('-t, --tags <tags>', 'Comma-separated tags (for add)')
+  .option('--from <fmt>', 'Source format (for convert): vercel | tech-leads-club | aas | addyosmani | refly | vcm')
+  .option('--to <fmt>',   'Target format (for convert)')
+  .option('--input <path>', 'Read skill JSON from file (default: stdin)')
+  .option('--output <path>', 'Write to file instead of stdout')
   .action(skillCommand);
 
 program
