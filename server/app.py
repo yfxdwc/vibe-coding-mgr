@@ -411,6 +411,66 @@ def audit_view():
     return _render("audit.html")
 
 
+@app.route("/api/audit/purge", methods=["POST"])
+@scopes_mod.require_scope("admin")
+def api_audit_purge():
+    """Delete events older than `before` (admin scope, ADR-0016).
+
+    Body: {before: ISO, event_type?: str, project?: str, confirm: "PURGE"}
+    Refuses without literal "PURGE" confirmation word. Writes its own
+    audit event (event_type=audit_purge) so the deletion is itself
+    recorded.
+    """
+    payload = request.get_json(force=True) or {}
+    if payload.get("confirm") != "PURGE":
+        return jsonify({"error": "missing 'confirm': 'PURGE' in body"}), 400
+    before = payload.get("before")
+    if not before:
+        return jsonify({"error": "missing 'before' (ISO date-time)"}), 400
+    event_type = payload.get("event_type")
+    project = payload.get("project")
+
+    conn = sqlite3.connect(audit.sqlite_path(), timeout=10.0)
+    conn.row_factory = sqlite3.Row
+    try:
+        # ensure table exists
+        audit.ensure_events_table(conn)
+        q = "DELETE FROM audit_events WHERE ts < ?"
+        params = [before]
+        if event_type:
+            q += " AND event_type = ?"
+            params.append(event_type)
+        if project is not None:
+            q += " AND project = ?"
+            params.append(project)
+        cur = conn.execute(q, params)
+        deleted = cur.rowcount
+        conn.commit()
+    finally:
+        conn.close()
+
+    # meta-audit (ADR-0016): the deletion is itself recorded
+    try:
+        audit.write_event(
+            "audit_purge",
+            before=before,
+            event_type=event_type,
+            project=project,
+            deleted_count=deleted,
+            scope=getattr(g, "user_scope", None),
+            user_id=getattr(g, "user_id", None),
+            remote=request.remote_addr,
+        )
+    except Exception:
+        pass
+    return jsonify({
+        "deleted": deleted,
+        "before": before,
+        "event_type": event_type,
+        "project": project,
+    })
+
+
 @app.route("/trends")
 def trends_view():
     """ADR-0010 placeholder — full trends UI ships in step 3."""

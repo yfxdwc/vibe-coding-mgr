@@ -6,7 +6,7 @@ Originally extracted from sales-ai where it was developed as the `dev domain`. N
 
 ```bash
 $ vcm --version
-0.7.0
+0.8.0
 $ vcm doctor                          # one-command health check
 vcm doctor — 4 sections
 [governance]  6 hard checks       OK (5 OK, 1 WARN, 0 FAIL)
@@ -243,10 +243,34 @@ Convert with `vcm skill convert --from <fmt> --to vcm < skill.json`.
 - ❌ Not a project management tool (use [Plane](https://plane.so) for that)
 - ❌ Not a lock-in — every artifact is plain text, easily migrated
 
+## Quick health check
+
+Run this on any vcm-tracked project to see the full picture:
+
+```bash
+vcm doctor                  # human-readable
+vcm doctor --json | jq     # machine-readable for CI
+```
+
+A clean doctor output looks like:
+
+```
+vcm doctor — 4 sections
+[governance]  6 hard checks       OK (6 OK, 0 WARN, 0 FAIL)
+[skills]       3 registered        3 active
+[repository]   15 ADRs             newest: 0015-schema-doc
+[git hygiene]  working tree        clean
+VERDICT: all OK (6/6)
+```
+
+CI integration: `vcm doctor --strict` exits 1 on any warning
+(without `--strict`, only FAIL exits 1).
+
 ## Release cadence
 
 | Version | Highlights |
 |---|---|
+| v0.8.0 | CHANGELOG, README modernization, server-side publish, audit-stats UI |
 | v0.7.0 | Per-endpoint scopes, schema doc generator, registry endpoint |
 | v0.6.0 | Per-user ACL, audit log SQLite, `vcm doctor` |
 | v0.5.0 | Audit log + trend dashboard + skill marketplace |

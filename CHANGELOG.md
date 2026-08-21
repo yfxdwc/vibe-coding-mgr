@@ -9,10 +9,54 @@ The format is loosely: version, date, summary, list of changes, and a
 
 ---
 
+## v0.8.0 — 2026-08-21
+
+**Documentation catch-up + marketplace closure.** A release without
+much new code, but with two important debt-clearances: the README was
+v0.2-era, and the marketplace had a server-side `read` endpoint
+without a server-side `publish` endpoint.
+
+### Added
+
+- **CHANGELOG.md** — captures v0.2.0 → v0.7.0 history with design notes
+  pointing to the ADRs that drove each change.
+- **README.md modernization** — rewritten for v0.7.0 reality. Was stuck
+  in v0.2 thinking. Added release-cadence table, "What vcm is NOT"
+  section, full CLI at a glance.
+- **/api/registry/publish endpoint** (push scope) — server-side
+  skill publish, closes the v0.5.0 marketplace story end-to-end.
+  Refuses retired skills, refreshes `~/.vcm/registry/index.json`,
+  emits a `registry_publish` audit event.
+- **/audit view consumes /api/audit/stats** — 3-KPI stats card
+  (total / auth_failure / state_pushed) + ECharts event-distribution
+  bar. Filter URL-state re-runs both stats and the event list.
+
+### Fixed
+
+- `_glob` / `_json` module-name typo bug — `import json as _json` and
+  `import glob as _glob` are fine in the `import` line, but callsites
+  that referenced `json.load` (not `_json.load`) failed at runtime
+  with "json is not defined" or "No module named _glob". Replaced with
+  module-top `import json` and `import glob`.
+- Test port collision — `tests/scopes.test.js` and
+  `tests/registry-publish.test.js` both spawned on PORT 7480; under
+  vitest's parallel execution, the second test to start would fail to
+  bind the port. Moved registry-publish to PORT 7488.
+
+### Tests
+
+- 199/199 (was 191 → +8)
+- 15 ADRs (no new — three ROADMAP items deprioritised as out-of-scope
+  for local-first vcm)
+
+---
+
 ## v0.7.0 — 2026-08-21
 
 **Closed three real gaps left open by v0.6.0**: write-permission leakage
 across scopes, unreadable JSON Schemas, and the CLI-only marketplace.
+
+---
 
 ### Added
 
