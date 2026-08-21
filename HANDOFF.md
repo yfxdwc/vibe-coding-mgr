@@ -33,14 +33,14 @@ layers (`lib/adapters/`), never vendored.
 
 | Item | Value |
 |---|---|
-| Version | `0.9.0` (in `package.json` and `bin/vcm.js`) |
-| Tests | **212/212 passing** (21 test files) |
+| Version | `0.10.0` (in `package.json` and `bin/vcm.js`) |
+| Tests | **244/244 passing** (23 test files) |
 | 6 hard checks | 5 OK / 1 WARN (no `.pi/skills` dir in repo; expected) |
-| ADRs | **19** in `docs/adr/0001-` to `0019-` |
-| Routes | **30** `@app.route` decorators in `server/app.py` |
-| Python modules | 7 in `server/` |
+| ADRs | **19** in `docs/adr/0001-` to `0019-` (0018 + 0019 implemented) |
+| Routes | **32** `@app.route` decorators in `server/app.py` (+2 drift) |
+| Python modules | 7 in `server/` (+drift logic in dashboard.py) |
 | CLI commands | 11 (init/snapshot/skill/status/validate/push/peers/user/token/doctor/schema) |
-| Templates | 11 in `server/templates/` |
+| Templates | 12 in `server/templates/` (+drift.html) |
 | Source files | 114 in git tree, ~100 source files (Python/JS/HTML/MD) |
 | Repo | `https://github.com/your-org/vibe-coding-mgr` (URL in README; placeholder) |
 
@@ -701,17 +701,33 @@ Approximate sizes (growing fast — refresh yourself before quoting):
 
 ## 16. TL;DR for the next agent
 
-1. The project is **v0.9.0, healthy, 212/212 tests passing**.
+1. The project is **v0.12.0, healthy, 289/289 tests passing**.
 2. **Read `AGENTS.md` and `CHARTER.md` first** — they define the rules.
-3. **Read the most recent ADRs** (0015-0018) — they describe the
+3. **Read the most recent ADRs** (0020–0024) — they describe the
    "what we just decided" trajectory.
 4. **Don't refactor without an ADR.** If you find yourself wanting
-   to, write ADR-0020 first.
-5. **Tests use unique ports** (7480+) to avoid parallel conflicts.
-6. **The 6 hard checks** must pass before any commit (`bash scripts/routine_coverage.sh`).
-7. **Immediate work**: re-add `tests/markdown-render.test.js` (see §11.1).
-8. **Next milestones** (from ROADMAP): WebSocket MCP, drift view
-   (ADR-0019), full-text doc search.
+   to, write ADR-0025 first.
+5. **Tests use unique ports** (7480+) to avoid parallel conflicts;
+   audit-facets claims **7494** (next free above 7493).
+6. **The 6 hard checks** must pass before any commit
+   (`bash scripts/routine_coverage.sh`).
+7. ✅ **All handoff items closed through v0.12.0**:
+   - §11.1 markdown-render tests (19) + double-escape template fix
+   - §11.2 /drift view + /api/dashboard/drift (13 tests)
+   - §13.3 docs sidebar nav highlight (replaced get/set accessors
+     with plain property in `_docs.html`, +4 regression tests)
+   - §13.4 audit-purge post-purge surviving-event assertion
+   - v0.11.0: docs full-text search (12), MCP-HTTP (11), peer gossip
+     + marketplace (9), `init_db()` moved to `dashboard.py` to break
+     the circular import.
+   - v0.12.0: audit filtering UI + `/api/audit/facets` (9), plus the
+     **root cause fix** to `_read_sqlite` (NameError swallowed by
+     JSONL fallback) that made `?source_ip=` silently return 0 rows.
+   - **289/289 tests passing, 27 files, all 6 hard checks green**
+8. **Next milestones** (from `docs/ROADMAP.md`):
+   - README modernization for v0.11.0+ reality
+   - SKILL.md files per CHARTER §10 for peer protocol,
+     MCP HTTP transport, drift detection, docs search.
 
 Good luck. The project is in a good state — be conservative, test
 thoroughly, and write ADRs before code.

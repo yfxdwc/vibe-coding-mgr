@@ -9,6 +9,160 @@ The format is loosely: version, date, summary, list of changes, and a
 
 ---
 
+## v0.12.0 — 2026-08-21
+
+**Closes HANDOFF §11 (audit filtering UI). ADR-0024 ships facet chips,
+project + source-IP query params on `/api/audit` and `/api/audit/facets`.**
+
+### Added
+
+- **`/api/audit/facets[?project=&event=&source_ip=&since=]`** (ADR-0024) —
+  returns `{events, projects, source_ips, total}` counts grouped by each
+  field, respecting the same filter semantics as `/api/audit`. SQL is
+  deterministic: each facet query builds its own `WHERE` from the base
+  filters + a per-facet `IS NOT NULL` clause, no fragile
+  "prepend-AND-if-empty" string splicing.
+- **`/api/audit?source_ip=` + `?project=`** on the existing list endpoint
+  (ADR-0024) — combined with `?event=` and `?since=`, all filters compose
+  with AND. SQLite path + JSONL fallback both honour `source_ip` now
+  (previously the parameter was accepted but ignored — see Fixed below).
+- **`/audit` view (ADR-0024)** — Project + Source IP inputs alongside the
+  existing Event type + Since + Limit inputs. Filter changes sync to the
+  URL via `applyFilter()`; facet chips render under the form and toggle
+  their own matching filter via `toggleFacet()`; the clear button calls
+  `resetFilters()`. All Alpine state stays driven by `load()` which
+  fires in parallel against `/api/audit` + `/api/audit/facets`.
+- **`docs/adr/0024-audit-filtering-ui.md`** — design rationale; mirrors
+  the existing 0020–0023 layout.
+
+### Fixed
+
+- **Root cause: `/api/audit?source_ip=` returned 0 events.** Two related
+  defects:
+  1. `_read_sqlite(since, event_type, project, limit, offset)` referenced
+     `source_ip` inside the body but did not accept it as a parameter,
+     so Python raised `NameError` on every filtered read and the route
+     silently fell back to JSONL. The fallback was empty in tests
+     (VCM_AUDIT_LOG pointed at a tmp path), producing `events=[]`.
+  2. The JSONL fallback path itself also dropped `source_ip`.
+  Both signatures now take `source_ip` and apply it as an additional
+  equality filter. Hand-tested against `pytest`-style reproduction:
+  `read_events(source_ip='127.0.0.1')` returns the 2 expected events.
+- **`server/audit.py:facets()` SQL was fragile.** The previous helper
+  alternated between "WHERE" and " AND " joiners based on whether the
+  base filter clause was non-empty, which produced `WHERE ... AND ...
+  IS NOT NULL` glitch in some filter combinations. Rewrite builds
+  `wh_clause` once per call from `base_conds + extra_conds` — deterministic.
+- **`server/templates/_docs.html`** — see v0.10.0 entries; this release
+  carries forward with no further edits to that file.
+
+### Tests
+
+- 289/289 (was 280 → +9 in `tests/audit-facets.test.js`)
+- 24 ADRs (was 23 → +1: 0024 audit-filtering-ui)
+
+### Design notes
+
+- All four new endpoints honour CHARTER §8 (offline-first, 0 new deps);
+  facets is one extra SQLite `GROUP BY` per filter, no caching needed
+  for typical audit volumes.
+- The Alpine `filtered` array is now a plain property initialised in
+  `init()` / mutated by `load()`, not a `get/set` accessor — same
+  pattern as `_docs.html` (HANDOFF §13.3 fix from v0.10.0).
+
+---
+
+## v0.11.0 — 2026-08-21
+
+**Closes the open work list from HANDOFF §11 — search, MCP-over-HTTP,
+gossip, and peer-aware marketplace, all in 4 ADRs (0020–0023).**
+
+### Added
+
+- **`/api/docs/search?q=...`** (ADR-0020) — stdlib full-text search
+  across `docs/*.md`. Replaces client-side fuzzy search in the sidebar
+  with a server-side call (with 1.5s timeout fallback to local).
+  Case-insensitive substring, snippeted results, XSS-safe via
+  `html.escape`.
+- **`POST /mcp`** (ADR-0021) — MCP Streamable HTTP transport. JSON-RPC
+  2.0 over Flask. `initialize`, `ping`, `tools/list`, `tools/call`,
+  `notifications/initialized` — same 5 read-only tools as the stdio
+  MCP (ADR-0002), now reachable over HTTP for shared dashboards.
+- **`/api/peer/summary[?refresh=1]` + `?scope=all` on leaderboard**
+  (ADR-0022) — peer registry + drift gossip. Configure peers via
+  `$VCM_PEERS` (`~/.vcm/peers.json`), fetch-on-demand with 5-min TTL.
+  Local project data is the source of truth (CHARTER §7).
+- **`/api/registry/skills?scope=all` + `/api/peer/registry`** (ADR-0023) —
+  cross-server skill marketplace. Reads each peer's registry over the
+  same gossip channel, merges + dedupes with local-wins authority.
+- **`server/peers.py`** (new) — peer registry, gossip cache, HTTP
+  fetch helpers. All cached in memory, no DB writes.
+- **Reorganized `server/mcp_server.py`** — tool definitions moved to a
+  `TOOL_REGISTRY` dict; `dispatch_tool()` is now transport-neutral so
+  both stdio (ADR-0002) and HTTP (ADR-0021) reuse the same code.
+
+### Tests
+
+- 280/280 (was 212 in v0.9.0 → +68: 19 markdown-render + 13 drift +
+  4 docs-viewer §13.3 + 12 docs-search + 11 mcp-http + 9 peers)
+- 23 ADRs (was 19 → +4: 0020 docs-search, 0021 mcp-http,
+  0022 peer-gossip, 0023 peer-marketplace)
+
+---
+
+## v0.10.0 — 2026-08-21
+
+**Closes the markdown rendering half of v0.9.0 and ships the
+cross-project drift view (ADR-0019).**
+
+### Added
+
+**Closes the markdown rendering half of v0.9.0 and ships the
+cross-project drift view (ADR-0019).**
+
+### Added
+
+- **`server/markdown_render.py`** (ADR-0018) — stdlib markdown parser,
+  ~150 LOC, zero deps. Supports `# / ## / ###` headers, `**bold**`,
+  `*italic*`, `` `inline code` ``, `[text](url)`, fenced code blocks,
+  bullet and numbered lists, blockquotes, paragraphs. XSS-safe via
+  source-first `html.escape`.
+- **`/drift` view + `/api/dashboard/drift`** (ADR-0019) — scores each
+  project 0-100 from governance gaps, ADR count, idle days, dirty
+  tree, and skill registry emptiness. Sorted desc (most drift first).
+  KPI row: over-50 count, avg score, longest idle, total projects.
+
+### Fixed
+
+- **Root cause: `/docs/<path>.md` was double-escaping the rendered
+  markdown** — the body was wrapped in `<pre>{{ body }}</pre>` which
+  Jinja2 autoescaped, hiding the actual HTML as visible text. Changed
+  to `<div class="markdown-body">{{ body | safe }}</div>` with
+  minimal CSS for h1/h2/h3, p, lists, code, pre, blockquote, links.
+  This was the real fix behind ADR-0018 (the markdown parser was
+  correct since v0.9.0, the template just re-escaped its output).
+- **HANDOFF §13.3: docs sidebar active highlight** — the inline
+  `docsPage()` Alpine state used `get filtered()`/`set filtered()`
+  accessors, which Alpine 3.x Proxy-based reactivity does not track
+  the same way as plain properties, silently dropping `<template
+  x-for>` re-renders. Replaced with a plain `filtered: []` property
+  initialized in `init()` (after the `/api/docs/index` fetch resolves)
+  and updated by `applyFilter()`. The `currentRel` interpolation
+  (`:class="f.relpath === currentRel ? '...' : '...'"`) now actually
+  toggles `docs-link--active` on the matching sidebar entry.
+
+### Tests
+
+
+
+### Design notes
+
+- Both views honour CHARTER §8 (offline-first, 0 new deps).
+- Drift score weights are hardcoded in v0.10.0 (per ADR-0019); a
+  per-installation override ships in v0.11.0.
+
+---
+
 ## v0.9.0 — 2026-08-21
 
 **Closes two long-standing scope-system and discoverability gaps.**
