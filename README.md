@@ -1,39 +1,112 @@
 # vibe-coding-mgr
 
-**Vibe Coding Manager** — governance + tooling + cross-project attention for vibe coding projects.
+**Vibe Coding Manager** — governance + tooling + cross-project attention for AI-assisted coding projects.
 
-Extracted from [sales-ai](https://github.com/your-org/sales-ai) where it was developed as `dev domain`. Now standalone.
+Originally extracted from sales-ai where it was developed as the `dev domain`. Now standalone.
 
-## What it does
+```bash
+$ vcm --version
+0.7.0
+$ vcm doctor                          # one-command health check
+vcm doctor — 4 sections
+[governance]  6 hard checks       OK (5 OK, 1 WARN, 0 FAIL)
+[skills]       1 registered        1 active
+[repository]   15 ADRs             newest: 0015-schema-doc
+[git hygiene]  working tree        clean
+VERDICT: 1 WARN, 5 OK
+```
 
-| Command | Purpose |
-|---|---|
-| `vcm init` | Set up a project with VCM governance templates (AGENTS.md, CHARTER.md, scripts) |
-| `vcm snapshot <name>` | Task-level snapshot using git tag + dirty backup |
-| `vcm skill add/list/validate` | Skill registry with 5 原则 + 3 条件 enforcement |
-| `vcm skill convert` | Convert between 5 standards (vercel / tech-leads-club / AAS / addyosmani / refly / vcm) |
-| `vcm skill deprecate/retire/stale/sweep` | Skill lifecycle automation (ADR-0006) |
-| `vcm skill publish/unpublish/discover/install` | Local skill marketplace (ADR-0008) |
-| `vcm status` | Local HTML governance report (skills, ADRs, TDs, post-mortems, git) |
-| `vcm validate` | Run the 6 hard checks (CHARTER §9 + §10) |
-| `vcm push` | Push state to vcm-server (optional central dashboard) |
-| `vcm peers` | Peer project attention (v0.1.0: stub) |
+## What it does in 30 seconds
 
-## vcm-server (optional central dashboard)
+vcm is a personal / small-team governance layer for **vibe coding** —
+the practice of having AI agents (Claude Code, Codex, Cursor, pi) write
+most of your code under human direction. The questions it answers:
 
-| Endpoint | Purpose |
-|---|---|
-| `GET /` | Cockpit: 3-KPI dashboard with tabs (overview / attention / activity) |
-| `GET /leaderboard` | Project ranking (6 sort dimensions) |
-| `GET /projects/<name>` | Single project detail (4 tabs) |
-| `GET /skills` | Cross-project skill registry (3 tabs) |
-| `GET /trends` | Governance time-series (weekly buckets) |
-| `GET /audit` | Auth + push event audit log |
-| `GET /peers` | OSS peer attention |
-| `GET /settings` | Server meta + design tokens |
+- **Before AI starts**: "Is this project set up so AI can be effective here?"
+  (`vcm init` writes `AGENTS.md`, `CHARTER.md`, and 6 hard-check scripts)
+- **As AI works**: "What just got shipped; is anyone watching?"
+  (`vcm status`, `vcm push`, `vcm snapshot`)
+- **After AI ships**: "Is this project still healthy; what's drifting?"
+  (`vcm doctor`, `vcm validate`, `vcm skill deprecate/retire/stale`)
+- **Across many projects**: "Where should I focus my attention?"
+  (the optional `vcm-server` dashboard at `127.0.0.1:7338`)
 
-All endpoints + MCP server `vcm-server` (5 read-only tools) + SSE live
-updates are documented in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+Adopt-not-fork: 5 ecosystems standards are adapted via thin wrapper
+layers (`vcm skill convert`), never forked.
+
+## CLI at a glance
+
+```bash
+# Project setup
+vcm init                         # generate AGENTS.md, CHARTER.md, scripts/
+vcm snapshot <name>             # git tag + dirty backup
+vcm status                       # local HTML governance report
+
+# Validation
+vcm validate                     # 6 hard checks (CHARTER §9 + §10)
+vcm doctor                       # comprehensive health check (4 sections)
+vcm doctor --json | jq           # machine-readable
+
+# Skills (the central abstraction)
+vcm skill add <name> --desc "..." --tags a,b
+vcm skill validate               # validate frontmatter
+vcm skill convert --from vercel --to vcm < skill.json
+vcm skill deprecate <name> --replaced-by <new>
+vcm skill retire <name> --yes
+vcm skill stale --days 30
+vcm skill sweep --days 180 --yes
+
+# Local marketplace (ADR-0008)
+vcm skill publish <name>         # ~/.vcm/registry/
+vcm skill discover --tag demo
+vcm skill install <name> --install-to <path>
+
+# Schema docs (ADR-0015)
+vcm schema doc skill             # stdout markdown
+vcm schema doc state --output docs/STATE-SCHEMA.md
+
+# Per-user ACL (ADR-0011)
+vcm user add alice
+vcm user list
+vcm token grant alice --label laptop --days 90
+vcm token revoke <id>
+
+# Multi-project (optional)
+vcm push --server http://vcm-host:7338
+vcm peers add owner/name
+```
+
+## Optional central dashboard (`vcm-server`)
+
+```bash
+# Server runs on http://127.0.0.1:7338 by default
+python3 server/app.py
+
+# Browser views:
+#   /              Cockpit (3-KPI dashboard, URL-state tabs)
+#   /projects/<n>  Single project (4 tabs: overview / governance / health / history)
+#   /skills        Cross-project skill registry
+#   /leaderboard   Project ranking (6 sort dimensions)
+#   /trends        Weekly governance time-series
+#   /audit         Auth + push event audit log
+#   /peers         OSS peer attention
+#   /settings      Server meta + design tokens
+```
+
+For AI agents (Claude Code, Codex, pi, Cursor), `python3 server/mcp_server.py`
+exposes 5 read-only tools over stdio:
+
+```json
+{"jsonrpc":"2.0","id":1,"method":"initialize","params":{...}}
+↓
+{"jsonrpc":"2.0","id":1,"result":{"tools":[
+  {"name":"vcm_overview",   "description":"All registered projects with summary KPIs"},
+  {"name":"vcm_project",    "description":"Single-project detail + history"},
+  {"name":"vcm_skill_matrix","description":"Skill → projects (sorted by reach)"},
+  {"name":"vcm_attention",  "description":"Projects needing attention"},
+  {"name":"vcm_health",     "description":"Server liveness"}
+]}}
+```
 
 ## Install
 
@@ -58,7 +131,7 @@ npx vcm init
 git clone https://github.com/your-org/vibe-coding-mgr
 cd vibe-coding-mgr
 npm install
-npm link             # makes `vcm` available globally from this checkout
+npm link                          # makes `vcm` global from this checkout
 ```
 
 ## Quick start
@@ -71,80 +144,118 @@ vcm init
 
 # 2. Customize AGENTS.md and CHARTER.md for your project
 
-# 3. Snapshot your work before risky changes
+# 3. Take a snapshot before risky changes
 vcm snapshot refactor-auth
-# → Creates git tag pre-refactor-auth-<sha>
-# → Dumps dirty working tree to .git/snapshots/
 
-# 4. Generate governance status report
-vcm status
-# → Opens .vcm/report.html in browser
+# 4. Generate local governance report
+vcm status                        # opens .vcm/report.html
 
-# 5. Validate against 6 hard checks
-vcm validate
-# → Runs check_charter.py, check_doc_drift.py, etc.
+# 5. Run the comprehensive health check
+vcm doctor
 
 # 6. (Optional) Push state to central dashboard
-vcm push --server http://my-vcm-server:7338
-# → Sends state to vcm-server for multi-project view
+vcm-server &                       # start the dashboard server
+vcm push --server http://127.0.0.1:7338
+
+# 7. (Optional) Multi-user with bearer tokens
+vcm user add alice
+vcm token grant alice --label laptop --days 90
+# → store the Bearer secret safely
 ```
 
-## Optional: run vcm-server for multi-project dashboard
-
-```bash
-# One-time setup
-cd vibe-coding-mgr
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r server/requirements.txt
-
-# Start server (binds 127.0.0.1:7338 by default)
-python3 server/app.py
-# → Dashboard at http://127.0.0.1:7338/
-
-# From each project, push state:
-cd my-project
-vcm push
-```
-
-## Architecture
+## Project structure
 
 ```
 vibe-coding-mgr/
-├── bin/vcm.js              # CLI entry (Node.js)
+├── bin/vcm.js                  # CLI entry point (Node.js)
 ├── lib/
-│   ├── cli/                # Command implementations
-│   ├── schemas/            # JSON Schema validators
-│   └── templates/          # AGENTS/CHARTER templates
-├── scripts/                # 6 hard check scripts (Python)
-├── server/                 # Flask server for multi-project dashboard
-├── tests/                  # vitest unit tests
-└── docs/                   # ARCHITECTURE, ONBOARDING, PHILOSOPHY, etc.
+│   ├── cli/                    # Command implementations
+│   │   ├── init, snapshot, status, validate, push, peers
+│   │   ├── skill (add/list/validate/convert/deprecate/retire/stale/sweep)
+│   │   ├── marketplace (publish/unpublish/discover/install)
+│   │   ├── lifecycle, user, doctor, schema-doc
+│   ├── schemas/                # JSON Schema validators
+│   │   ├── skill.schema.json
+│   │   └── state.schema.json
+│   └── templates/              # AGENTS/CHARTER templates
+├── scripts/                    # 6 hard check scripts (Python)
+│   ├── check_charter.py
+│   ├── check_doc_drift.py
+│   ├── check_constraint_governance.py
+│   ├── check_adr_index.py
+│   ├── check_data_layout.py
+│   └── add_pi_skill.py
+├── server/                     # Flask server for multi-project dashboard
+│   ├── app.py                  # routes + scopes
+│   ├── dashboard.py            # data assembly
+│   ├── audit.py                # JSONL + SQLite audit log
+│   ├── users.py                # per-user ACL (bcrypt + bearer tokens)
+│   ├── scopes.py               # @require_scope decorator (ADR-0014)
+│   ├── mcp_server.py           # stdio MCP for AI agents
+│   └── templates/ + static/   # HTML + CSS + JS
+├── tests/                      # vitest (191 tests)
+└── docs/                       # DESIGN, ARCHITECTURE, ONBOARDING, PHILOSOPHY
+    ├── adr/                    # 15 ADRs (one per hard constraint)
+    ├── DESIGN.md               # design system source of truth
+    ├── ARCHITECTURE.md
+    └── ROADMAP.md
 ```
 
-See [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) for details.
+## Design discipline
 
-## v0.5.0 highlights
+vcm is held to a strict set of self-applied rules captured in
+[CHARTER.md](CHARTER.md). The most important ones:
 
-- **Audit log** (`/audit`): every auth failure + state push is JSONL-recorded to `$VCM_AUDIT_LOG` or `~/.vcm/audit.log`. Closes CHARTER §6 "审批可追溯".
-- **Trend dashboard** (`/trends`): weekly buckets for compliance, td_count, skills, adrs, dirty. No new schema — pure function over `states` table.
-- **Skill marketplace** (`vcm skill publish/discover/install`): local registry at `~/.vcm/registry/` closes the lifecycle loop (publishes install as new skill, retiring removes from registry).
-- **MCP server** (`python3 server/mcp_server.py`): 5 read-only tools over stdio for Claude Code / Codex / Cursor / pi.
-- **BasicAuth** (optional): `VCM_AUTH_USER` + `VCM_AUTH_PASS` env vars gate `/api/*` (excludes `/api/health`). Constant-time compare; malformed header → 400.
-- **SSE live dashboard** (`/api/dashboard/stream`): 5 event types, browser `EventSource` reconnect on error.
-- **Front-end redesign** (repowise-inspired, ADR-0001): token-first CSS, "Answers:" header per view, 3-KPI grid per page, DESIGN.md as single source of truth.
+- **Adopt, never fork** — 5 ecosystem standards are adapted via thin
+  wrappers (`lib/adapters/`), not vendored.
+- **Local first** — works offline; the server is optional. Plain JSON
+  files as the source of truth for skill registry, peer config.
+- **Hard constraints have ADRs** — any rule that the system enforces
+  must be written down in `docs/adr/` before code lands (191 tests
+  document 15 ADRs).
+- **Long-term stability > short-term less diff** — accept redundancy
+  if it makes the system clearer.
+
+The dashboard design follows [repowise's](https://docs.repowise.dev)
+three principles: token-first CSS, "Answers:" header on every view, and
+a strict 3-KPI grid per page (no blended score). See [DESIGN.md](docs/DESIGN.md).
 
 ## Adoption philosophy
 
 vibe-coding-mgr **adopts** 5 ecosystem standards (not forks):
 
-- [vercel-labs/skills](https://github.com/vercel-labs/skills) — skill distribution
-- [tech-leads-club/agent-skills](https://github.com/tech-leads-club/agent-skills) — validated registry
-- [sickn33/agentic-awesome-skills](https://github.com/sickn33/agentic-awesome-skills) (AAS Core) — stack manifest
-- [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills) — 6-phase lifecycle
-- [refly-ai/refly](https://github.com/refly-ai/refly) — skill builder
+| Standard | What we adapt |
+|---|---|
+| [vercel-labs/skills](https://github.com/vercel-labs/skills) | `name`/`description`/`tags` fields; npm-style distribution |
+| [tech-leads-club/agent-skills](https://github.com/tech-leads-club/agent-skills) | "validated" concept; security checks |
+| [sickn33/agentic-awesome-skills](https://github.com/sickn33/agentic-awesome-skills) (AAS Core) | manifest idea; file/expression matching |
+| [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills) | 6-phase lifecycle |
+| [refly-ai/refly](https://github.com/refly-ai/refly) | durable-skills philosophy |
 
-Unified via `.vcm-skill.json` schema (see `lib/schemas/skill.schema.json`).
+Unified via the `.vcm-skill.json` schema in `lib/schemas/skill.schema.json`.
+Convert with `vcm skill convert --from <fmt> --to vcm < skill.json`.
+
+## What vcm is NOT
+
+- ❌ Not a code editor / IDE
+- ❌ Not a replacement for Claude Code / Codex / Cursor / pi
+- ❌ Not a code analysis tool (use [Repowise](https://docs.repowise.dev) for that)
+- ❌ Not a project management tool (use [Plane](https://plane.so) for that)
+- ❌ Not a lock-in — every artifact is plain text, easily migrated
+
+## Release cadence
+
+| Version | Highlights |
+|---|---|
+| v0.7.0 | Per-endpoint scopes, schema doc generator, registry endpoint |
+| v0.6.0 | Per-user ACL, audit log SQLite, `vcm doctor` |
+| v0.5.0 | Audit log + trend dashboard + skill marketplace |
+| v0.4.0 | MCP server, 5-standard adapter layer, SSE live updates, leaderboard |
+| v0.3.0 | Repowise-inspired frontend redesign |
+| v0.2.0 | Initial usable release (7 CLI commands, Flask server) |
+
+See [CHANGELOG.md](CHANGELOG.md) for the full history. [ROADMAP.md](docs/ROADMAP.md)
+tracks the future.
 
 ## License
 
