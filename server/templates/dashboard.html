@@ -270,6 +270,38 @@ function page() {
         this.loadActivity(),
       ]);
       this.$nextTick(() => this.renderChart());
+      this.subscribeStream();
+    },
+
+    /**
+     * SSE live updates (ADR-0007). Re-subscribes on error.
+     * Currently re-fetches all relevant aggregates on each event;
+     * for v0.5.0 we can switch to per-row delta updates.
+     */
+    subscribeStream() {
+      if (!('EventSource' in window)) return;
+      let es;
+      try {
+        es = new EventSource('/api/dashboard/stream');
+      } catch (e) {
+        return;  // browser without SSE → silently degrades to polling
+      }
+      const reload = () => {
+        Promise.all([
+          this.loadOverview(),
+          this.loadAttention(),
+          this.loadActivity(),
+        ]).then(() => this.loadSkillMatrix());
+      };
+      es.addEventListener('project_push',      reload);
+      es.addEventListener('attention_changed', reload);
+      // heartbeats are not visible to the user; no handler needed.
+      es.addEventListener('error', () => {
+        try { es.close(); } catch {}
+        // Reconnect after a short backoff; never over-spam.
+        setTimeout(() => this.subscribeStream(), 5000);
+      });
+      this._es = es;
     },
 
     _healthLabel(s) {

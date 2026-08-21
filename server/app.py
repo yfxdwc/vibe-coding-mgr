@@ -8,10 +8,13 @@ import os
 import hmac
 import base64
 import binascii
+import time
+import threading
+import queue
 from datetime import datetime
 from pathlib import Path
 
-from flask import Flask, request, jsonify, render_template, abort, Response
+from flask import Flask, request, jsonify, render_template, abort, Response, stream_with_context
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from dashboard import (
@@ -87,6 +90,33 @@ def _enforce_auth():
             resp.headers[k] = v
         return resp
     return None
+
+
+# --- SSE bus (ADR-0007) ---------------------------------------------------
+# Single shared broadcast queue; multiple browser tabs all subscribe.
+import queue
+import threading
+import time
+
+SSE_LISTENERS = []
+SSE_LOCK = threading.Lock()
+
+
+def sse_publish(event, data):
+    """Push an SSE event to every connected client (best effort)."""
+    payload = {"event": event, "data": data, "ts": datetime.utcnow().isoformat() + "Z"}
+    dead = []
+    with SSE_LOCK:
+        for q in list(SSE_LISTENERS):
+            try:
+                q.put_nowait(payload)
+            except queue.Full:
+                dead.append(q)
+        for q in dead:
+            try:
+                SSE_LISTENERS.remove(q)
+            except ValueError:
+                pass
 
 
 # Initialize DB schema at startup (idempotent)
@@ -205,6 +235,13 @@ def collect():
             "git": state.get("git", {}),
         }
         conn.close()
+
+        # Fire SSE event (ADR-0007). Failures must not break collect.
+        try:
+            sse_publish("project_push", {"name": project_name, "summary": summary})
+        except Exception:
+            pass
+
         return jsonify(summary), 200
 
     except Exception as e:
@@ -321,6 +358,62 @@ def api_project_full(name):
     if data is None:
         abort(404)
     return jsonify(data)
+
+
+@app.route("/api/dashboard/stream")
+def api_dashboard_stream():
+    """Server-Sent Events live update channel (ADR-0007).
+
+    Emits three event types:
+      - hello              — first frame on connect (debug aid)
+      - project_push       — fired when /api/collect accepts a state push
+      - attention_changed  — recomputed attention every 30s
+      - heartbeat          — every 15s (keeps the link alive through proxies)
+    """
+    client_q = queue.Queue(maxsize=32)
+
+    @stream_with_context
+    def gen():
+        with SSE_LOCK:
+            SSE_LISTENERS.append(client_q)
+        try:
+            yield f"event: hello\ndata: \"ok\"\n\n"
+            try:
+                items = get_attention()
+                yield "event: attention_changed\ndata: " + json.dumps({"items": items}) + "\n\n"
+            except Exception:
+                pass
+            last_heartbeat = time.time()
+            last_attention = time.time()
+            while True:
+                try:
+                    payload = client_q.get(timeout=1.0)
+                    yield f"event: {payload['event']}\ndata: {json.dumps(payload['data'])}\n\n"
+                except queue.Empty:
+                    pass
+                now = time.time()
+                if now - last_heartbeat >= 15:
+                    yield "event: heartbeat\ndata: " + json.dumps({"ts": int(now)}) + "\n\n"
+                    last_heartbeat = now
+                if now - last_attention >= 30:
+                    try:
+                        items = get_attention()
+                        yield "event: attention_changed\ndata: " + json.dumps({"items": items}) + "\n\n"
+                        last_attention = now
+                    except Exception:
+                        last_attention = now
+        except GeneratorExit:
+            pass
+        finally:
+            with SSE_LOCK:
+                try:
+                    SSE_LISTENERS.remove(client_q)
+                except ValueError:
+                    pass
+
+    return Response(gen(), mimetype="text/event-stream",
+                    headers={"Cache-Control": "no-cache",
+                             "X-Accel-Buffering": "no"})
 
 
 def _render(template_name, **kwargs):
