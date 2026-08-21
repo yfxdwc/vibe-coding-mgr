@@ -701,17 +701,18 @@ Approximate sizes (growing fast — refresh yourself before quoting):
 
 ## 16. TL;DR for the next agent
 
-1. The project is **v0.12.0, healthy, 289/289 tests passing**.
+1. The project is **v0.13.0, healthy, 312/312 tests passing**.
 2. **Read `AGENTS.md` and `CHARTER.md` first** — they define the rules.
-3. **Read the most recent ADRs** (0020–0024) — they describe the
-   "what we just decided" trajectory.
+3. **Read the most recent ADRs** (0024–0025) — they describe the
+   "what we just decided" trajectory. ADR-0025 is the
+   persistent-server one.
 4. **Don't refactor without an ADR.** If you find yourself wanting
-   to, write ADR-0025 first.
+   to, write ADR-0026 first.
 5. **Tests use unique ports** (7480+) to avoid parallel conflicts;
    audit-facets claims **7494** (next free above 7493).
 6. **The 6 hard checks** must pass before any commit
    (`bash scripts/routine_coverage.sh`).
-7. ✅ **All handoff items closed through v0.12.0**:
+7. ✅ **All handoff items closed through v0.13.0**:
    - §11.1 markdown-render tests (19) + double-escape template fix
    - §11.2 /drift view + /api/dashboard/drift (13 tests)
    - §13.3 docs sidebar nav highlight (replaced get/set accessors
@@ -723,11 +724,18 @@ Approximate sizes (growing fast — refresh yourself before quoting):
    - v0.12.0: audit filtering UI + `/api/audit/facets` (9), plus the
      **root cause fix** to `_read_sqlite` (NameError swallowed by
      JSONL fallback) that made `?source_ip=` silently return 0 rows.
-   - **289/289 tests passing, 27 files, all 6 hard checks green**
+   - v0.13.0: **first persistent-runtime release**. systemd user unit
+     `scripts/vcm-server.service` + `install-service.sh` /
+     `uninstall-service.sh` + `~/.vcm/server.env` template. ADR-0025
+     reconciles with ADR-0022's "no in-process daemon complexity"
+     by making the daemon *around* the process, not *inside* it.
+   - **312/312 tests passing, 28 files, all 6 hard checks green**
 8. **Next milestones** (from `docs/ROADMAP.md`):
-   - README modernization for v0.11.0+ reality
    - SKILL.md files per CHARTER §10 for peer protocol,
      MCP HTTP transport, drift detection, docs search.
+   - macOS launchd `vcm-server.plist` (ADR-0025 §"不做", v0.14.0).
+   - README modernization for v0.12.0+ reality (still has v0.11
+     claims in some places).
 
 Good luck. The project is in a good state — be conservative, test
 thoroughly, and write ADRs before code.

@@ -9,6 +9,65 @@ The format is loosely: version, date, summary, list of changes, and a
 
 ---
 
+## v0.13.0 — 2026-08-21
+
+**First persistent-runtime release. vcm-server now installs as a
+systemd user unit (ADR-0025), survives logout + reboot + crashes,
+no root required, zero new deps.**
+
+### Added
+
+- **`scripts/vcm-server.service`** (ADR-0025) — systemd user unit
+  template. Type=simple, Restart=on-failure with RestartSec=5,
+  StartLimitBurst=5 (cap restart rate to 5/60s, no zombie flap),
+  Lightweight hardening (NoNewPrivileges, ProtectHome=read-only,
+  PrivateTmp, MemoryDenyWriteExecute, LockPersonality,
+  RestrictRealtime, RestrictSUIDSGID, UMask=0077).
+- **`scripts/vcm-server.env.example`** — declarative env-file
+  template. The actual `~/.vcm/server.env` is generated from this
+  on first install (`chmod 600`); overrides for `VCM_SERVER_PORT`,
+  `VCM_SERVER_DB`, `VCM_AUDIT_LOG`, `VCM_AUTH_*`, `VCM_AUDIT_DISABLED`,
+  `VCM_PEERS`.
+- **`scripts/install-service.sh`** — one-shot installer. Picks a
+  free port in 7338..7399 (auto-skip if 7338 is taken, e.g. by
+  `repowise serve`), generates `~/.vcm/server.env` with the chosen
+  port, renders the .service file with substituted paths,
+  `systemctl --user daemon-reload`, `enable --now`, then
+  verifies via `/api/health`. Idempotent; `--dry-run` for tests.
+  Enables `loginctl enable-linger $USER` so the unit survives SSH
+  logout.
+- **`scripts/uninstall-service.sh`** — stops, disables, and removes
+  the unit (preserves `server.env` and DB files; re-install is a
+  no-op). `--dry-run` for tests.
+- **README.md** — new "Running persistently (systemd user unit)"
+  section between the manual-launch `vcm-server` block and
+  "Install". One command (`bash scripts/install-service.sh`) plus
+  a status / logs / edit-config / uninstall block.
+- **`docs/ONBOARDING.md` Step 7b** — same docs as README, framed
+  for first-time-setup users.
+
+### Tests
+
+- 312/312 (was 289 → +23 in `tests/daemon.test.js`)
+- 25 ADRs (was 24 → +1: 0025)
+- 28 test files
+- All 6 hard checks green
+
+### Design notes
+
+- The `.service` file is the only manifest — there is no
+  `supervisord.conf`, no `pm2 ecosystem`, no `.plist`.
+  Review-able, diff-able, version-controlled in-tree.
+- The daemon is OS-level, around the process, not inside it.
+  ADR-0022's "no in-process daemon complexity" stays —
+  vcm-server is still a request/response HTTP server with
+  no background threads. systemd can wrap any process.
+- macOS launchd `.plist` and Windows service are explicitly
+  out of scope (see ADR-0025 §"不做"). macOS users fall back
+  to `tmux`; Windows users fall back to WSL or manual.
+
+---
+
 ## v0.12.0 — 2026-08-21
 
 **Closes HANDOFF §11 (audit filtering UI). ADR-0024 ships facet chips,
