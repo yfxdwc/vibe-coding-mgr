@@ -10,6 +10,7 @@ import { validateCommand } from '../lib/cli/validate.js';
 import { pushCommand } from '../lib/cli/push.js';
 import { peersCommand } from '../lib/cli/peers.js';
 import { userTokenCommand } from '../lib/cli/user.js';
+import { doctorCommand } from '../lib/cli/doctor.js';
 
 const VERSION = "0.5.0";
 
@@ -97,6 +98,13 @@ program
   .option('--scope <scope>', 'Token scope override')
   .option('--days <N>', 'Token expiry in days')
   .action((action, name, opts) => userTokenCommand('token', action, name, opts));
+
+program
+  .command('doctor')
+  .description('Comprehensive project health check (ADR-0013)')
+  .option('--json', 'Emit JSON to stdout (CI use)')
+  .option('--strict', 'Exit 1 on any warning (default: only fail)')
+  .action(doctorCommand);
 
 // Default help text styling
 program.configureHelp({
