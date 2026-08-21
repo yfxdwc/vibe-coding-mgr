@@ -3,6 +3,7 @@ vcm-server — minimal Flask server for cross-project dashboard.
 Run: python3 server/app.py
 """
 import json
+import glob
 import sqlite3
 import os
 import hmac
@@ -687,8 +688,6 @@ def api_peers():
 # but the server exposes it read-only so the dashboard can render a
 # marketplace view. Pure read; no scope gate beyond 'read' (single-user
 # v0.5 compat is fine for v0.7 — the publish flow goes through CLI).
-import json as _json  # noqa: E402
-import glob as _glob  # noqa: E402
 
 
 @app.route("/api/registry/skills")
@@ -705,10 +704,10 @@ def api_registry_skills():
     if not os.path.isdir(registry_dir):
         return jsonify({"skills": [], "note": "no registry dir"})
     results = []
-    for path in _glob.glob(os.path.join(registry_dir, "*.json")):
+    for path in glob.glob(os.path.join(registry_dir, "*.json")):
         try:
             with open(path, "r", encoding="utf-8") as f:
-                fm = _json.load(f)
+                fm = json.load(f)
             results.append({
                 "name": fm.get("name", os.path.basename(path).replace(".json", "")),
                 "description": (fm.get("description") or "")[:80],
@@ -721,6 +720,69 @@ def api_registry_skills():
             continue
     results.sort(key=lambda r: (-(r.get("validation_count") or 0), r.get("name") or ""))
     return jsonify({"skills": results, "count": len(results)})
+
+
+@app.route("/api/registry/publish", methods=["POST"])
+@scopes_mod.require_scope("push")
+def api_registry_publish():
+    """Publish a skill to the local registry (push scope).
+
+    Body:  {name: "skill-name", description: "...",
+            tags: [...], authority: "execution-index" | "canonical"}
+    Refreshes the registry index. Refuses retired skills.
+    """
+    import os as _os
+    payload = request.get_json(force=True)
+    if not payload or "name" not in payload:
+        return jsonify({"error": "invalid body, missing 'name'"}), 400
+    name = payload["name"]
+    # refuse retired
+    if (payload.get("lifecycle") or {}).get("phase") == "retired":
+        return jsonify({"error": "cannot publish retired skill"}), 400
+    # persist
+    registry_dir = os.environ.get("VCM_REGISTRY_DIR") or \
+        str(Path.home() / ".vcm" / "registry" / "skills")
+    Path(registry_dir).mkdir(parents=True, exist_ok=True)
+    target = Path(registry_dir) / f"{name}.json"
+    # strip _origin if present
+    payload = {k: v for k, v in payload.items() if k != "_origin"}
+    if not payload.get("authority"):
+        payload["authority"] = "execution-index"
+    target.write_text(json.dumps(payload, indent=2) + "\n")
+    # refresh index
+    _regen_registry_index(registry_dir)
+    # audit
+    try:
+        audit.write_event(
+            "registry_publish",
+            skill_name=name,
+            scope=getattr(g, "user_scope", None),
+            remote=request.remote_addr,
+        )
+    except Exception:
+        pass
+    return jsonify({"published": name, "path": str(target)})
+
+
+def _regen_registry_index(registry_dir):
+    """Rebuild ~/.vcm/registry/index.json from the skills/ directory."""
+    index = []
+    for path in glob.glob(os.path.join(registry_dir, "skills", "*.json")):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                fm = json.load(f)
+            index.append({
+                "name": fm.get("name", os.path.basename(path).replace(".json", "")),
+                "tags": fm.get("tags") or [],
+                "authority": fm.get("authority"),
+                "phase": (fm.get("lifecycle") or {}).get("phase"),
+                "published_at": os.path.getmtime(path),
+            })
+        except Exception:
+            continue
+    index_path = os.path.join(os.path.dirname(registry_dir), "index.json")
+    with open(index_path, "w", encoding="utf-8") as f:
+        json.dump(index, f, indent=2)
 
 
 @app.route("/docs/<path:filename>")

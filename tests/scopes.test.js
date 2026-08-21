@@ -174,7 +174,7 @@ describe('per-endpoint scope enforcement (ADR-0014)', () => {
 
   it('admin user via BasicAuth env-mode has admin scope', async () => {
     // Spawn sub-server with VCM_AUTH_USER/PASS set (v0.5 compat)
-    const SUB_PORT = 7481;
+    const SUB_PORT = 7489;
     const sub = spawn(
       join(VCM_ROOT, '.venv', 'bin', 'python3'),
       [VCM_ROOT + '/server/app.py'], {
