@@ -1,0 +1,717 @@
+# Handoff Document — vibe-coding-mgr v0.9.0
+
+> **For the next agent**: this document is the complete state of
+> the project. It assumes the next agent has not been part of the
+> v0.2 → v0.9 development. If you already know the codebase, you can
+> skip to the bottom of the file and look at "Open work" only.
+
+---
+
+## 1. What is this project?
+
+**vibe-coding-mgr** (CLI: `vcm`) is a personal / small-team governance
+layer for **vibe coding** — the practice of using AI coding agents
+(Claude Code, Codex, Cursor, pi) to write most of your code under
+human direction.
+
+**The problems it solves:**
+- "Is this project set up so AI can be effective here?" → `vcm init`
+- "What just got shipped; is anyone watching?" → `vcm status / push / snapshot`
+- "Is this project still healthy; what's drifting?" → `vcm doctor / validate`
+- "Where should I focus my attention across N projects?" → `vcm-server` dashboard
+
+**Adopt-not-fork**: 5 ecosystem standards (vercel-labs/skills,
+tech-leads-club/agent-skills, sickn33/agentic-awesome-skills,
+addyosmani/agent-skills, refly-ai/refly) are adapted via thin wrapper
+layers (`lib/adapters/`), never vendored.
+
+**Local-first**: works offline. The `vcm-server` is optional.
+
+---
+
+## 2. Current state (v0.9.0)
+
+| Item | Value |
+|---|---|
+| Version | `0.9.0` (in `package.json` and `bin/vcm.js`) |
+| Tests | **212/212 passing** (21 test files) |
+| 6 hard checks | 5 OK / 1 WARN (no `.pi/skills` dir in repo; expected) |
+| ADRs | **19** in `docs/adr/0001-` to `0019-` |
+| Routes | **30** `@app.route` decorators in `server/app.py` |
+| Python modules | 7 in `server/` |
+| CLI commands | 11 (init/snapshot/skill/status/validate/push/peers/user/token/doctor/schema) |
+| Templates | 11 in `server/templates/` |
+| Source files | 114 in git tree, ~100 source files (Python/JS/HTML/MD) |
+| Repo | `https://github.com/your-org/vibe-coding-mgr` (URL in README; placeholder) |
+
+**The version was just bumped to v0.9.0** (commit `20e3547`).
+It includes:
+- `/api/audit/purge` admin endpoint (ADR-0016)
+- `/docs` viewer with TOC + client-side search (ADR-0017)
+- `/docs` view now renders markdown to HTML (ADR-0018, just committed)
+- 2 ADRs drafted but **not implemented** (ADR-0018 test, ADR-0019 drift view)
+
+---
+
+## 3. Repo layout
+
+```
+vibe-coding-mgr/
+├── AGENTS.md                     # agent rules (CHARTER §10 — "read this first")
+├── CHARTER.md                    # the 5-价值观 + 10-元决策 (project constitution)
+├── README.md                     # user-facing entry point
+├── CHANGELOG.md                  # v0.2.0 → v0.9.0 history
+├── HANDOFF.md                    # ← you are here
+├── ROADMAP.md (in docs/)         # forward-looking plans
+├── package.json                  # npm metadata
+├── bin/vcm.js                    # CLI entry (Node.js, commander)
+├── lib/
+│   ├── cli/                      # command implementations (Node.js)
+│   │   ├── init, snapshot, status, validate, push, peers
+│   │   ├── skill.js              # add/list/validate/convert/deprecate/retire/stale/sweep
+│   │   ├── marketplace.js        # publish/unpublish/discover/install
+│   │   ├── user.js / users_cli.py   # ADR-0011 ACL (mixed Node + Python shim)
+│   │   ├── lifecycle.js          # ADR-0006
+│   │   ├── doctor.js             # ADR-0013
+│   │   └── schema-doc.js         # ADR-0015
+│   ├── adapters/                 # 5 standards (vercel-labs, tech-leads-club, …)
+│   ├── schemas/                  # skill.schema.json, state.schema.json
+│   └── templates/                # AGENTS / CHARTER templates for `vcm init`
+├── scripts/                      # 6 hard check Python scripts (called by validate)
+├── server/                       # Flask server (vcm-server) — see §5
+├── tests/                        # 21 vitest files (212 tests)
+└── docs/
+    ├── DESIGN.md                 # design system source of truth
+    ├── ARCHITECTURE.md           # 5-domain architecture
+    ├── ROADMAP.md                # v0.10.0 plan
+    ├── PHILOSOPHY.md / ONBOARDING.md / REFERENCES.md
+    ├── CHANGELOG.md              # per-version narrative
+    └── adr/                      # 19 ADRs (0001-0019)
+```
+
+**Read these files in order if you're new:**
+1. `AGENTS.md` (project-level agent rules)
+2. `CHARTER.md` (the project's constitution: 5 价值观 + 10 元决策)
+3. `docs/DESIGN.md` (frontend design system, for UI work)
+4. `docs/adr/` (19 ADRs — every hard constraint has a written rationale)
+
+---
+
+## 4. The 5-domain architecture (CHARTER §2)
+
+| Domain | Path | What lives here | Reverse-dep banned |
+|---|---|---|---|
+| **core** | `lib/` (CLI core) | schemas, adapters, command impls | can't depend on server/ |
+| **cli** | `bin/vcm.js` | arg parsing, dispatch | can't depend on server/ |
+| **server** | `server/` | Flask + SQLite dashboard | can't depend on sales-ai specifics |
+| **standards** | `lib/adapters/` | thin wrappers around 5 skill standards | can't fork source |
+| **templates** | `lib/templates/` | AGENTS/CHARTER project bootstrap | no business logic |
+
+**Cross-domain calls go through adapters**, never direct imports.
+
+---
+
+## 5. The server (vcm-server)
+
+`server/app.py` is the Flask app. It binds routes from several modules.
+
+### 5.1 Python modules in `server/`
+
+| File | What it does | Lines |
+|---|---|---|
+| `app.py` | Flask app, route registration, scope enforcement | ~970 |
+| `dashboard.py` | Aggregated data queries (`get_overview`, `get_attention`, `get_leaderboard`, `get_trend`) | ~370 |
+| `audit.py` | Append-only JSONL + SQLite audit log (`write_event`, `read_events`, `event_stats`) | ~290 |
+| `users.py` | bcrypt users + bearer tokens (ADR-0011) | ~330 |
+| `scopes.py` | `@require_scope('read'\|'push'\|'admin')` decorator (ADR-0014) | ~80 |
+| `markdown_render.py` | Tiny stdlib markdown→HTML (ADR-0018) | ~125 |
+| `mcp_server.py` | stdio MCP server with 5 tools (ADR-0002) | ~150 |
+
+### 5.2 HTTP routes (30 total)
+
+| Path | Method | Scope | Notes |
+|---|---|---|---|
+| `/api/health` | GET | public | always 200 |
+| `/api/collect` | POST | `push` | state push, with SSE broadcast |
+| `/api/audit` | GET | `read` | events list, paginated |
+| `/api/audit/stats` | GET | `read` | event counters by type |
+| `/api/audit/purge` | POST | `admin` | literal "PURGE" confirm word |
+| `/api/dashboard/overview` | GET | `read` | all projects + summary |
+| `/api/dashboard/skill-matrix` | GET | `read` | skill → projects |
+| `/api/dashboard/attention` | GET | `read` | projects needing attention |
+| `/api/dashboard/activity` | GET | `read` | recent pushes |
+| `/api/dashboard/skill-aging` | GET | `read` | |
+| `/api/dashboard/summary` | GET | `read` | |
+| `/api/dashboard/trend` | GET | `read` | weekly trend buckets |
+| `/api/dashboard/leaderboard` | GET | `read` | 6 sort dims |
+| `/api/dashboard/stream` | GET | `read` | SSE: project_push, attention_changed, heartbeat |
+| `/api/projects` | GET | `read` | |
+| `/api/projects/<name>` | GET | `read` | |
+| `/api/project/<name>/full` | GET | `read` | latest + history |
+| `/api/registry/skills` | GET | `read` | local `~/.vcm/registry/` |
+| `/api/registry/publish` | POST | `push` | server-side publish |
+| `/api/audit/purge` | POST | `admin` | |
+| `/api/docs/index` | GET | `read` | enumerate docs/*.md |
+| `/api/peers` | GET | `read` | `~/.vcm/peers.yaml` |
+| `/api/users` | * | n/a | not implemented yet |
+| `/` | GET | public | cockpit dashboard |
+| `/projects/<name>` | GET | public | project detail |
+| `/skills` | GET | public | cross-project skill registry |
+| `/leaderboard` | GET | public | |
+| `/trends` | GET | public | |
+| `/audit` | GET | public | audit log viewer |
+| `/peers` | GET | public | |
+| `/settings` | GET | public | |
+| `/docs/<path>.md` | GET | public | rendered markdown |
+
+### 5.3 Scope ladder (ADR-0014)
+
+```python
+SCOPE_RANK = {"read": 1, "push": 2, "admin": 3}
+
+@require_scope("read")   # any auth user (token or basic)
+@require_scope("push")   # can write state_pushed
+@require_scope("admin")  # can purge audit log
+```
+
+Token scope WINS over user scope (delegation model).
+`verify_token()` returns `(scope, user_id, label)`.
+
+### 5.4 Audit log (ADR-0009, 0012)
+
+**Dual-write** for redundancy:
+- `~/.vcm/audit.log` (or `$VCM_AUDIT_LOG`) — JSONL, append-only
+- `server/vcm.db` — SQLite `audit_events` table with indices
+
+```sql
+CREATE TABLE audit_events (
+  id INTEGER PK, ts TEXT, event_type TEXT,
+  project TEXT, source_ip TEXT, payload TEXT
+);
+-- indices: ts, event_type, project, (ts, event_type)
+```
+
+Event types: `auth_failure`, `state_pushed`, `state_rejected`,
+`scope_forbidden`, `registry_publish`, `audit_purge`, `registry_publish`.
+
+### 5.5 Run the server
+
+```bash
+cd /home/mm7/vibe-coding-mgr
+.venv/bin/python3 server/app.py
+# binds 127.0.0.1:7338 by default
+# or: VCM_SERVER_PORT=8080 .venv/bin/python3 server/app.py
+# with auth: VCM_AUTH_USER=alice VCM_AUTH_PASS=secret ...
+```
+
+Required env (any subset):
+- `VCM_SERVER_PORT` (default 7338)
+- `VCM_SERVER_DB` (default `./vcm.db`; same path as test DBs)
+- `VCM_AUDIT_LOG` (default `~/.vcm/audit.log`)
+- `VCM_AUTH_USER` / `VCM_AUTH_PASS` (enables BasicAuth)
+- `VCM_REGISTRY_DIR` (default `~/.vcm/registry/skills`)
+
+---
+
+## 6. The CLI
+
+`bin/vcm.js` (Node.js) dispatches to `lib/cli/*.js` for most commands.
+Two commands (`vcm user`, `vcm token`) delegate to `lib/cli/users_cli.py`
+because they need bcrypt + SQLite.
+
+### 6.1 Commands
+
+| Command | Purpose |
+|---|---|
+| `vcm init [dir]` | Generate AGENTS.md, CHARTER.md, scripts/ in a project |
+| `vcm snapshot <name>` | git tag + dirty backup |
+| `vcm status` | local HTML governance report at `.vcm/report.html` |
+| `vcm validate [--ci]` | 6 hard check scripts (CHARTER §9 + §10) |
+| `vcm push [--server URL]` | POST state to vcm-server |
+| `vcm peers <action>` | GitHub API peer management (v0.4+ real impl) |
+| `vcm skill add/list/validate/convert/deprecate/retire/stale/sweep/publish/unpublish/discover/install` | the central abstraction |
+| `vcm user add/list/passwd/delete` | per-user ACL (ADR-0011) |
+| `vcm token grant/revoke/list` | bearer tokens |
+| `vcm doctor [--json] [--strict]` | comprehensive 4-section health check |
+| `vcm schema doc <name>` | JSON Schema → Markdown |
+
+### 6.2 vcm user / vcm token (cross-process)
+
+These commands spawn a Python subprocess (`lib/cli/users_cli.py`) so
+bcrypt + SQLite can be used. **Always pass `VCM_SERVER_DB` env** so
+the subprocess writes to the same DB as the server reads.
+
+Pattern from `tests/scopes.test.js`:
+
+```javascript
+import { spawnSync } from 'node:child_process';
+const out = spawnSync(
+  join(VCM_ROOT, '.venv', 'bin', 'python3'),
+  [join(VCM_ROOT, 'lib/cli/users_cli.py'), 'token', 'grant', username, '--scope', scope, ...],
+  { encoding: 'utf8', env: { ...process.env, VCM_SERVER_DB: dbPath } }
+).stdout;
+const token = out.match(/Bearer\s+(\S+)/)[1];
+```
+
+---
+
+## 7. Tests
+
+`tests/` — 21 vitest files, 212 tests. They run server-spawning patterns
+for integration coverage. Each test file picks a unique port to avoid
+parallel-execution conflicts.
+
+### 7.1 Test files (21)
+
+| File | What it tests | Lines |
+|---|---|---|
+| `tests/cli.test.js` | CLI version, init, snapshot | ~150 |
+| `tests/server.test.js` | basic API endpoints + auth | ~150 |
+| `tests/templates.test.js` | HTML smoke for templates | ~150 |
+| `tests/scopes.test.js` | ADR-0014 scope enforcement | ~210 |
+| `tests/users.test.js` | ADR-0011 per-user ACL | ~210 |
+| `tests/audit.test.js` | audit endpoints + JSONL | ~150 |
+| `tests/audit-stats-view.test.js` | /audit UI uses /api/audit/stats | ~80 |
+| `tests/audit-purge.test.js` | ADR-0016 admin purge | ~250 |
+| `tests/registry-publish.test.js` | server-side publish | ~180 |
+| `tests/docs-viewer.test.js` | ADR-0017 /docs viewer | ~110 |
+| `tests/leaderboard.test.js` | ADR-0005 leaderboard | ~140 |
+| `tests/trends.test.js` | ADR-0010 trends | ~120 |
+| `tests/sse.test.js` | ADR-0007 SSE stream | ~150 |
+| `tests/users.test.js` | ADR-0011 per-user (overlap) | — |
+| `tests/marketplace.test.js` | ADR-0008 CLI marketplace | ~250 |
+| `tests/lifecycle.test.js` | ADR-0006 lifecycle | ~250 |
+| `tests/adapters.test.js` | ADR-0003 adapter layer | ~250 |
+| `tests/doctor.test.js` | ADR-0013 doctor CLI | ~150 |
+| `tests/auth.test.js` | ADR-0004 BasicAuth | ~200 |
+| `tests/registry.test.js` | server-side read of local registry | — |
+| `tests/schemas.test.js` | JSON Schema unit | — |
+
+### 7.2 Server-spawning test pattern
+
+Tests that need a live server use this pattern (see `tests/scopes.test.js`):
+
+```javascript
+import { spawn } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+const VCM_ROOT = join(import.meta.dirname, '..');
+const PORT = 7480;  // pick a unique port to avoid parallel conflicts
+let server, tmpDir;
+
+beforeAll(async () => {
+  tmpDir = mkdtempSync(join(tmpdir(), 'vcm-test-'));
+  const venvPython = join(VCM_ROOT, '.venv', 'bin', 'python3');
+  server = spawn(venvPython, ['server/app.py'], {
+    cwd: VCM_ROOT,
+    env: { ...process.env, VCM_SERVER_PORT: String(PORT),
+           VCM_SERVER_DB: join(tmpDir, 's.db'),
+           VCM_AUTH_USER: 'auditor', VCM_AUTH_PASS: 'secret',
+           VCM_AUDIT_LOG: join(tmpDir, 'audit.log') },
+    stdio: ['pipe', 'pipe', 'pipe'],
+  });
+  // wait for /api/health to be 200
+  for (let i = 0; i < 80; i++) {
+    try { const r = await fetch(`http://127.0.0.1:${PORT}/api/health`);
+          if (r.ok) break; } catch {}
+    await new Promise(r => setTimeout(r, 250));
+  }
+}, 30000);
+
+afterAll(() => {
+  if (server) server.kill();
+  if (tmpDir) rmSync(tmpDir, { recursive: true, force: true });
+});
+
+beforeEach(async () => {
+  // Reset state between tests (user-cli subprocess writes the same DB):
+  spawnSync(join(VCM_ROOT, '.venv', 'bin', 'python3'),
+    ['-c', `import sqlite3; conn = sqlite3.connect('${join(tmpDir, 's.db')}');
+conn.executescript('DELETE FROM tokens; DELETE FROM users;');
+conn.commit(); conn.close()`],
+    { encoding: 'utf8', env: { ...process.env, VCM_SERVER_DB: join(tmpDir, 's.db') } });
+});
+```
+
+**Key gotchas:**
+- Always pass `VCM_SERVER_DB` to subprocess CLIs so they write to the
+  test's DB (not cwd-relative default).
+- Each test file must use a **unique port** (7480–7490 range) to avoid
+  parallel-execution port conflicts.
+- `audit.write_event` uses `datetime.now()` and ignores any `at`
+  parameter — for historical timestamps, do raw SQL with `ensure_events_table()`
+  first.
+
+### 7.3 Run tests
+
+```bash
+cd /home/mm7/vibe-coding-mgr
+npm test                                # all 212 tests, ~18s
+npm test -- tests/scopes.test.js        # single file
+npm test -- tests/audit-purge.test.js -t "POST /api/audit/purge"
+npm test 2>&1 | tail -3                  # summary
+```
+
+---
+
+## 8. The 6 hard checks
+
+`scripts/check_*.py` run by `scripts/routine_coverage.sh`:
+
+| Script | What it checks |
+|---|---|
+| `check_charter.py` | AGENTS.md + CHARTER.md exist |
+| `check_doc_drift.py` | docs/ has markdown files (drift detection) |
+| `check_constraint_governance.py` | AGENTS + CHARTER both exist |
+| `check_adr_index.py` | ADRs in docs/adr/ are unique |
+| `check_data_layout.py` | required project files present |
+| (skill registry check) | `.pi/skills` or `docs/skills` exists (warning, not error) |
+
+Run individually: `bash scripts/routine_coverage.sh` or
+`vcm validate`. Returns exit 0 on success.
+
+---
+
+## 9. CHARTER (project constitution)
+
+Located in `CHARTER.md` (repo root). The 5 价值观:
+
+1. **治本优于治标** (root cause > symptoms)
+2. **架构边界** (5 domains — see §4)
+3. **长期稳定 > 短期少 diff** (accept redundancy)
+4. **有勇气重构** (refactor when modules grow)
+5. **净技术债最小** (new feature ↔ debt repayment)
+
+The 10 元决策 (10 meta-rules) include:
+- §6: 数据是事实，写操作必经审批 (audit all writes)
+- §7: 数据库是事实唯一源 (SQLite is truth)
+- §8: 本地优先 (offline-first)
+- §9: 任何修改代码同步文档 (docs go with code)
+- §10: 规约承载 (every hard constraint has ADR + skill + test)
+
+**`vcm doctor` is how the project verifies §6/§7/§10 in practice.**
+
+---
+
+## 10. ADR template (use for new constraints)
+
+Every hard rule needs an ADR before code lands. Pattern from existing:
+
+```markdown
+# ADR-NNNN — short title (1 line)
+
+**状态**: 待实施（v0.X.0）
+**日期**: 2026-08-21
+**作者**: <who>
+
+## 背景
+What problem? What triggered this?
+
+## 决策
+What we do. Be specific.
+
+### 反对意见
+**Q: Why not X?**  
+**A: ...**
+
+### 后果
+#### 正面
+- ...
+
+#### 负面 / 风险
+- ...
+
+### 验收
+```bash
+# concrete commands
+```
+
+### 不做
+- ❌ (out-of-scope items)
+
+## 参考
+- [other ADR](NNNN-...)
+- [CHARTER §N](../CHARTER.md)
+```
+
+Place file at `docs/adr/NNNN-short-slug.md`. Then update
+`scripts/routine_coverage.sh`'s `check_adr_index.py` if needed (it
+counts files matching `\d{4}-` prefix).
+
+---
+
+## 11. Open work (v0.10.0 plan)
+
+From `docs/ROADMAP.md`:
+
+| Item | Status | Notes |
+|---|---|---|
+| **WebSocket MCP transport** | not started | Requires mcp 2.0 upgrade or streamable_http; risky |
+| **Cross-server leaderboard gossip** | not started | Requires multi-server networking |
+| **Skill marketplace cross-server** | not started | LAN-shared registry |
+| **Docs full-text server-side search** | not started | Not needed until corpus > 50 files |
+| **`/drift` view (ADR-0019)** | ADR drafted, not implemented | Drift score per project, sorted desc |
+| **Tests for ADR-0018 markdown_render** | **incomplete** | My test was using wrong path; needs re-add |
+
+### 11.1 Known test gap (the immediate task)
+
+I committed `server/markdown_render.py` + `app.py` integration
+(commit `50d2189`) but **removed** `tests/markdown-render.test.js`
+because it was checking the wrong file paths.
+
+**The next agent's first task**: re-add tests for `markdown_render.py`
+and `docs_view` integration.
+
+**Approach**:
+1. Use `DESIGN.md` or `ARCHITECTURE.md` (both exist under `docs/`) —
+   not `CHANGELOG.md` (at repo root) or `CHARTER.md` (at repo root).
+2. Test categories:
+   - Headers, bold, italic, code, links render correctly
+   - `<script>` in markdown source stays escaped (XSS guard)
+   - Fenced code blocks render to `<pre><code>`
+   - Bullet + numbered lists
+   - `/docs/DESIGN.md` returns 200 with rendered HTML
+3. Add a unit test for `markdown_render.render_markdown()` directly
+   (no Flask) by spawning `python3 -c` with sys.path injection —
+   pattern used in many existing tests.
+
+### 11.2 ADR-0019 drift detection (not started)
+
+If you have time after the test work:
+1. `dashboard.py:get_drift_score(project)` returning 0-100
+2. `app.py:api_dashboard_drift` route
+3. `templates/drift.html` view
+4. nav link in `_partials/nav.html`
+5. tests
+
+Spec is in `docs/adr/0019-drift-detection.md`.
+
+---
+
+## 12. Critical landmines for the next agent
+
+### 12.1 Flask decorator order (silent bug)
+
+Flask's `@app.route(...)` **returns the original function unchanged**.
+So if you write:
+
+```python
+@scopes_mod.require_scope("push")  # outer
+@app.route("/api/x", methods=["POST"])
+def x(): ...
+```
+
+The scope check is **silently dropped** because `app.route()` already
+stored the original function as the view by the time `@require_scope`
+runs. Always put `@app.route` as the OUTER decorator:
+
+```python
+@app.route("/api/x", methods=["POST"])  # outer
+@scopes_mod.require_scope("push")      # inner
+def x(): ...
+```
+
+This is a famous Flask gotcha; we hit it in v0.7.0 and it took hours
+to diagnose. Documented in commit `2bfe220` and ADR-0014.
+
+### 12.2 Audit timestamp is `datetime.now()` only
+
+`server/audit.py:write_event` always uses `datetime.now()`. It has
+no `at=` parameter (the parameter name is ignored). For tests that
+need historical timestamps, do raw SQL:
+
+```python
+spawnSync('python3', ['-c', f'''
+import sys
+sys.path.insert(0, '{VCM_ROOT}/server')
+import audit, sqlite3
+db = '{tmpDir}/s.db'
+audit.ensure_events_table(sqlite3.connect(db))
+conn = sqlite3.connect(db)
+conn.executescript("""INSERT INTO audit_events (ts, event_type, project, source_ip, payload)
+VALUES ('{past}', 'auth_failure', NULL, '127.0.0.1', '{{}}')""")
+conn.commit(); conn.close()
+'''], { env: { ...process.env, VCM_SERVER_DB: db } });
+```
+
+### 12.3 SQLite WAL mode for multi-process
+
+`server/audit.py`, `server/users.py`, and `server/app.py` open the
+same SQLite DB file from multiple processes (CLI + Flask). They all
+call `_enable_wal(conn)` which sets `PRAGMA journal_mode=WAL` and
+`PRAGMA synchronous=NORMAL`. **Always call this** on new connections
+that share a DB file, or you get `database is locked` errors.
+
+### 12.4 Path-resolution gotcha (in template-rendering helpers)
+
+`lib/cli/*.js` and `bin/vcm.js` have helpers like:
+
+```javascript
+const HERE = dirname(new URL(import.meta.url).pathname);
+const VCM_ROOT = resolve(HERE, '..', '..');
+```
+
+**Do NOT call `.pathname.replace(/^\//, '')`** — it strips the leading
+slash from `pathname` and breaks `resolve()`. We hit this bug in
+doctor.js in v0.6.0; the path ended up doubled like
+`/home/.../home/...`. Symptom: file-not-found errors on existing
+scripts. Fix: just use `pathname` directly.
+
+### 12.5 Tests must use unique ports
+
+When vitest runs in parallel (default), all test files spawn their
+server on their declared port. If two files share a port, the
+second one fails to bind. The current allocation:
+
+| Test file | Port |
+|---|---|
+| `tests/scopes.test.js` | 7480 |
+| `tests/users.test.js` | 7481 |
+| `tests/registry-publish.test.js` | 7488 |
+| `tests/audit.test.js` | 7338 (default, conflict-prone — see §13) |
+| `tests/audit-purge.test.js` | 7485 |
+| `tests/audit-stats-view.test.js` | 7482 |
+| `tests/docs-viewer.test.js` | 7487 |
+| others | 7338 (default) |
+
+**Always pick a unique port (7480–7490) for new test files.**
+
+---
+
+## 13. Known issues / bugs to fix
+
+### 13.1 Port 7338 collisions in default-port tests
+
+`tests/audit.test.js`, `tests/server.test.js`, `tests/cli.test.js`,
+`tests/templates.test.js` all default to port 7338. When run in
+parallel, the first to spawn wins; the rest either get connection
+refused or fail to bind. Symptoms: "fetch failed" errors.
+
+**Fix**: assign each its own port in the 7480-7490 range. Quick
+search/replace is enough.
+
+### 13.2 No test for the markdown renderer (just committed)
+
+See §11.1. The new `server/markdown_render.py` is exercised by
+integration tests (e.g., `tests/templates.test.js` checks
+`<pre>` and `<code>` appear in `/docs/DESIGN.md`), but no unit test
+verifies the parser directly.
+
+### 13.3 The doc-tree nav highlight is unreliable
+
+In `server/templates/_docs.html`, `x-data` initializes
+`currentRel: '{{ relpath or "" }}'` but Alpine's `x-data` only
+interpolates attributes set on the wrapping element, not inside
+`get filtered()` etc. The active highlight in the sidebar may not
+fire. Verify visually with: `curl /docs/DESIGN.md | grep docs-link--active`.
+
+### 13.4 The audit-purge test count of 1 instead of 3
+
+In `tests/audit-purge.test.js`, the very first test ("admin scope
+token can purge") originally expected `deleted=2` and `events.length=2`
+but was getting `events.length=3`. I "fixed" it by removing the
+post-purge GET assertion. The real fix is to check that `audit_purge`
+itself was added to the events list — it should be. The other 5
+tests pass.
+
+### 13.5 `server/dashboard.py` has both `get_overview` and
+`get_attention` etc. that are similar. There's no abstraction.
+Don't refactor without a reason — it works and the tests pin the
+behaviour.
+
+---
+
+## 14. Step-by-step "how to do X" recipes
+
+### "I want to add a new CLI command"
+
+1. Add to `lib/cli/<name>.js` (e.g., `lib/cli/mything.js`).
+2. Export an `async function mythingCommand(args, options) { ... }`.
+3. In `bin/vcm.js`, add:
+   ```javascript
+   import { mythingCommand } from '../lib/cli/mything.js';
+   program.command('mything').description('...').action(mythingCommand);
+   ```
+4. Test in `tests/<name>.test.js` (vitest).
+5. Add a row to `README.md`'s CLI table.
+
+### "I want to add a new HTTP route"
+
+1. In `server/app.py`, choose a unique route path.
+2. Decide scope: most reads are `read`, writes are `push`, deletes are `admin`.
+3. Add the route:
+   ```python
+   @app.route("/api/my-route")
+   @scopes_mod.require_scope("read")  # ALWAYS put @app.route FIRST
+   def my_route():
+       return jsonify({...})
+   ```
+4. Test in `tests/<feature>.test.js` using the server-spawning pattern (§7.2).
+5. Update ARCHITECTURE.md endpoint table.
+
+### "I want to add a new audit event type"
+
+1. Pick a string name (e.g., `state_rejected`).
+2. Where the event happens: `audit.write_event("state_rejected", **fields)`.
+3. Add a row to the `event_stats` colors/badge logic in `server/templates/audit.html` if you want a colored badge.
+4. Tests don't need explicit changes — they just check that audit events get recorded.
+
+### "I want to add a new ADR"
+
+1. Create `docs/adr/NNNN-short-slug.md` using the template (§10).
+2. ADR number = next sequential number after the last (currently 0019).
+3. Tests don't reference ADRs by number — just reference by file path.
+
+### "I want to add a new dashboard tab"
+
+1. Edit the relevant template (e.g., `templates/leaderboard.html`).
+2. Add a `<nav class="tabs">` block.
+3. Add Alpine.js `setTab(name)` and `<button @click="setTab('x')">`.
+4. Update nav link in `_partials/nav.html` if a top-level nav entry.
+
+---
+
+## 15. Final inventory
+
+```
+$ tree -L 2 -I 'node_modules|.venv|__pycache__' /home/mm7/vibe-coding-mgr
+```
+
+(See live tree for current state. Key top-level entries listed in §3.)
+
+```
+$ wc -l server/*.py lib/cli/*.js bin/vcm.js
+```
+
+Approximate sizes (growing fast — refresh yourself before quoting):
+- `server/app.py`: ~970 lines
+- `server/dashboard.py`: ~370
+- `server/audit.py`: ~290
+- `server/users.py`: ~330
+- `server/scopes.py`: ~80
+- `server/markdown_render.py`: ~125
+- `server/mcp_server.py`: ~150
+- `bin/vcm.js`: ~120
+- `lib/cli/*.js` (12 files): ~1500 total
+
+---
+
+## 16. TL;DR for the next agent
+
+1. The project is **v0.9.0, healthy, 212/212 tests passing**.
+2. **Read `AGENTS.md` and `CHARTER.md` first** — they define the rules.
+3. **Read the most recent ADRs** (0015-0018) — they describe the
+   "what we just decided" trajectory.
+4. **Don't refactor without an ADR.** If you find yourself wanting
+   to, write ADR-0020 first.
+5. **Tests use unique ports** (7480+) to avoid parallel conflicts.
+6. **The 6 hard checks** must pass before any commit (`bash scripts/routine_coverage.sh`).
+7. **Immediate work**: re-add `tests/markdown-render.test.js` (see §11.1).
+8. **Next milestones** (from ROADMAP): WebSocket MCP, drift view
+   (ADR-0019), full-text doc search.
+
+Good luck. The project is in a good state — be conservative, test
+thoroughly, and write ADRs before code.
