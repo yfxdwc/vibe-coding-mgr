@@ -302,6 +302,50 @@ def api_peers():
         return jsonify({"peers": [], "note": f"error: {e}"}), 200
 
 
+@app.route("/docs/<path:filename>")
+def docs_view(filename):
+    """Serve any /docs/*.md (or .md inside docs/adr/, docs/adr/0001-*, etc.)
+    with a thin HTML wrapper using only the standard library.
+
+    Zero-dependency implementation: markdown stays as text inside <pre>;
+    users copy-paste it into their editor, or read it raw. This avoids
+    adding markdown libs (mistune, markdown-it) to requirements.txt.
+
+    Safety: `filename` is constrained to live under ROOT/docs/. Path
+    traversal (`../etc/passwd`) is rejected at `target.relative_to()`.
+    """
+    from flask import Response
+    import html as html_stdlib
+    md_root = ROOT / "docs"
+    target = (md_root / filename).resolve()
+    try:
+        target.relative_to(md_root.resolve())
+    except ValueError:
+        abort(404)
+    if not target.exists() or not target.is_file():
+        abort(404)
+    body = target.read_text(encoding="utf-8")
+    escaped = html_stdlib.escape(body)
+    title = target.stem
+    rel = str(filename)
+    html = (
+        f'<!DOCTYPE html><html lang="en" data-theme="dark"><head>'
+        f'<meta charset="UTF-8"><title>vcm-server · {title}</title>'
+        f'<link rel="stylesheet" href="/static/css/dashboard.css">'
+        f'</head><body><main class="shell">'
+        f'<header class="page-head"><div class="crumbs">'
+        f'<a href="/settings">settings</a><span class="sep">/</span>'
+        f'<span class="crumb-current">{title}</span></div>'
+        f'<h1 class="text-display">{title}</h1>'
+        f'<p class="text-meta">docs/{rel}</p></header>'
+        f'<div class="c-card"><pre style="white-space: pre-wrap;">{escaped}</pre></div>'
+        f'<a href="/settings" class="btn btn--ghost">← back to settings</a>'
+        f'</main></body></html>'
+    )
+    return Response(html, mimetype="text/html")
+
+
+
 @app.errorhandler(404)
 def not_found(e):
     return jsonify({"error": "not found"}), 404

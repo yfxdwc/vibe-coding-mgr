@@ -31,13 +31,118 @@ vibe-coding-mgr/
 │   └── routine_coverage.sh
 ├── server/                 Optional central dashboard (Flask)
 │   ├── app.py
+│   ├── dashboard.py        # Data assembly for dashboard endpoints
 │   ├── requirements.txt
+│   ├── static/
+│   │   ├── css/            # 3-layer CSS architecture (v0.3.0+)
+│   │   │   ├── tokens.css       # color/typography/spacing tokens (single source)
+│   │   │   ├── base.css         # reset + global typography
+│   │   │   ├── components.css   # card/kpi-grid/tabs/drawer/table/badge/tag
+│   │   │   └── dashboard.css    # thin compat wrapper, old .panel aliases
+│   │   └── js/
+│   │       ├── alpine.min.js    # reactivity (3.x)
+│   │       └── echarts.min.js   # radar + bar charts
 │   └── templates/
-│       ├── dashboard.html
-│       └── project.html
+│       ├── _layout.html         # common shell (Jinja2 extends)
+│       ├── _partials/
+│       │   ├── nav.html         # top-nav with active state + theme toggle
+│       │   └── attention_item.html
+│       ├── dashboard.html       # cockpit (?tab=overview|attention|activity)
+│       ├── project.html         # single project (?tab=overview|governance|health|history)
+│       ├── skills.html          # skill registry (?tab=matrix|coverage|registry)
+│       ├── peers.html           # OSS peer watch list
+│       └── settings.html        # server meta + design tokens palette
 └── tests/
     ├── schemas.test.js
-    └── cli.test.js
+    ├── cli.test.js
+    ├── server.test.js           # API smoke tests
+    └── templates.test.js        # HTML data-c= hook smoke tests (v0.3.0+)
+```
+
+## Front-end architecture (v0.3.0+)
+
+The dashboard is a Jinja2-rendered, Alpine.js-hydrated, single-page-per-route app.
+No SPA, no build step, no Tailwind. See [DESIGN.md](./DESIGN.md) for the design system.
+
+### URL-routed state (DESIGN.md §5)
+
+Every interactive state goes into the URL, so links are deep-linkable:
+
+| URL                                       | View                       | Tab param                          |
+|-------------------------------------------|----------------------------|------------------------------------|
+| `/`                                       | Cockpit                    | `?tab=overview\|attention\|activity` |
+| `/projects/<name>`                        | Single project             | `?tab=overview\|governance\|health\|history` |
+| `/skills`                                 | Skill registry             | `?tab=matrix\|coverage\|registry`     |
+| `/peers`                                  | OSS peer watch list        | —                                  |
+| `/settings`                               | Server meta                | —                                  |
+
+Implementer's note: `setTab()` in each template uses `history.replaceState`, so
+back/forward navigation behaves like a real router.
+
+### CSS layering rule
+
+```
+tokens.css  ← 唯一颜色 / 字号 / 间距 token 源 (CHANGE in DESIGN.md §2)
+   ↓ @import
+base.css    ← reset + 排版层 + 工具类 (text-display, kpi-grid 等)
+   ↓ @import
+components.css ← 组件 (c-card / .badge / .tag / .tabs / .drawer / .data-table)
+   ↓ @import
+dashboard.css ← 兼容别名 (旧 .panel / .cell-ok)，新视图禁写这里
+```
+
+**纪律**：tokens.css 不 import 任何东西。所有页面级 CSS 通过 dashboard.css 走。
+
+### Component primitives (DESIGN.md §4)
+
+| Class          | 作用                          | 关键 token 引用              |
+|----------------|-------------------------------|------------------------------|
+| `c-card`       | 内容卡片                      | `--surface` `--border-subtle` |
+| `kpi-grid`     | 三列 KPI 永远等宽             | `--space-4`                   |
+| `tabs` / `.tab`| tab 行 + 当前状态             | `--accent` `--text-secondary` |
+| `data-table`   | zebra + 行状态条              | `--surface-alt`               |
+| `badge--ok\|warn\|fail\|idle` | 4 种状态胶囊  | `--ok-dim` 等                  |
+| `tag / tag--soft / tag--muted` | skill/ADR/TD 标签 | `--accent-dim`                 |
+| `attention / .attention--critical` | need-attention 条 | `--warn-dim` `--fail-dim`     |
+| `drawer`       | 右滑上下文抽屉（preparation） | `--bg-elevated`               |
+
+新增组件前先查 DESIGN.md §4 §5。已实现组件全部 token-based，
+从未硬编码 hex / px。
+
+### "Answers:" discipline
+
+Every view must start with a one-line `answers-line` block answering the
+question that view exists to address:
+
+```html
+<div class="answers-line">
+  <span class="answers-tag">Answers</span>
+  <p>which projects are unhealthy, what they lack, and what's changed.</p>
+</div>
+```
+
+This is from repowise's "each view answers one question" pattern, codified
+into the project. Skip the line and the review rejects.
+
+### Data-test hooks
+
+Components ship with `data-c="<name>"` attributes for smoke tests:
+
+```
+data-c="kpi-grid", data-c="card-projects", data-c="projects-table",
+data-c="card-skills-xref", data-c="card-attention",
+data-c="tab-panel" data-tab="overview", data-c="peers-list",
+data-c="badge", data-c="kpi", data-kpi="..." ...
+```
+
+See `tests/templates.test.js` for the assertions.
+
+### Light / dark theming
+
+Toggle via `document.documentElement.dataset.theme = 'light' | 'dark'`.
+Choice persisted in `localStorage` under key `vcm-theme`. Token definitions
+for light theme live in the same `tokens.css` file
+(`:root[data-theme="light"] { ... }`) — components never reference hex.
 ```
 
 ## Data flow
