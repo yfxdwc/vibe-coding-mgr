@@ -10,7 +10,7 @@ import { validateCommand } from '../lib/cli/validate.js';
 import { pushCommand } from '../lib/cli/push.js';
 import { peersCommand } from '../lib/cli/peers.js';
 
-const VERSION = '0.1.0';
+const VERSION = "0.2.0";
 
 const program = new Command();
 
@@ -63,9 +63,9 @@ program
 
 program
   .command('peers')
-  .description('Manage peer project attention (v1: stub only)')
-  .argument('<action>', 'add | list')
-  .argument('[repo]', 'Repository (owner/name)')
+  .description('Manage peer project attention (GitHub API)')
+  .argument('<action>', 'add | list | refresh | config')
+  .argument('[repo]', 'Repository (owner/name) — for add/config')
   .action(peersCommand);
 
 // Default help text styling
