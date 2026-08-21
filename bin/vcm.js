@@ -11,6 +11,7 @@ import { pushCommand } from '../lib/cli/push.js';
 import { peersCommand } from '../lib/cli/peers.js';
 import { userTokenCommand } from '../lib/cli/user.js';
 import { doctorCommand } from '../lib/cli/doctor.js';
+import { schemaDocCommand } from '../lib/cli/schema-doc.js';
 
 const VERSION = "0.6.0";
 
@@ -105,6 +106,14 @@ program
   .option('--json', 'Emit JSON to stdout (CI use)')
   .option('--strict', 'Exit 1 on any warning (default: only fail)')
   .action(doctorCommand);
+
+program
+  .command('schema')
+  .description('Schema utilities (ADR-0015 schema-doc generator)')
+  .argument('<action>', 'doc')
+  .argument('[spec]', 'Schema name (skill, state) or path to schema.json')
+  .option('--output <path>', 'Write markdown to file instead of stdout')
+  .action((action, spec, opts) => schemaDocCommand(spec, opts));
 
 // Default help text styling
 program.configureHelp({
