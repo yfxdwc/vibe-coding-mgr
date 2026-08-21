@@ -10,7 +10,7 @@ import { validateCommand } from '../lib/cli/validate.js';
 import { pushCommand } from '../lib/cli/push.js';
 import { peersCommand } from '../lib/cli/peers.js';
 
-const VERSION = "0.3.0";
+const VERSION = "0.4.0";
 
 const program = new Command();
 

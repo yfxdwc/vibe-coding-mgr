@@ -9,6 +9,10 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    env:
+      VCM_SERVER_DB: /tmp/vcm-ci-test.db
 
     steps:
       - uses: actions/checkout@v4
@@ -23,18 +27,45 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('server/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
       - name: Install Node deps
         run: npm ci || npm install
 
-      - name: Run unit tests
+      - name: Setup Python venv + install server deps
+        run: |
+          python3 -m venv .venv
+          .venv/bin/python -m pip install --upgrade pip wheel setuptools
+          .venv/bin/python -m pip install -r server/requirements.txt
+
+      # ---- Lint / static checks (cheap, fail-fast) ----
+
+      - name: Validate project itself (6 hard checks via vcm)
+        run: |
+          .venv/bin/python server/app.py &
+          APP_PID=$!
+          sleep 2
+          bash scripts/routine_coverage.sh
+          kill $APP_PID 2>/dev/null || true
+
+      # ---- Unit + integration tests ----
+
+      - name: Run unit tests (vitest, includes server + MCP + SSE)
         run: npm test
 
-      - name: Run 6 hard checks (self-governance)
-        run: bash scripts/routine_coverage.sh
+      # ---- CLI smoke ----
 
-      - name: CLI smoke test
+      - name: CLI smoke — version
+        run: node bin/vcm.js --version
+
+      - name: CLI smoke — init generates AGENTS.md / CHARTER.md
         run: |
-          node bin/vcm.js --version
           cd /tmp && rm -rf vcm-smoke && mkdir vcm-smoke && cd vcm-smoke && \
             git init -q && \
             git config user.email "ci@test.com" && \
@@ -43,13 +74,7 @@ jobs:
             test -f AGENTS.md && \
             test -f CHARTER.md
 
-      - name: Server smoke test
+      - name: CLI smoke — adapters (vercel round-trip)
         run: |
-          python3 -m venv .venv
-          source .venv/bin/activate
-          pip install -r server/requirements.txt
-          python3 server/app.py &
-          SERVER_PID=$!
-          sleep 3
-          curl -sS http://127.0.0.1:7338/api/health | grep -q "healthy"
-          kill $SERVER_PID || true
+          echo '{"name":"ci-smoke","description":"a description that meets the minimum length requirement for a vcm skill manifest","tags":["ci","smoke"]}' | \
+            node bin/vcm.js skill convert --from vercel --to vcm | head -5

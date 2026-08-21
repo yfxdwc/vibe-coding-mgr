@@ -32,23 +32,34 @@
 - [x] **6 hard check still passes**
 - [x] **27/27 unit tests pass**
 
-## v0.4.0 (next, ~1 month)
+## v0.4.0 ✅ DONE (2026-08-21)
 
-- [ ] **MCP server** (server/mcp.py)
-  - 3-5 MCP tools for AI agents
-  - Compatible with Claude Code / Codex
-- [ ] **Skill adapter layer** (5 standards adapters)
-  - vercel-labs/skills adapter
-  - tech-leads-club adapter
-  - AAS Core adapter
-  - addyosmani/agent-skills adapter
-- [ ] **CI/CD**
-  - GitHub Actions workflow
-  - npm publish on tag
-- [ ] **Optional BasicAuth** for vcm-server
-- [ ] **Cross-project comparisons** (which project has more TDs?)
-- [ ] **Skill lifecycle automation** (deprecate unused, archive old)
-- [ ] **WebSocket live dashboard** (real-time status updates)
+- [x] **MCP server** (server/mcp_server.py) — 5 read-only tools, stdio
+- [x] **Skill adapter layer** (vercel-labs / tech-leads-club / sickn33-aas /
+      addyosmani / refly + vcm pivot)
+- [x] **CI/CD** — hardened .github/workflows/ci.yml (caching, MCP coverage)
+      + new .github/workflows/publish.yml (auto-bump + provenance on tags)
+- [x] **Optional BasicAuth** (VCM_AUTH_USER/PASS, ADR-0004)
+- [x] **Cross-project comparisons** (/api/dashboard/leaderboard +
+      /leaderboard view, 6 sort dimensions)
+- [x] **Skill lifecycle automation** (deprecate / retire / stale / sweep)
+- [x] **SSE live dashboard** (/api/dashboard/stream — 5 event types)
+
+### v0.4.0 metrics
+- 122/122 unit tests pass (was 42 in v0.3.0 → +80)
+- 6/6 hard checks pass
+- 7 ADRs (0001–0007) in docs/adr/
+- 5 adapter modules + 5 new CLI commands + 2 new HTTP endpoints
+- 8 new HTML pages / partials
+
+## v0.5.0 (next, ~1 month)
+
+- [ ] **WebSocket** transport for MCP (stdio current; v0.5 adds HTTP/WS)
+- [ ] **Skill marketplace / publish** (`vcm skill publish`, status field gate)
+- [ ] **Audit log** (auth 401 events currently silent)
+- [ ] **Cross-server leaderboard** (gossip protocol, no central DB)
+- [ ] **Trend dashboards** (governance metrics over time)
+- [ ] **Per-user ACLs** (replace single-password BasicAuth)
 
 ## v1.0.0 (~3 months, stability milestone)
 
