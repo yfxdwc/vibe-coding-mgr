@@ -50,8 +50,30 @@ async function readLogLines() {
 }
 
 describe('Audit log (ADR-0009)', () => {
-  it('creates the log file at startup', () => {
+  it('audit log path is well-defined (default ~/.vcm/audit.log or env override)', () => {
+    // ADR-0012: SQLite is the truth; JSONL is the parallel stream.
+    // We don't pre-create either, so check that path lookup works.
+    const p = auditLogPath;
+    expect(typeof p).toBe('string');
+    expect(p.length).toBeGreaterThan(0);
+  });
+
+  it('writes to BOTH SQLite (truth) AND JSONL (parallel stream)', async () => {
+    // Trigger an auth_failure so BOTH backends have something.
+    await fetch(`http://127.0.0.1:${PORT}/api/projects`);
+    const { readFileSync } = await import('node:fs');
+    // JSONL must contain auth_failure (this happens before SQLite read)
     expect(existsSync(auditLogPath)).toBe(true);
+    const lines = readFileSync(auditLogPath, 'utf8').split('\n').filter(Boolean);
+    expect(lines.length).toBeGreaterThan(0);
+    const last = JSON.parse(lines[lines.length - 1]);
+    expect(last.event_type).toBe('auth_failure');
+    // And SQLite must contain too (queried via API)
+    const r = await fetch(`http://127.0.0.1:${PORT}/api/audit?limit=5`, {
+      headers: { 'Authorization': 'Basic ' + Buffer.from('auditor:audit-secret').toString('base64') },
+    });
+    const j = await r.json();
+    expect(j.events.length).toBeGreaterThan(0);
   });
 
   it('logs auth_failure when missing creds hit a protected endpoint', async () => {
@@ -153,6 +175,58 @@ describe('Audit log (ADR-0009)', () => {
     });
     const j = await r.json();
     expect(j.events.length).toBe(0);
+  });
+
+  it('GET /api/audit?project= filters by project (ADR-0012)', async () => {
+    const r = await fetch(`http://127.0.0.1:${PORT}/api/audit?project=audit-fixture&limit=10`, {
+      headers: { 'Authorization': 'Basic ' + Buffer.from('auditor:audit-secret').toString('base64') }
+    });
+    const j = await r.json();
+    for (const e of j.events) expect(e.project).toBe('audit-fixture');
+  });
+
+  it('GET /api/audit?offset= paginates', async () => {
+    // Generate enough events to make pagination non-trivial.
+    for (let i = 0; i < 4; i++) {
+      await fetch(`http://127.0.0.1:${PORT}/api/projects`, {
+        headers: { 'Authorization': 'Basic ' + Buffer.from('auditor:audit-secret').toString('base64') },
+      });
+    }
+    const page0 = await fetch(`http://127.0.0.1:${PORT}/api/audit?limit=2&offset=0`, {
+      headers: { 'Authorization': 'Basic ' + Buffer.from('auditor:audit-secret').toString('base64') }
+    }).then((r) => r.json());
+    const page1 = await fetch(`http://127.0.0.1:${PORT}/api/audit?limit=2&offset=2`, {
+      headers: { 'Authorization': 'Basic ' + Buffer.from('auditor:audit-secret').toString('base64') }
+    }).then((r) => r.json());
+    // Pages should not overlap if both are full
+    if (page0.events.length === 2 && page1.events.length === 2) {
+      const ids0 = new Set(page0.events.map((e) => e.id));
+      const overlaps = page1.events.filter((e) => ids0.has(e.id));
+      expect(overlaps.length).toBe(0);
+    }
+    // total retrievable >= page0 + page1 size
+    expect(page0.events.length + page1.events.length).toBeLessThanOrEqual(50);
+  });
+
+  it('GET /api/audit/stats returns {total, by_type} (ADR-0012)', async () => {
+    const r = await fetch(`http://127.0.0.1:${PORT}/api/audit/stats`, {
+      headers: { 'Authorization': 'Basic ' + Buffer.from('auditor:audit-secret').toString('base64') }
+    });
+    expect(r.status).toBe(200);
+    const j = await r.json();
+    expect(typeof j.total).toBe('number');
+    expect(j.total).toBeGreaterThan(0);
+    expect(j.by_type).toHaveProperty('auth_failure');
+    expect(j.by_type).toHaveProperty('state_pushed');
+  });
+
+  it('GET /api/audit/stats since= filters correctly', async () => {
+    const future = new Date(Date.now() + 86400 * 1000).toISOString();
+    const r = await fetch(`http://127.0.0.1:${PORT}/api/audit/stats?since=${encodeURIComponent(future)}`, {
+      headers: { 'Authorization': 'Basic ' + Buffer.from('auditor:audit-secret').toString('base64') }
+    });
+    const j = await r.json();
+    expect(j.total).toBe(0);
   });
 
   it('limit clamps to [1, 5000]', async () => {

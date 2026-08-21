@@ -11,10 +11,29 @@ Extracted from [sales-ai](https://github.com/your-org/sales-ai) where it was dev
 | `vcm init` | Set up a project with VCM governance templates (AGENTS.md, CHARTER.md, scripts) |
 | `vcm snapshot <name>` | Task-level snapshot using git tag + dirty backup |
 | `vcm skill add/list/validate` | Skill registry with 5 原则 + 3 条件 enforcement |
+| `vcm skill convert` | Convert between 5 standards (vercel / tech-leads-club / AAS / addyosmani / refly / vcm) |
+| `vcm skill deprecate/retire/stale/sweep` | Skill lifecycle automation (ADR-0006) |
+| `vcm skill publish/unpublish/discover/install` | Local skill marketplace (ADR-0008) |
 | `vcm status` | Local HTML governance report (skills, ADRs, TDs, post-mortems, git) |
 | `vcm validate` | Run the 6 hard checks (CHARTER §9 + §10) |
 | `vcm push` | Push state to vcm-server (optional central dashboard) |
 | `vcm peers` | Peer project attention (v0.1.0: stub) |
+
+## vcm-server (optional central dashboard)
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /` | Cockpit: 3-KPI dashboard with tabs (overview / attention / activity) |
+| `GET /leaderboard` | Project ranking (6 sort dimensions) |
+| `GET /projects/<name>` | Single project detail (4 tabs) |
+| `GET /skills` | Cross-project skill registry (3 tabs) |
+| `GET /trends` | Governance time-series (weekly buckets) |
+| `GET /audit` | Auth + push event audit log |
+| `GET /peers` | OSS peer attention |
+| `GET /settings` | Server meta + design tokens |
+
+All endpoints + MCP server `vcm-server` (5 read-only tools) + SSE live
+updates are documented in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Install
 
@@ -104,6 +123,16 @@ vibe-coding-mgr/
 ```
 
 See [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) for details.
+
+## v0.5.0 highlights
+
+- **Audit log** (`/audit`): every auth failure + state push is JSONL-recorded to `$VCM_AUDIT_LOG` or `~/.vcm/audit.log`. Closes CHARTER §6 "审批可追溯".
+- **Trend dashboard** (`/trends`): weekly buckets for compliance, td_count, skills, adrs, dirty. No new schema — pure function over `states` table.
+- **Skill marketplace** (`vcm skill publish/discover/install`): local registry at `~/.vcm/registry/` closes the lifecycle loop (publishes install as new skill, retiring removes from registry).
+- **MCP server** (`python3 server/mcp_server.py`): 5 read-only tools over stdio for Claude Code / Codex / Cursor / pi.
+- **BasicAuth** (optional): `VCM_AUTH_USER` + `VCM_AUTH_PASS` env vars gate `/api/*` (excludes `/api/health`). Constant-time compare; malformed header → 400.
+- **SSE live dashboard** (`/api/dashboard/stream`): 5 event types, browser `EventSource` reconnect on error.
+- **Front-end redesign** (repowise-inspired, ADR-0001): token-first CSS, "Answers:" header per view, 3-KPI grid per page, DESIGN.md as single source of truth.
 
 ## Adoption philosophy
 

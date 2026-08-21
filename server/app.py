@@ -308,21 +308,41 @@ def collect():
 
 @app.route("/api/audit")
 def api_audit():
-    """ADR-0009: read-only access to the audit log.
+    """ADR-0009 + ADR-0012: read-only access to the audit log.
 
     Query params:
       ?since    ISO date-time (lower bound, inclusive)
       ?event    filter by event_type (exact match)
+      ?project  filter by project slug
       ?limit    1..5000; default 100
+      ?offset   int; default 0
     """
     since = request.args.get("since")
     event_type = request.args.get("event")
+    project = request.args.get("project")
     try:
         limit = int(request.args.get("limit", "100"))
     except ValueError:
         limit = 100
-    events = audit.read_events(since=since, event_type=event_type, limit=limit)
+    try:
+        offset = int(request.args.get("offset", "0"))
+    except ValueError:
+        offset = 0
+    events = audit.read_events(
+        since=since, event_type=event_type, project=project,
+        limit=limit, offset=offset,
+    )
     return jsonify({"events": events, "count": len(events)})
+
+
+@app.route("/api/audit/stats")
+def api_audit_stats():
+    """ADR-0012: counters by event_type since `since` (optional).
+
+    Returns: {"total": int, "by_type": {event_type: count}}
+    """
+    since = request.args.get("since")
+    return jsonify(audit.event_stats(since=since))
 
 
 @app.route("/audit")
