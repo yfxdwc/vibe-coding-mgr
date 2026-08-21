@@ -35,9 +35,9 @@ program
 
 program
   .command('skill')
-  .description('Manage skills (add/list/validate/convert/deprecate/retire/stale/sweep)')
-  .argument('<action>', 'add | list | validate | convert | deprecate | retire | stale | sweep')
-  .argument('[name]', 'Skill name (for add/validate/deprecate/retire)')
+  .description('Manage skills (add/list/validate/convert/publish/unpublish/discover/install/deprecate/retire/stale/sweep)')
+  .argument('<action>', 'add | list | validate | convert | publish | unpublish | discover | install | deprecate | retire | stale | sweep')
+  .argument('[name]', 'Skill name (where applicable)')
   .option('-d, --desc <description>', 'Skill description (for add)')
   .option('-t, --tags <tags>', 'Comma-separated tags (for add)')
   .option('--from <fmt>', 'Source format (convert)')
@@ -45,8 +45,11 @@ program
   .option('--input <path>', 'Read skill JSON from file (convert)')
   .option('--output <path>', 'Write to file instead of stdout (convert)')
   .option('--replaced-by <new>', 'Replacement slug (deprecate)')
+  .option('--install-to <dir>', 'Install into specific dir (install)')
+  .option('--force', 'Overwrite existing (publish, install)')
   .option('--yes', 'Skip confirmation (retire, sweep)')
   .option('--days <N>', 'Threshold days (stale, sweep; default 90 / 180)')
+  .option('--tag <tag>', 'Filter by tag (discover)')
   .action(skillCommand);
 
 program
