@@ -12,7 +12,7 @@ import { peersCommand } from '../lib/cli/peers.js';
 import { userTokenCommand } from '../lib/cli/user.js';
 import { doctorCommand } from '../lib/cli/doctor.js';
 
-const VERSION = "0.5.0";
+const VERSION = "0.6.0";
 
 const program = new Command();
 
