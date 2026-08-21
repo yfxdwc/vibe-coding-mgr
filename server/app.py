@@ -9,9 +9,16 @@ from datetime import datetime
 from pathlib import Path
 
 from flask import Flask, request, jsonify, render_template, abort
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from dashboard import (
+    get_overview, get_skill_matrix, get_attention,
+    get_recent_activity, get_skill_aging, get_attention_summary,
+    get_project_detail,
+)
 
 ROOT = Path(__file__).resolve().parent.parent
-DB_PATH = ROOT / "server" / "vcm.db"
+DB_PATH = Path(os.environ.get("VCM_SERVER_DB", str(ROOT / "server" / "vcm.db")))
 TEMPLATES_DIR = ROOT / "server" / "templates"
 STATIC_DIR = ROOT / "server" / "static"
 
@@ -20,6 +27,10 @@ app = Flask(
     template_folder=str(TEMPLATES_DIR),
     static_folder=str(STATIC_DIR),
 )
+
+# Initialize DB schema at startup (idempotent)
+with app.app_context():
+    pass  # placeholder; init_db() called below
 
 
 def get_db():
@@ -61,10 +72,17 @@ def init_db():
 
 @app.route("/api/health")
 def health():
+    # Read version from package.json (single source of truth)
+    try:
+        with open(ROOT / "package.json") as f:
+            pkg = json.load(f)
+        version = pkg.get("version", "0.2.0")
+    except Exception:
+        version = "0.2.0"
     return jsonify({
         "status": "healthy",
         "service": "vcm-server",
-        "version": "0.1.0",
+        "version": version,
         "db": "ok" if DB_PATH.exists() else "initializing",
     })
 
@@ -192,6 +210,44 @@ def project_detail(name):
     return jsonify(result)
 
 
+@app.route("/api/dashboard/overview")
+def api_dashboard_overview():
+    return jsonify(get_overview())
+
+
+@app.route("/api/dashboard/skill-matrix")
+def api_dashboard_skill_matrix():
+    return jsonify(get_skill_matrix())
+
+
+@app.route("/api/dashboard/attention")
+def api_dashboard_attention():
+    return jsonify(get_attention())
+
+
+@app.route("/api/dashboard/activity")
+def api_dashboard_activity():
+    return jsonify(get_recent_activity())
+
+
+@app.route("/api/dashboard/skill-aging")
+def api_dashboard_skill_aging():
+    return jsonify(get_skill_aging())
+
+
+@app.route("/api/dashboard/summary")
+def api_dashboard_summary():
+    return jsonify(get_attention_summary())
+
+
+@app.route("/api/project/<name>/full")
+def api_project_full(name):
+    data = get_project_detail(name)
+    if data is None:
+        abort(404)
+    return jsonify(data)
+
+
 @app.route("/")
 def dashboard():
     """Multi-project dashboard."""
@@ -204,9 +260,19 @@ def project_view(name):
     return render_template("project.html", project_name=name)
 
 
+@app.route("/skills")
+def skills_view():
+    """Cross-project skill registry index."""
+    return render_template("skills.html")
+
+
 @app.errorhandler(404)
 def not_found(e):
     return jsonify({"error": "not found"}), 404
+
+
+# Initialize DB at import time so test_client and CLI both work
+init_db()
 
 
 def main():

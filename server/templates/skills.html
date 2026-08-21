@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>vcm-server · skill registry</title>
+  <link rel="stylesheet" href="/static/css/dashboard.css">
+  <script defer src="/static/js/alpine.min.js"></script>
+  <script src="/static/js/echarts.min.js"></script>
+</head>
+<body x-data="skillsView()" x-init="init()">
+
+  <header>
+    <h1>🧩 Skill registry (cross-project)</h1>
+    <div class="subtitle">
+      <a href="/">← back to cockpit</a> &middot;
+      <span x-text="skills.length"></span> skills tracked &middot;
+      <span x-text="topShared.length"></span> shared across multiple projects
+    </div>
+  </header>
+
+  <!-- Top: stats -->
+  <div class="grid" style="margin-bottom: 1.5rem;">
+    <div class="panel" style="text-align: center;">
+      <h3>Total unique skills</h3>
+      <div class="metric" x-text="skills.length"></div>
+    </div>
+    <div class="panel" style="text-align: center;">
+      <h3>Shared (2+ projects)</h3>
+      <div class="metric" style="color: #60a5fa;" x-text="topShared.length"></div>
+    </div>
+    <div class="panel" style="text-align: center;">
+      <h3>Most popular</h3>
+      <div class="metric" style="font-size: 1rem; color: #c7d2fe;" x-text="topShared[0]?.skill || '—'"></div>
+      <div style="color: #64748b; font-size: 0.875rem;" x-text="topShared[0] ? ('used by ' + topShared[0].project_count + ' projects') : ''"></div>
+    </div>
+  </div>
+
+  <!-- Chart -->
+  <div class="panel tall">
+    <h2>📊 Top 15 shared skills</h2>
+    <div id="skill-chart" style="height: 320px;"></div>
+  </div>
+
+  <!-- Full list -->
+  <div class="panel">
+    <h2>📋 All skills (sorted by usage)</h2>
+    <table class="matrix-table">
+      <thead>
+        <tr>
+          <th>Skill</th>
+          <th>Projects</th>
+          <th>Used in</th>
+        </tr>
+      </thead>
+      <tbody>
+        <template x-for="row in skills" :key="row.skill">
+          <tr>
+            <td><span class="skill-tag" x-text="row.skill"></span></td>
+            <td x-text="row.project_count"></td>
+            <td style="color: #94a3b8;" x-text="row.projects.join(', ')"></td>
+          </tr>
+        </template>
+      </tbody>
+    </table>
+  </div>
+
+  <footer>
+    vcm-server v0.2.0 &middot; skill registry across all registered projects
+  </footer>
+
+  <script>
+    function skillsView() {
+      return {
+        skills: [],
+        get topShared() { return this.skills.filter(s => s.project_count > 1); },
+        async init() {
+          this.skills = await fetch('/api/dashboard/skill-matrix').then(r => r.json());
+          this.$nextTick(() => this.renderChart());
+        },
+        renderChart() {
+          const el = document.getElementById('skill-chart');
+          if (!el || !window.echarts) return;
+          const chart = echarts.init(el, 'dark');
+          const top = this.topShared.slice(0, 15);
+          chart.setOption({
+            backgroundColor: 'transparent',
+            tooltip: { trigger: 'axis' },
+            grid: { left: 100, right: 30, top: 20, bottom: 30 },
+            xAxis: { type: 'value', axisLabel: { color: '#94a3b8' }, splitLine: { lineStyle: { color: '#334155' } } },
+            yAxis: { type: 'category', data: top.map(s => s.skill), axisLabel: { color: '#cbd5e1' } },
+            series: [{
+              type: 'bar',
+              data: top.map(s => s.project_count),
+              itemStyle: { color: '#60a5fa' },
+              label: { show: true, position: 'right', color: '#f1f5f9' },
+            }],
+          });
+          window.addEventListener('resize', () => chart.resize());
+        },
+      };
+    }
+  </script>
+
+</body>
+</html>

@@ -2,80 +2,216 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>vcm-server dashboard</title>
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 1200px; margin: 2rem auto; padding: 0 1rem; color: #1f2937; background: #f9fafb; }
-    h1 { border-bottom: 2px solid #e5e7eb; padding-bottom: 0.5rem; }
-    .empty { background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 2rem; text-align: center; color: #6b7280; }
-    table { width: 100%; border-collapse: collapse; background: white; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; }
-    th { background: #f3f4f6; text-align: left; padding: 0.75rem; font-size: 0.875rem; color: #6b7280; text-transform: uppercase; }
-    td { padding: 0.75rem; border-top: 1px solid #e5e7eb; }
-    tr:hover { background: #f9fafb; cursor: pointer; }
-    .badge { display: inline-block; padding: 0.125rem 0.5rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
-    .badge.ok { background: #d1fae5; color: #065f46; }
-    .badge.no { background: #fee2e2; color: #991b1b; }
-    .badge.warn { background: #fef3c7; color: #92400e; }
-    .metric { font-weight: 600; }
-    a { color: #4f46e5; text-decoration: none; }
-    a:hover { text-decoration: underline; }
-  </style>
+  <title>vcm-server · cockpit</title>
+  <link rel="stylesheet" href="/static/css/dashboard.css">
+  <script defer src="/static/js/alpine.min.js"></script>
+  <script src="/static/js/echarts.min.js"></script>
 </head>
-<body>
-  <h1>🛠️ vcm-server dashboard</h1>
-  <p style="color: #6b7280;">Cross-project governance status. Push with <code>vcm push</code> from each project.</p>
+<body x-data="cockpit()" x-init="init()">
 
-  <div id="content">
-    <div class="empty">Loading projects…</div>
+  <header>
+    <h1>🛠️ vcm-server cockpit</h1>
+    <div class="subtitle">
+      Multi-project governance &middot; <span x-text="summary.total_projects || 0"></span> projects &middot;
+      <span x-text="summary.total_skills || 0"></span> skills &middot;
+      <span x-text="summary.total_adrs || 0"></span> ADRs &middot;
+      <a href="/skills">→ skill registry</a>
+    </div>
+  </header>
+
+  <!-- Top metric strip -->
+  <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); margin-bottom: 1.5rem;">
+    <div class="panel" style="text-align: center;">
+      <h3>Projects</h3>
+      <div class="metric" x-text="summary.total_projects || '—'"></div>
+    </div>
+    <div class="panel" style="text-align: center;">
+      <h3>Healthy</h3>
+      <div class="metric" style="color: #86efac;" x-text="summary.healthy || 0"></div>
+    </div>
+    <div class="panel" style="text-align: center;">
+      <h3>Warning</h3>
+      <div class="metric" style="color: #fbbf24;" x-text="summary.warning || 0"></div>
+    </div>
+    <div class="panel" style="text-align: center;">
+      <h3>Needs attention</h3>
+      <div class="metric" style="color: #fca5a5;" x-text="summary.needs_attention || 0"></div>
+    </div>
   </div>
 
-  <script>
-    async function load() {
-      const resp = await fetch('/api/projects');
-      const projects = await resp.json();
-      const content = document.getElementById('content');
-      if (projects.length === 0) {
-        content.innerHTML = '<div class="empty">No projects registered yet.<br><br>Run <code>vcm push</code> from a project with vcm installed to see it here.</div>';
-        return;
-      }
-      const rows = projects.map(p => {
-        const status = p.governance_agents_md_present && p.governance_charter_md_present
-          ? '<span class="badge ok">✓ ready</span>'
-          : '<span class="badge warn">⚠ partial</span>';
-        const dirty = p.git_dirty
-          ? '<span class="badge warn">⚠ dirty</span>'
-          : '<span class="badge ok">✓ clean</span>';
-        return `
-          <tr onclick="window.location='/projects/${p.name}'">
-            <td><a href="/projects/${p.name}"><strong>${p.name}</strong></a></td>
-            <td>${status}</td>
-            <td><span class="metric">${p.governance_skills_count ?? '—'}</span></td>
-            <td><span class="metric">${p.governance_adrs_count ?? '—'}</span></td>
-            <td><span class="metric">${p.governance_tds_count ?? '—'}</span></td>
-            <td><code>${p.git_branch ?? '—'}</code></td>
-            <td>${dirty}</td>
-            <td style="color: #6b7280; font-size: 0.875rem;">${p.last_seen_at?.slice(0, 16) ?? '—'}</td>
+  <!-- Main 4-panel grid -->
+  <div class="grid" style="grid-template-columns: 2fr 1fr;">
+
+    <!-- Panel 1: Project health matrix -->
+    <div class="panel">
+      <h2>📊 Project health matrix</h2>
+      <div x-show="!overview.length" class="empty">No projects yet — run <code>vcm push</code> from each.</div>
+      <table class="matrix-table" x-show="overview.length">
+        <thead>
+          <tr>
+            <th>Project</th>
+            <th>AGENTS</th>
+            <th>CHARTER</th>
+            <th>Skills</th>
+            <th>ADRs</th>
+            <th>TDs</th>
+            <th>Branch</th>
+            <th>Tree</th>
+            <th>Last seen</th>
           </tr>
-        `;
-      }).join('');
-      content.innerHTML = `
-        <table>
-          <thead>
-            <tr>
-              <th>Project</th>
-              <th>Status</th>
-              <th>Skills</th>
-              <th>ADRs</th>
-              <th>TDs</th>
-              <th>Branch</th>
-              <th>Tree</th>
-              <th>Last seen</th>
+        </thead>
+        <tbody>
+          <template x-for="p in overview" :key="p.id">
+            <tr @click="window.location='/projects/' + p.name">
+              <td><a :href="'/projects/' + p.name" @click.stop x-text="p.name"></a></td>
+              <td :class="p.agents_md_present ? 'cell-ok' : 'cell-fail'">
+                <span x-text="p.agents_md_present ? '✓' : '✗'"></span>
+              </td>
+              <td :class="p.charter_md_present ? 'cell-ok' : 'cell-warn'">
+                <span x-text="p.charter_md_present ? '✓' : '✗'"></span>
+              </td>
+              <td x-text="p.skills_count"></td>
+              <td x-text="p.adrs_count"></td>
+              <td x-text="p.tds_count"></td>
+              <td><code x-text="p.git_branch || '—'"></code></td>
+              <td :class="p.git_dirty ? 'cell-warn' : 'cell-ok'">
+                <span x-text="p.git_dirty ? '⚠ dirty' : '✓ clean'"></span>
+              </td>
+              <td style="color: #64748b; font-size: 0.75rem;" x-text="(p.last_seen_at || '').slice(0, 16)"></td>
             </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-      `;
+          </template>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Panel 2: Skills cross-project -->
+    <div class="panel">
+      <h2>🧩 Skill cross-project</h2>
+      <div x-show="!skillMatrix.length" class="empty">No skills yet.</div>
+      <div x-show="skillMatrix.length">
+        <template x-for="row in skillMatrix.slice(0, 15)" :key="row.skill">
+          <div class="metric-row">
+            <div>
+              <span class="skill-tag" x-text="row.skill"></span>
+              <span style="color: #64748b; font-size: 0.75rem; margin-left: 0.5rem;" x-text="'×' + row.project_count"></span>
+            </div>
+            <div style="font-size: 0.75rem; color: #64748b;" x-text="row.projects.slice(0, 3).join(', ') + (row.projects.length > 3 ? '…' : '')"></div>
+          </div>
+        </template>
+      </div>
+    </div>
+
+    <!-- Panel 3: Needs attention -->
+    <div class="panel tall" style="grid-column: 1 / -1;">
+      <h2>⚠️ Needs attention</h2>
+      <div x-show="!attention.length" class="empty" style="color: #86efac;">✓ All projects healthy.</div>
+      <div x-show="attention.length">
+        <template x-for="item in attention" :key="item.project">
+          <div :class="item.severity === 'critical' ? 'attention-item critical' : 'attention-item'">
+            <div class="title" x-text="item.project"></div>
+            <div style="font-size: 0.875rem; color: #cbd5e1; margin-top: 0.25rem;">
+              <template x-for="r in item.reasons" :key="r">
+                <span style="margin-right: 0.5rem;">• <span x-text="r"></span></span>
+              </template>
+            </div>
+          </div>
+        </template>
+      </div>
+    </div>
+
+    <!-- Panel 4: Recent activity + chart -->
+    <div class="panel tall">
+      <h2>🕐 Recent activity</h2>
+      <div id="health-chart"></div>
+      <template x-for="act in activity.slice(0, 8)" :key="act.id">
+        <div class="timeline-item">
+          <div class="time" x-text="(act.received_at || '').slice(0, 19).replace('T', ' ')"></div>
+          <div><span class="name" x-text="act.project_name"></span> pushed state</div>
+        </div>
+      </template>
+    </div>
+
+  </div>
+
+  <footer>
+    vcm-server v0.2.0 &middot; powered by Flask + Alpine.js + ECharts
+  </footer>
+
+  <script>
+    function cockpit() {
+      return {
+        summary: {},
+        overview: [],
+        skillMatrix: [],
+        attention: [],
+        activity: [],
+        async init() {
+          await Promise.all([
+            this.loadSummary(),
+            this.loadOverview(),
+            this.loadSkillMatrix(),
+            this.loadAttention(),
+            this.loadActivity(),
+          ]);
+          this.$nextTick(() => this.renderChart());
+        },
+        async fetchJSON(url) {
+          const r = await fetch(url);
+          return r.json();
+        },
+        async loadSummary() { this.summary = await this.fetchJSON('/api/dashboard/summary'); },
+        async loadOverview() { this.overview = await this.fetchJSON('/api/dashboard/overview'); },
+        async loadSkillMatrix() { this.skillMatrix = await this.fetchJSON('/api/dashboard/skill-matrix'); },
+        async loadAttention() { this.attention = await this.fetchJSON('/api/dashboard/attention'); },
+        async loadActivity() { this.activity = await this.fetchJSON('/api/dashboard/activity'); },
+        renderChart() {
+          const el = document.getElementById('health-chart');
+          if (!el || !window.echarts) return;
+          const chart = echarts.init(el, 'dark');
+          const projects = this.overview;
+          const data = projects.map(p => ({
+            name: p.name,
+            value: [
+              p.agents_md_present ? 1 : 0,
+              p.charter_md_present ? 1 : 0,
+              p.skills_count || 0,
+              p.adrs_count || 0,
+              p.tds_count || 0,
+              p.git_dirty ? 0 : 1,
+            ],
+          }));
+          chart.setOption({
+            backgroundColor: 'transparent',
+            tooltip: { trigger: 'item' },
+            legend: { textStyle: { color: '#94a3b8' }, bottom: 0 },
+            radar: {
+              indicator: [
+                { name: 'AGENTS', max: 1 },
+                { name: 'CHARTER', max: 1 },
+                { name: 'Skills', max: 30 },
+                { name: 'ADRs', max: 50 },
+                { name: 'TDs', max: 100 },
+                { name: 'Clean', max: 1 },
+              ],
+              shape: 'polygon',
+              splitNumber: 4,
+              axisName: { color: '#cbd5e1', fontSize: 10 },
+              splitLine: { lineStyle: { color: '#334155' } },
+              splitArea: { areaStyle: { color: ['rgba(30,41,59,0.3)', 'rgba(30,41,59,0.1)'] } },
+              axisLine: { lineStyle: { color: '#334155' } },
+            },
+            series: [{
+              type: 'radar',
+              data: data,
+              areaStyle: { opacity: 0.2 },
+              lineStyle: { width: 2 },
+            }],
+          });
+          window.addEventListener('resize', () => chart.resize());
+        },
+      };
     }
-    load();
   </script>
+
 </body>
 </html>
