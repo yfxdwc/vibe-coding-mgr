@@ -68,13 +68,27 @@
 - 4 new endpoints (/api/audit, /api/dashboard/trend, /audit, /trends)
 - 5 new CLI sub-commands (publish, unpublish, discover, install)
 
-## v0.6.0 (next, ~2 months)
+## v0.6.0 ✅ DONE (2026-08-21)
 
-- [ ] **WebSocket** transport for MCP (stdio current; v0.6 adds HTTP/WS)
-- [ ] **Per-user ACLs** (replace single-password BasicAuth)
+- [x] **Per-user ACL** (ADR-0011) — bcrypt users + bearer tokens
+- [x] **Audit log SQLite backing** (ADR-0012) — `audit_events` table +
+      JSONL parallel stream
+- [x] **`vcm doctor` CLI** (ADR-0013) — 4-section single-command check
+
+### v0.6.0 metrics
+- 177/177 unit tests pass (was 155 in v0.5.0 → +22 tests)
+- 6/6 hard checks pass
+- 13 ADRs (0001–0013)
+- `users` + `tokens` + `audit_events` tables in vcm.db
+- WAL journal mode enabled for multi-process SQLite writes
+
+## v0.7.0 (next, ~2 months)
+
+- [ ] **Per-endpoint ACL scopes** (v0.6.0 ships scope field but ignored)
+- [ ] **WebSocket** transport for MCP (stdio current; v0.7 adds HTTP/WS)
 - [ ] **Cross-server leaderboard** (gossip protocol, no central DB)
-- [ ] **Audit log: SQLite backing** + filtering UI
-- [ ] **Skill marketplace: GitHub / GitLab sync**
+- [ ] **Audit log: filtering UI** (event_type / project / source_ip facets)
+- [ ] **JSON Schema docs generator** (schema files become human-readable)
 
 ## v1.0.0 (~3 months, stability milestone)
 
