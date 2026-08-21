@@ -10,7 +10,15 @@
 - [x] Self-governance: AGENTS.md + CHARTER.md + 6 checks
 - [x] Docs: README, ONBOARDING, ARCHITECTURE, PHILOSOPHY, REFERENCES
 
-## v0.2.0 (next, ~2 weeks)
+## v0.2.0 ✅ DONE (2026-08-21)
+
+- [x] Full cockpit dashboard (4 panels)
+- [x] Skill registry cross-project page  
+- [x] peers real implementation (GitHub API)
+- [x] Alpine.js + ECharts + HTMX
+- [x] Server dashboard tests
+
+## v0.3.0 (next, ~1 month)
 
 - [ ] **vcm peers — full implementation**
   - GitHub API integration (rate-limit-aware)
