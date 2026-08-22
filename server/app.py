@@ -130,6 +130,14 @@ app = Flask(
 )
 
 
+# --- i18n (ADR-0026) ------------------------------------------------------
+# Bilingual zh/en UI. Wires `t()` and `lang` into Jinja env so every
+# template can do {{ t('audit.title') }} and <html lang="{{ lang }}">.
+# Language resolution: ?lang=  > cookie  > Accept-Language  > default.
+import i18n  # ADR-0026
+i18n.register_jinja(app)
+
+
 # --- BasicAuth (ADR-0004) -------------------------------------------------
 @app.before_request
 def _enforce_auth():
