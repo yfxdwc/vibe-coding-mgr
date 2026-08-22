@@ -230,6 +230,15 @@
           localStorage.setItem(COLLAPSED_KEY, v ? '1' : '0');
         } catch (e) { /* localStorage disabled — silent */ }
       }
+      // v0.18.3 §决策.2.1: read the first sidebar project's name from
+      // the DOM (Jinja rendered <div data-c="sidebar-project-row"> for
+      // each project in sidebar_projects ordered by last_seen_at DESC).
+      // Returns '' if no projects are registered.
+      function getFirstProjectName() {
+        const first = document.querySelector(
+          '[data-c="sidebar-project-row"]');
+        return first ? (first.getAttribute('data-project') || '') : '';
+      }
       // v0.18.3 §决策.2 加: read the first sidebar project's name from
       // the DOM (Jinja rendered <div data-c="sidebar-project-row"> for
       // each project in sidebar_projects ordered by last_seen_at DESC).
@@ -285,28 +294,31 @@
         },
 
         syncToCurrent() {
-          // Accordion rule (v0.18.2 fix-up):
+          // Accordion rule (v0.18.2 fix-up + v0.18.3 §2.1 默认首个补充):
           // - On a project page (current non-empty): expanded = [current]
           //   This makes "click another project tag" naturally collapse
-          //   the old one and expand the new one — see the user-facing
-          //   spec for ADR-0034: "仅展开当前选中的二级目录，并且收起
-          //   其他项目的二级目录".
-          // - On a non-project page (current empty): expanded = []
-          //   Nothing is "currently selected" when the URL is /, /cockpit,
-          //   /settings, /leaderboard, etc., so the accordion rule
-          //   collapses everything. localStorage's manual-preview is
-          //   intentionally NOT restored here — chevron previews are
-          //   a transient peek; once the user navigates away from the
-          //   project, the peek is released. (The persisted state still
-          //   keeps the project's name in vcm-sidebar-expanded for any
-          //   future visit to it, but it doesn't auto-expand on
-          //   non-project pages.)
+          //   the old one and expand the new one.
+          // - On a non-project page (current empty):
+          //     1. If user has manually previewed a project (chevron-
+          //        clicked on a non-current project before), restore
+          //        that from localStorage so their preview survives
+          //        navigations.
+          //     2. Else auto-expand the first project in the sidebar
+          //        (most recently active, ORDER BY last_seen_at DESC).
+          //        This avoids the "all collapsed, can't see anything"
+          //        first-paint UX on / (cockpit).
           // Accordion invariant: at most one project expanded.
           if (this.current) {
             this.expanded = [this.current];
-          } else {
-            this.expanded = [];
+            return;
           }
+          const stored = readSet();
+          if (stored.length > 0) {
+            this.expanded = stored;
+            return;
+          }
+          const first = getFirstProjectName();
+          this.expanded = first ? [first] : [];
         },
 
         isCurrentProject(name) {
