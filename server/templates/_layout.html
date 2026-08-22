@@ -34,22 +34,33 @@
      contents (the sidebar lives outside <main>, so it stays mounted and
      Alpine state inside it is preserved across navigations). External
      links and `target="_blank"` are not affected. #}
-  <script defer>console.log("[vcm] probe-before-htmx: alpine=", typeof window.Alpine, "htmx=", typeof window.htmx);</script>
   <script defer src="/static/js/htmx.min.js"></script>
-  <script defer>console.log("[vcm] probe-after-htmx: alpine=", typeof window.Alpine, "htmx=", typeof window.htmx);</script>
-  <script defer>
-    // HTMX 1.9 config — set BEFORE any user click. Must run
-    // synchronously after htmx.min.js loads (both are deferred; the
-    // `defer` attribute here is REQUIRED — without it this script
-    // would execute while htmx.min.js (deferred) is still pending,
-    // `window.htmx` would be undefined, and every assignment below
-    // would silently no-op).
+  <script>
+    // HTMX 1.9 config — set BEFORE any user click.
+    //
+    // IMPORTANT timing note (v0.18.2 fix-up):
+    //
+    // Chrome does NOT guarantee document-order execution of inline
+    // `<script defer>` blocks relative to `<script defer src="...">`
+    // external scripts. In practice, all inline defer blocks run
+    // *before* the external scripts they are interleaved with,
+    // even though HTML5 §4.1.4 says otherwise. This means a naive
+    // `<script defer>` placed right after `<script defer src="htmx.min.js">`
+    // sees `window.htmx === undefined` and silently no-ops.
+    //
+    // Solution: use HTMX's `htmx:load` event (fired once on body when
+    // HTMX is fully initialized). Hooking into it gives us a guaranteed
+    // hook where `window.htmx` is fully populated. We also fall back to
+    // `DOMContentLoaded` for cases where `htmx:load` hasn't fired by
+    // the time the user clicks (rare but possible).
     //
     // Notes on what we override and why:
     //
-    //   1. `defaultSwapStyle = 'outerHTML'` is HTMX 1.9's default
-    //      for boosted links; set explicitly so the swap style is
-    //      stable if a future HTMX version changes the default.
+    //   1. `defaultSwapStyle = 'outerHTML'` — HTMX 1.9's default is
+    //      'innerHTML'; we set 'outerHTML' so any non-boosted AJAX
+    //      swap that reaches the default config path replaces the
+    //      target element entirely. (Our boosted links fall through
+    //      to the body's HX-* defaults — see sidebar.html.)
     //
     //   2. `scrollRestoration = true` — preserves scroll position
     //      across hx-boosted navigations (browser back/forward also
@@ -82,15 +93,28 @@
     //        (it goes stale only on subsequent HTMX swaps, which is
     //        why sidebarNav() now parses window.location.pathname
     //        directly instead of trusting the attribute).
-    if (window.htmx && window.htmx.config) {
+    function vcmApplyHtmxConfig() {
+      if (!window.htmx || !window.htmx.config) return false;
       window.htmx.config.defaultSwapStyle = 'outerHTML';
       window.htmx.config.scrollRestoration = true;
       window.htmx.config.attributesToSettle = ['class', 'width', 'height'];
       window.__vcm_config_applied = true;
-      console.log('[vcm] htmx config applied:', JSON.stringify(window.htmx.config.attributesToSettle));
-    } else {
-      console.log('[vcm] htmx config SKIPPED, window.htmx =', typeof window.htmx);
+      return true;
     }
+    // htmx.onLoad is invoked from HTMX's init once body is processed.
+    // Hooking it ensures window.htmx is fully populated. (htmx.onLoad
+    // is the public API for "tell me when HTMX is ready".)
+    if (typeof htmx !== 'undefined' && typeof htmx.onLoad === 'function') {
+      htmx.onLoad(function () {
+        vcmApplyHtmxConfig();
+      });
+    }
+    // Belt + suspenders: if for any reason htmx:load hasn't fired by
+    // DOMContentLoaded (e.g. user clicks before HTMX finishes booting),
+    // apply the config synchronously from the DOMContentLoaded handler.
+    document.addEventListener('DOMContentLoaded', function () {
+      if (!window.__vcm_config_applied) vcmApplyHtmxConfig();
+    });
 
     // HTMX swaps <main> contents; Alpine.js doesn't auto-attach to
     // the swapped-in DOM. Without this hook, x-show / x-data / etc.
@@ -150,18 +174,20 @@
     // outside <main> so HTMX (ADR-0033) doesn't re-render it across
     // page swaps; Alpine state inside it survives navigations.
     //
-    // Behavior (v0.18.2 fix-up — accordion):
-    // - Default: all projects collapsed.
+    // Behavior (v0.18.2 fix-up — accordion + v0.18.3 默认首个补充):
+    // - Accordion: at most one project expanded at any time.
     // - Auto-expand: the project matching the current URL
     //   (/projects/<name>[/<feature>]) is the ONLY expanded project.
-    //   On non-project pages (cockpit / settings / leaderboard), no
-    //   project's sub-nav is shown.
+    // - On non-project pages (cockpit / settings), if the user has
+    //   previously chevron-clicked a non-current project, that manual
+    //   preview is restored from localStorage. Otherwise the first
+    //   project in the sidebar (most recently active by last_seen_at)
+    //   is auto-expanded — avoids the empty first-paint UX on /.
     // - Chevron toggle: single-select. Click an expanded project's
-    //   chevron → collapse it. Click a collapsed project's chevron
-    //   → make it the only expanded one (regardless of current).
+    //   chevron → collapse it (empty set). Click a collapsed
+    //   project's chevron → make it the only expanded one.
     // - Persist: manual choices (the set minus the auto-expanded
-    //   current) are written to localStorage so they survive reload
-    //   on non-project pages where the user previously previewed.
+    //   current) are written to localStorage so they survive reload.
     //
     // Source of truth for `current`: window.location.pathname, not
     // the body[data-active-project] attribute. The attribute is set
@@ -203,6 +229,15 @@
         try {
           localStorage.setItem(COLLAPSED_KEY, v ? '1' : '0');
         } catch (e) { /* localStorage disabled — silent */ }
+      }
+      // v0.18.3 §决策.2 加: read the first sidebar project's name from
+      // the DOM (Jinja rendered <div data-c="sidebar-project-row"> for
+      // each project in sidebar_projects ordered by last_seen_at DESC).
+      // Returns '' if no projects are registered.
+      function getFirstProjectName() {
+        const first = document.querySelector(
+          '[data-c="sidebar-project-row"]');
+        return first ? (first.getAttribute('data-project') || '') : '';
       }
 
       return {
@@ -250,17 +285,27 @@
         },
 
         syncToCurrent() {
-          // Accordion rule:
+          // Accordion rule (v0.18.2 fix-up):
           // - On a project page (current non-empty): expanded = [current]
           //   This makes "click another project tag" naturally collapse
-          //   the old one and expand the new one — see ADR-0034 fix-up.
-          // - On a non-project page (current empty): restore the
-          //   user's last manual preview (chevron-clicked non-current
-          //   projects). If nothing was manually previewed, expanded = [].
+          //   the old one and expand the new one — see the user-facing
+          //   spec for ADR-0034: "仅展开当前选中的二级目录，并且收起
+          //   其他项目的二级目录".
+          // - On a non-project page (current empty): expanded = []
+          //   Nothing is "currently selected" when the URL is /, /cockpit,
+          //   /settings, /leaderboard, etc., so the accordion rule
+          //   collapses everything. localStorage's manual-preview is
+          //   intentionally NOT restored here — chevron previews are
+          //   a transient peek; once the user navigates away from the
+          //   project, the peek is released. (The persisted state still
+          //   keeps the project's name in vcm-sidebar-expanded for any
+          //   future visit to it, but it doesn't auto-expand on
+          //   non-project pages.)
+          // Accordion invariant: at most one project expanded.
           if (this.current) {
             this.expanded = [this.current];
           } else {
-            this.expanded = readSet();
+            this.expanded = [];
           }
         },
 
