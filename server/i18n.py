@@ -169,6 +169,7 @@ EN: dict[str, str] = {
     'cockpit.kpi.skills':            'skills',
     'cockpit.tabs.overview':         'Overview',
     'cockpit.tabs.activity':         'Activity',
+    'cockpit.tabs.leaderboard':      'Leaderboard',
     'cockpit.matrix.title':          'Project health matrix',
     'cockpit.matrix.col.project':    'Project',
     'cockpit.matrix.col.agents':     'AGENTS',
@@ -530,6 +531,9 @@ EN: dict[str, str] = {
     'sidebar.add.button_title':              'Add project',
     'sidebar.empty':                          'No projects yet.',
     'sidebar.project.status_aria':           'project status',
+    # -- v0.18.2 sidebar sub-nav (ADR-0034) ---------------------------
+    'sidebar.subnav.overview':               'Overview',
+    'sidebar.subnav.toggle_aria':            'Toggle sub-navigation',
     'common.add':                            'Add',
 
 
@@ -643,6 +647,7 @@ ZH: dict[str, str] = {
     'cockpit.kpi.skills':            '技能',
     'cockpit.tabs.overview':         '概览',
     'cockpit.tabs.activity':         '活动',
+    'cockpit.tabs.leaderboard':      '排行榜',
     'cockpit.matrix.title':          '项目健康矩阵',
     'cockpit.matrix.col.project':    '项目',
     'cockpit.matrix.col.agents':     'AGENTS',
@@ -994,6 +999,9 @@ ZH: dict[str, str] = {
     'sidebar.add.button_title':              '添加项目',
     'sidebar.empty':                          '暂无项目。',
     'sidebar.project.status_aria':           '项目状态',
+    # -- v0.18.2 sidebar sub-nav (ADR-0034) ---------------------------
+    'sidebar.subnav.overview':               '概览',
+    'sidebar.subnav.toggle_aria':            '展开/收起子导航',
     'common.add':                            '添加',
 
 

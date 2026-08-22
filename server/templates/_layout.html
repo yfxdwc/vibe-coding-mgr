@@ -97,9 +97,88 @@
         localStorage.setItem('vcm-theme', next);
       };
     })();
+
+    // Sidebar sub-nav state — ADR-0034 v0.18.2. The sidebar lives
+    // outside <main> so HTMX (ADR-0033) doesn't re-render it across
+    // page swaps; Alpine state inside it survives navigations.
+    // - Default: all projects collapsed
+    // - Auto-expand: any project whose /projects/<name>(/...) path is
+    //   active (server-side already marks .sidebar-project-row--active
+    //   via Jinja; this hook layers the sub-nav visibility on top).
+    // - Persist: chevron toggles write to localStorage so user choice
+    //   survives reload.
+    function sidebarNav() {
+      const KEY = 'vcm-sidebar-expanded';
+      // Active project is server-rendered as `data-active-project`
+      // on <body> in _layout.html (set by Jinja from request.path).
+      const currentActive = (function() {
+        try {
+          const el = document.body;
+          if (!el) return '';
+          return el.getAttribute('data-active-project') || '';
+        } catch (e) { return ''; }
+      })();
+
+      function readSet() {
+        try {
+          const raw = localStorage.getItem(KEY);
+          if (!raw) return [];
+          const arr = JSON.parse(raw);
+          return Array.isArray(arr) ? arr : [];
+        } catch (e) { return []; }
+      }
+      function writeSet(arr) {
+        try {
+          localStorage.setItem(KEY, JSON.stringify(arr));
+        } catch (e) { /* localStorage disabled — silent */ }
+      }
+
+      return {
+        current: currentActive,
+        // hydrated = persisted set + the current project (auto-expand)
+        expanded: Array.from(new Set([currentActive, ...readSet()].filter(Boolean))),
+
+        init() {
+          // Already initialized above; this hook is a no-op for
+          // first-paint, but lets HTMX-driven re-init re-hydrate
+          // if the project list re-renders (e.g. new project added).
+        },
+
+        isCurrentProject(name) {
+          // Sub-path '/projects/<name>/foo' counts as current
+          // project — the whole row should stay highlighted.
+          if (!name) return false;
+          const p = '/' + name;
+          return this.current === p || this.current.startsWith(p + '/');
+        },
+
+        isExpanded(name) {
+          return this.expanded.indexOf(name) !== -1;
+        },
+
+        toggle(name) {
+          const i = this.expanded.indexOf(name);
+          if (i === -1) {
+            this.expanded.push(name);
+          } else {
+            this.expanded.splice(i, 1);
+          }
+          // Persist WITHOUT the auto-expanded current project —
+          // user toggle on current project means "user wants this
+          // open across visits"; on others, persist their choice.
+          // Simpler: persist the whole set minus current.
+          writeSet(this.expanded.filter(n => n !== this.current));
+        },
+      };
+    }
   </script>
 </head>
-<body x-data="page()" x-init="init()" data-page="{{ nav_active or 'cockpit' }}" hx-boost="true">
+<body x-data="page()" x-init="init()" data-page="{{ nav_active or 'cockpit' }}" hx-boost="true"
+      {# ADR-0034: expose the active project path (e.g. "/projects/vcm-smoke")
+         to the sidebar Alpine component so it auto-expands the current
+         project's sub-nav. Empty on non-project pages. #}
+      data-c="active-project"
+      data-active-project="{% if request.path.startswith('/projects/') and request.path.count('/') >= 2 %}{{ request.path.split('/')[2] }}{% endif %}">
 
   <div class="shell-grid" data-c="shell-grid">
     {% include "_partials/sidebar.html" %}

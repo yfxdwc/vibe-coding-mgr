@@ -153,6 +153,97 @@
   text-overflow: ellipsis;
 }
 
+/* —— ADR-0034 v0.18.2: per-project sub-nav (collapsible children) —— */
+.sidebar-project-row {
+  /* No own margin — children handle spacing. */
+  margin: 0;
+}
+.sidebar-project-row--active > .sidebar-project-head > .sidebar-project {
+  /* Inherit the project's own active styling; this row class is for
+     future per-row accents (e.g. status dot, hover ring). */
+  color: var(--accent);
+}
+.sidebar-project-head {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+}
+.sidebar-project-head > .sidebar-project {
+  /* Take remaining width so the toggle sits flush right. */
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.sidebar-project-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  flex: 0 0 22px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0;
+  border-radius: var(--radius-button);
+  transition: color var(--t-base) var(--ease),
+              background var(--t-base) var(--ease);
+}
+.sidebar-project-toggle:hover {
+  color: var(--text-primary);
+  background: var(--surface-alt);
+}
+.sidebar-project-toggle[aria-expanded="true"] {
+  color: var(--accent);
+}
+.sidebar-project-toggle-icon {
+  font-size: 10px;
+  line-height: 1;
+  transition: transform var(--t-base) var(--ease);
+  display: inline-block;
+}
+.sidebar-project-toggle[aria-expanded="true"] .sidebar-project-toggle-icon {
+  transform: rotate(90deg);
+}
+.sidebar-subnav {
+  /* ADR-0034 §3: 12px indent (一级 0px, 二级 12px, 三级 24px — 最多到二级)。
+     Children are stacked tightly under the project row. */
+  margin: 0;
+  padding: 2px 0 4px var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  /* Left edge accent so the indented children read as "of the project". */
+  border-left: 1px solid var(--border-subtle);
+  margin-left: 14px;
+}
+.sidebar-sub-link {
+  display: block;
+  padding: 4px var(--space-3);
+  margin: 0;
+  color: var(--text-muted);
+  border-radius: var(--radius-button);
+  font-size: var(--fs-meta);
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color var(--t-base) var(--ease),
+              background var(--t-base) var(--ease);
+}
+.sidebar-sub-link:hover {
+  color: var(--text-primary);
+  background: var(--surface-alt);
+}
+.sidebar-sub-link.active {
+  color: var(--accent);
+  background: var(--accent-dim);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+/* ADR-0034: hide x-cloak'd elements until Alpine inits, so sub-nav
+   doesn't flash open on first paint before sidebarNav() runs. */
+[x-cloak] { display: none !important; }
+
 .sidebar-empty {
   padding: var(--space-3) var(--space-2);
   color: var(--text-muted);

@@ -1,14 +1,21 @@
 {# server/templates/_partials/sidebar.html — ADR-0030 sidebar (v0.18.0+)
+                                           ADR-0034 sub-nav (v0.18.2+)
 
    Renders the primary 3-section + footer left rail:
      1. brand
-     2. NAVIGATION (9 nav links)
-     3. PROJECTS (server-injected list; empty state + Add button)
+     2. NAVIGATION (top-level nav links — cockpit / leaderboard / settings)
+     3. PROJECTS (server-injected list; per-project sub-nav with 7 children:
+        overview / drift / skills / trends / peers / audit / docs;
+        empty state + Add button)
      4. footer (lang + theme + version)
 
    Active state is computed by matching `request.path` against each link's
    href. ADR-0030 §决策.4: no persistent active project — click a project
    to navigate to /projects/<name>; do not store selection.
+
+   ADR-0034 §2: per-project sub-nav default-collapsed; current project
+   auto-expands; manual chevron click overrides; expanded state persists
+   in localStorage under 'vcm-sidebar-expanded'.
 #}
 {% macro nav_icon(name) -%}
   <svg class="sidebar-icon" aria-hidden="true" focusable="false">
@@ -24,7 +31,20 @@
   {%- endif -%}
 {%- endmacro %}
 
-<aside class="sidebar" data-c="sidebar" aria-label="Primary">
+{# ADR-0034 §决策.1: 7 sub-nav children (overview + 6 features).
+   Reuses nav.* keys from ADR-0030 §决策.1; sidebar.subnav.overview is new. #}
+{% set SUBNAV_FEATURES = [
+    ('overview', 'sidebar.subnav.overview'),
+    ('drift',    'nav.drift'),
+    ('skills',   'nav.skills'),
+    ('trends',   'nav.trends'),
+    ('peers',    'nav.peers'),
+    ('audit',    'nav.audit'),
+    ('docs',     'nav.docs'),
+] %}
+
+<aside class="sidebar" data-c="sidebar" aria-label="Primary"
+       x-data="sidebarNav()" x-init="init()">
   <a class="sidebar-brand" href="/" data-c="sidebar-brand">
     <span class="sidebar-mark" aria-hidden="true">v</span>
     <span>vibe coding mgr</span>
@@ -35,10 +55,6 @@
        data-link="cockpit"
        {% if request.path == '/' %}aria-current="page"{% endif %}>
       {{ nav_icon('cockpit') }}{{ t("nav.cockpit") }}</a>
-    <a class="sidebar-link {{ is_active('/leaderboard') }}" href="/leaderboard"
-       data-c="sidebar-link" data-link="leaderboard"
-       {% if request.path.startswith('/leaderboard') %}aria-current="page"{% endif %}>
-      {{ nav_icon('leaderboard') }}{{ t("nav.leaderboard") }}</a>
     <a class="sidebar-link {{ is_active('/settings') }}" href="/settings"
        data-c="sidebar-link" data-link="settings"
        {% if request.path.startswith('/settings') %}aria-current="page"{% endif %}>
@@ -58,14 +74,51 @@
 
     {% if sidebar_projects %}
       {% for p in sidebar_projects %}
-        <a class="sidebar-project {{ 'active' if request.path == '/projects/' + p.name else '' }}"
-           href="/projects/{{ p.name }}"
-           data-c="sidebar-project"
-           data-project="{{ p.name }}"
-           {% if request.path == '/projects/' + p.name %}aria-current="page"{% endif %}>
-          <span class="status-dot" aria-label="{{ t('sidebar.project.status_aria') }}"></span>
-          <span class="sidebar-project-name">{{ p.name }}</span>
-        </a>
+        {# ADR-0034 §决策.1 + §决策.2: project row holds a toggle button +
+           nested sub-nav. Project itself links to /projects/<name>
+           (= sub-nav Overview entry). Sub-nav children are siblings. #}
+        {% set p_name = p.name %}
+        <div class="sidebar-project-row"
+             data-c="sidebar-project-row"
+             data-project="{{ p_name }}"
+             :class="{ 'sidebar-project-row--active': isCurrentProject('{{ p_name }}') }">
+          <div class="sidebar-project-head">
+            <a class="sidebar-project"
+               href="/projects/{{ p_name }}"
+               data-c="sidebar-project"
+               data-project="{{ p_name }}"
+               {% if request.path == '/projects/' ~ p_name %}aria-current="page"{% endif %}>
+              <span class="status-dot" aria-label="{{ t('sidebar.project.status_aria') }}"></span>
+              <span class="sidebar-project-name">{{ p_name }}</span>
+            </a>
+            <button class="sidebar-project-toggle"
+                    type="button"
+                    data-c="sidebar-project-toggle"
+                    aria-label="{{ t('sidebar.subnav.toggle_aria') }}"
+                    :aria-expanded="isExpanded('{{ p_name }}')"
+                    aria-controls="subnav-{{ p_name }}"
+                    @click="toggle('{{ p_name }}')">
+              <span class="sidebar-project-toggle-icon" aria-hidden="true">▸</span>
+            </button>
+          </div>
+          <div class="sidebar-subnav"
+               id="subnav-{{ p_name }}"
+               data-c="sidebar-subnav"
+               x-show="isExpanded('{{ p_name }}')"
+               x-cloak>
+            {% for sub_key, sub_label_key in SUBNAV_FEATURES %}
+              {% set sub_url = '/projects/' ~ p_name if sub_key == 'overview' else '/projects/' ~ p_name ~ '/' ~ sub_key %}
+              {% set sub_active = request.path == sub_url %}
+              <a class="sidebar-sub-link {{ 'active' if sub_active else '' }}"
+                 href="{{ sub_url }}"
+                 data-c="sidebar-sub-link"
+                 data-project="{{ p_name }}"
+                 data-sub="{{ sub_key }}"
+                 {% if sub_active %}aria-current="page"{% endif %}>
+                {{ t(sub_label_key) }}</a>
+            {% endfor %}
+          </div>
+        </div>
       {% endfor %}
     {% else %}
       <div class="sidebar-empty" data-c="sidebar-empty">
