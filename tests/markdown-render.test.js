@@ -239,15 +239,25 @@ describe('/docs/ integration — HTML actually renders (not escaped)', () => {
       expect(r.status, `failed for ${f.relpath}`).toBe(200);
       const body = await r.text();
       // The shared layout template (used by /docs and many other pages)
-      // contains 4 <script> tags as of v0.14.1: Alpine.js loader,
-      // the i18n JSON bridge (`window.__vcm_i18n__ = {...}`),
-      // the i18n JS bridge (`window.t = function`), and the
-      // per-page docsPage() block. .md source must NOT inject more.
+      // currently contains ~10 <script> tag occurrences (counting both
+      // real tags and ones mentioned in comments): Alpine.js loader,
+      // HTMX loader, the i18n JSON bridge (`window.__vcm_i18n__ = ...`),
+      // the i18n/HTMX/theme/Alpine bootstrap inline script,
+      // the sidebarNav() inline script (ADR-0034), the collapse
+      // toggle inline script (v0.18.3), and the per-page docsPage()
+      // block. .md source must NOT inject MORE than the layout's
+      // baseline — sweep catches markdown with raw <script> that
+      // escapes our markdown_render module.
+      //
+      // ADR-0034 / v0.18.3: bumped from 4 (v0.14.1) → 10 after
+      // sidebar sub-nav + collapse + HTMX were added to _layout.html.
+      // Each bump was reviewed; none of them execute markdown content.
+      const LAYOUT_SCRIPT_BASELINE = 10;
       const docScripts = (body.match(/<script/g) || []).length;
       expect(
         docScripts,
-        `extra <script> in ${f.relpath}: ${docScripts} > 4 layout baseline`,
-      ).toBeLessThanOrEqual(4);
+        `extra <script> in ${f.relpath}: ${docScripts} > ${LAYOUT_SCRIPT_BASELINE} layout baseline`,
+      ).toBeLessThanOrEqual(LAYOUT_SCRIPT_BASELINE);
     }
   });
 });

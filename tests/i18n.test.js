@@ -104,7 +104,7 @@ describe('i18n / language detection (ADR-0026)', () => {
     expect(r1.headers.get('set-cookie') || '').toMatch(/vcm_lang=zh/);
     // Second request from a cookie jar keeps zh even when ?lang=en
     // is NOT supplied.
-    const r2 = await fetch(`http://127.0.0.1:${PORT}/audit`, {
+    const r2 = await fetch(`http://127.0.0.1:${PORT}/projects/vcm-smoke/audit`, {
       headers: { Cookie: 'vcm_lang=zh' },
     });
     const body2 = await r2.text();
@@ -113,7 +113,7 @@ describe('i18n / language detection (ADR-0026)', () => {
   });
 
   it('cookie vcm_lang=en with empty ?lang= stays en', async () => {
-    const r = await fetch(`http://127.0.0.1:${PORT}/audit`, {
+    const r = await fetch(`http://127.0.0.1:${PORT}/projects/vcm-smoke/audit`, {
       headers: { Cookie: 'vcm_lang=en' },
     });
     const body = await r.text();
@@ -122,7 +122,7 @@ describe('i18n / language detection (ADR-0026)', () => {
   });
 
   it('URL ?lang= takes precedence over cookie', async () => {
-    const r = await fetch(`http://127.0.0.1:${PORT}/audit?lang=en`, {
+    const r = await fetch(`http://127.0.0.1:${PORT}/projects/vcm-smoke/audit?lang=en`, {
       headers: { Cookie: 'vcm_lang=zh' },
     });
     const body = await r.text();
@@ -135,14 +135,19 @@ describe('i18n / per-page translation', () => {
   // in each language, so a partial-translation regression is caught.
   const PAGES = [
     { path: '/',          en: 'cockpit',     zh: '驾驶舱' },
-    { path: '/audit',     en: 'Audit log',   zh: '审计日志' },
-    { path: '/drift',     en: 'drift',       zh: '漂移' },
-    { path: '/trends',    en: 'Governance',  zh: '治理' },
+    // v0.18.1 (ADR-0032): /audit /drift /trends /skills /peers →
+    // 302 redirect to /. Same feature UI now lives at
+    // /projects/<name>/<feature>. The per-page check still validates
+    // translation presence — the i18n dict is injected by the shared
+    // _layout.html so every page carries the full catalog.
+    { path: '/projects/vcm-smoke/audit',  en: 'Audit log',   zh: '审计日志' },
+    { path: '/projects/vcm-smoke/drift',  en: 'drift',       zh: '漂移' },
+    { path: '/projects/vcm-smoke/trends', en: 'Governance',  zh: '治理' },
     // v0.18.2 (ADR-0032 §v0.18.2 update): /leaderboard is 302 redirect
     // to /?tab=leaderboard; leaderboard content now lives in the cockpit
     // tab, so test the cockpit URL with the tab query.
     { path: '/?tab=leaderboard', en: 'cockpit', zh: '驾驶舱' },
-    { path: '/skills',    en: 'Skill',       zh: '技能' },
+    { path: '/projects/vcm-smoke/skills', en: 'Skill',     zh: '技能' },
     { path: '/settings',  en: 'settings',    zh: '设置' },
   ];
 
@@ -163,19 +168,25 @@ describe('i18n / per-page translation', () => {
 });
 
 describe('i18n / nav language toggle (icon + dropdown)', () => {
-  it('zh page renders the language icon button with 切换语言 label', async () => {
+  // v0.18.1 (ADR-0030) sidebar footer uses an emoji 🌐 button with
+  // a title="..." hover tooltip and a nav-lang-dropdown <ul>. Earlier
+  // v0.18.0 sidebar tests asserted sprite.svg#language + a dedicated
+  // nav-lang-btn class + aria-label="切换语言". Those assertions
+  // predate the v0.18.1 footer redesign — v0.18.1 collapsed the
+  // dedicated nav-lang-btn button into the unified sidebar-footer-btn
+  // row. Assert the actual design instead.
+  it('zh page renders the language icon button with 切换语言 title', async () => {
     const r = await get('/');
     const body = await r.text();
-    // Icon button: globe sprite + zh switch label.
-    expect(body).toMatch(/nav-lang-btn/);
-    expect(body).toMatch(/sprite\.svg#language/);
-    expect(body).toMatch(/aria-label="切换语言"/);
+    // Globe emoji icon + zh switch tooltip.
+    expect(body).toContain('🌐');
+    expect(body).toMatch(/title="切换语言"/);
   });
 
-  it('en page renders the language icon button with Switch language label', async () => {
+  it('en page renders the language icon button with Switch language title', async () => {
     const r = await get('/?lang=en');
     const body = await r.text();
-    expect(body).toMatch(/aria-label="Switch language"/);
+    expect(body).toMatch(/title="Switch language"/);
   });
 
   it('zh page exposes EN as a dropdown option linking to ?lang=en', async () => {
@@ -190,17 +201,23 @@ describe('i18n / nav language toggle (icon + dropdown)', () => {
     expect(body).toMatch(/<a[^>]*nav-lang-option[^>]*href="[^"]*lang=zh[^"]*"/);
   });
 
-  it('current language appears as a non-link <span> (no toggle out)', async () => {
+  it('current language is highlighted in the dropdown (nav-lang-option--current)', async () => {
+    // v0.18.1: the current language's option in the dropdown is marked
+    // with `nav-lang-option--current` (CSS-only, no toggle-out link).
+    // The button itself doesn't carry a label — it stays an icon-only
+    // trigger. The "current language" affordance is in the dropdown,
+    // not in the trigger button.
     const r = await get('/?lang=en');
     const body = await r.text();
-    // The English label "English" appears inside the button (not a link).
-    expect(body).toMatch(/<span class="nav-lang-current">\s*English\s*<\/span>/);
+    expect(body).toMatch(/nav-lang-option--current/);
   });
 
   it('dropdown is hidden by default (x-show="open")', async () => {
     const r = await get('/');
     const body = await r.text();
-    expect(body).toMatch(/class="nav-lang-dropdown"[^>]*x-show="open"/);
+    // v0.18.1: dropdown carries x-show + x-transition; the x-show is
+    // the visibility gate we care about.
+    expect(body).toMatch(/class="nav-lang-dropdown"[\s\S]*?x-show="open"/);
   });
 });
 
@@ -256,17 +273,26 @@ describe('i18n / v0.14.1 comprehensive coverage', () => {
   const COMPREHENSIVE = [
     // page -> [expected-zh-substring, expected-en-substring]
     { path: '/',                zh: ['多项目驾驶舱', '项目', '驾驶舱'],     en: ['Multi-project cockpit', 'Projects', 'cockpit'] },
-    { path: '/audit',           zh: ['审计日志', '事件', '详情'],          en: ['Audit log', 'Event', 'Detail'] },
-    { path: '/drift',           zh: ['漂移', '分数', '项目'],              en: ['Drift', 'Score', 'Project'] },
-    { path: '/trends',          zh: ['合规度（0..1）', '有数据的桶', '技债数'],  en: ['Compliance (0..1)', 'Buckets with data', 'Tech debt count'] },
+    // v0.18.1 (ADR-0032): /audit /drift /trends /skills /peers →
+    // 302 redirect to /. Feature UI now lives at
+    // /projects/<name>/<feature>. The COMPREHENSIVE check still
+    // validates translation presence on the new URLs.
+    { path: '/projects/vcm-smoke/audit',  zh: ['审计日志', '事件', '详情'],          en: ['Audit log', 'Event', 'Detail'] },
+    { path: '/projects/vcm-smoke/drift',  zh: ['漂移', '分数', '项目'],              en: ['Drift', 'Score', 'Project'] },
+    { path: '/projects/vcm-smoke/trends', zh: ['合规度（0..1）', '有数据的桶', '技债数'],  en: ['Compliance (0..1)', 'Buckets with data', 'Tech debt count'] },
     // v0.18.2: leaderboard demoted to cockpit tab — but `?tab=` query is
     // appended by the test as `${path}?lang=en`, which produces a
     // double-`?` URL (bug). Drop the tab-specific path; the simplified
     // leaderboard tab renders inside /, so / coverage already exercises
     // the cockpit page (which now hosts the tab). The dedicated tab
     // test in tests/leaderboard.test.js covers the ?tab= URL.
-    { path: '/skills',          zh: ['技能注册表', '独立技能', '共享（≥ 2 个项目）'], en: ['Skill registry', 'Unique skills', 'Shared (≥ 2 projects)'] },
-    { path: '/peers',           zh: ['节点', '最近抓取', '星标'],            en: ['Peers', 'Last fetched', 'Stars'] },
+    { path: '/projects/vcm-smoke/skills', zh: ['技能注册表', '独立技能', '共享（≥ 2 个项目）'], en: ['Skill registry', 'Unique skills', 'Shared (≥ 2 projects)'] },
+    // Peers: per-project placeholder template (project_peers_placeholder.html)
+    // ships with v0.18.1 (ADR-0032). The placeholder does NOT carry the
+    // /peers top-level labels (Watch list / Last fetched / Stars) so the
+    // expected COMPREHENSIVE entries are skipped for the peers route.
+    // A dedicated test in tests/i18n.test.js > zh mode does not leak
+    // English labels on peers page covers the placeholder separately.
     { path: '/settings',        zh: ['服务器设置', '数据库', '运行时'],      en: ['Server settings', 'Database', 'Runtime'] },
     { path: '/projects/demo',   zh: ['基本信息', '已存在'],                  en: ['Quick facts', 'present'] },
   ];
@@ -314,16 +340,16 @@ describe('i18n / v0.14.1 comprehensive coverage', () => {
     expect(body).not.toContain('>Audit log<');
   });
 
-  it('zh mode does not leak English labels on the trends', async () => {
-    const r = await fetch(`http://127.0.0.1:${PORT}/trends?lang=zh`);
+  it('zh mode does not leak English labels on the trends — /projects/<name>/trends (ADR-0032)', async () => {
+    const r = await fetch(`http://127.0.0.1:${PORT}/projects/vcm-smoke/trends?lang=zh`);
     const body = await r.text();
     expect(body).not.toContain('Compliance (0..1)');
     expect(body).not.toContain('Tech debt count');
     expect(body).not.toContain('Buckets with data');
   });
 
-  it('zh mode does not leak English labels on skills page', async () => {
-    const r = await fetch(`http://127.0.0.1:${PORT}/skills?lang=zh`);
+  it('zh mode does not leak English labels on skills page — /projects/<name>/skills (ADR-0032)', async () => {
+    const r = await fetch(`http://127.0.0.1:${PORT}/projects/vcm-smoke/skills?lang=zh`);
     const body = await r.text();
     expect(body).not.toContain('Unique skills');
     expect(body).not.toContain('Shared (≥ 2 projects)');
@@ -338,8 +364,12 @@ describe('i18n / v0.14.1 comprehensive coverage', () => {
     expect(body).not.toContain('Runtime');
   });
 
-  it('zh mode does not leak English labels on peers page', async () => {
-    const r = await fetch(`http://127.0.0.1:${PORT}/peers?lang=zh`);
+  it('zh mode does not leak English labels on peers page — /projects/<name>/peers (ADR-0032)', async () => {
+    // /projects/<name>/peers renders the per-project placeholder
+    // (project_peers_placeholder.html). Per-project peer references
+    // ship in v0.19 (ADR-0032 §v0.18.2 update). For zh mode the
+    // placeholder should not leak English labels.
+    const r = await fetch(`http://127.0.0.1:${PORT}/projects/vcm-smoke/peers?lang=zh`);
     const body = await r.text();
     expect(body).not.toContain('Watch list');
     expect(body).not.toContain('Stars');
@@ -351,8 +381,10 @@ describe('i18n / Alpine JS bridge (window.t)', () => {
   it('every page embeds the i18n JS catalog in window.__vcm_i18n__', async () => {
     // v0.18.2: /leaderboard is now a 302 redirect to /?tab=leaderboard;
     // / still embeds the i18n catalog, so / covers it.
-    const pages = ['/', '/audit', '/drift', '/trends',
-                   '/skills', '/peers', '/settings'];
+    const pages = ['/',
+                   '/projects/vcm-smoke/audit', '/projects/vcm-smoke/drift',
+                   '/projects/vcm-smoke/trends', '/projects/vcm-smoke/skills',
+                   '/projects/vcm-smoke/peers', '/settings'];
     for (const p of pages) {
       const r = await fetch(`http://127.0.0.1:${PORT}${p}`);
       const body = await r.text();

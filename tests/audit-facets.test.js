@@ -182,9 +182,13 @@ describe('audit facets — /api/audit/facets (ADR-0024)', () => {
   });
 });
 
-describe('audit page integration (ADR-0024)', () => {
-  it('/audit renders new Project + Source IP inputs', async () => {
-    const r = await fetch(`http://127.0.0.1:${PORT}/audit?lang=en`);
+describe('audit page integration (ADR-0024) — project-scoped (ADR-0032)', () => {
+  // v0.18.1: /audit was demoted to a 302 redirect (ADR-0032 §v0.18.2
+  // update). Audit UI now lives at /projects/<name>/audit. These
+  // tests were originally written for the standalone /audit page.
+  // They still validate the same DOM markers; just the URL moved.
+  it('/projects/<name>/audit renders new Project + Source IP inputs', async () => {
+    const r = await fetch(`http://127.0.0.1:${PORT}/projects/vcm-smoke/audit?lang=en`);
     expect(r.status).toBe(200);
     const body = await r.text();
     expect(body).toContain('Project');
@@ -195,16 +199,16 @@ describe('audit page integration (ADR-0024)', () => {
     expect(body).toMatch(/resetFilters/);
   });
 
-  it('/audit renders facet chip loop (x-for over facets.events)', async () => {
-    const r = await fetch(`http://127.0.0.1:${PORT}/audit?lang=en`);
+  it('/projects/<name>/audit renders facet chip loop (x-for over facets.events)', async () => {
+    const r = await fetch(`http://127.0.0.1:${PORT}/projects/vcm-smoke/audit?lang=en`);
     const body = await r.text();
     // Alpine template iterating the events facet.
     expect(body).toContain("for=\"t in Object.entries(facets.events");
     expect(body).toContain("toggleFacet");
   });
 
-  it('/audit URL state includes project + source_ip query params', async () => {
-    const r = await fetch(`http://127.0.0.1:${PORT}/audit?project=alpha&source_ip=10.0.0.1&lang=en`);
+  it('/projects/<name>/audit URL state includes project + source_ip query params', async () => {
+    const r = await fetch(`http://127.0.0.1:${PORT}/projects/vcm-smoke/audit?project=alpha&source_ip=10.0.0.1&lang=en`);
     expect(r.status).toBe(200);
     const body = await r.text();
     // The Alpine x-model reads URL params at init.

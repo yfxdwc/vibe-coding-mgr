@@ -81,13 +81,18 @@ async function html(path) {
 
 describe('layout inheritance', () => {
   it('every page extends _layout (same <head> block)', async () => {
+    // v0.18.1 (ADR-0032): /skills + /peers → 302 redirect. The same
+    // feature UI now lives at /projects/<name>/<feature>. Project-scoped
+    // URLs were chosen because the legacy /skills template depends on
+    // project context for the matrix view, and the legacy /peers
+    // template is replaced by a per-project placeholder.
     const a = await html('/');
-    const b = await html('/skills');
+    const b = await html('/projects/vcm-smoke/skills');
     const c = await html('/projects/demo');
-    const d = await html('/peers');
+    const d = await html('/projects/vcm-smoke/peers');
     const e = await html('/settings');
 
-    for (const [path, body] of [['/', a], ['/skills', b], ['/projects/demo', c], ['/peers', d], ['/settings', e]]) {
+    for (const [path, body] of [['/', a], ['/projects/vcm-smoke/skills', b], ['/projects/demo', c], ['/projects/vcm-smoke/peers', d], ['/settings', e]]) {
       expect(body, path).toContain('<link rel="stylesheet" href="/static/css/dashboard.css">');
       expect(body, path).toContain('x-data="page()"');
     }
@@ -105,10 +110,12 @@ describe('cockpit', () => {
   });
 
   it('has an "Answers:" line at the top of every view', async () => {
+    // v0.18.1 (ADR-0032): /skills + /peers → 302 redirect. Project-
+    // scoped URLs serve the same UI now.
     expect(await html('/')).toContain('answers-line');
     expect(await html('/projects/demo')).toContain('answers-line');
-    expect(await html('/skills')).toContain('answers-line');
-    expect(await html('/peers')).toContain('answers-line');
+    expect(await html('/projects/vcm-smoke/skills')).toContain('answers-line');
+    expect(await html('/projects/vcm-smoke/peers')).toContain('answers-line');
     expect(await html('/settings')).toContain('answers-line');
   });
 
@@ -130,9 +137,11 @@ describe('project detail', () => {
   });
 });
 
-describe('skill registry', () => {
+describe('skill registry — project-scoped (ADR-0032)', () => {
+  // v0.18.1: /skills → 302 redirect. Skill UI now at
+  // /projects/<name>/skills.
   it('renders 3 tabs (matrix/coverage/registry)', async () => {
-    const body = await html('/skills');
+    const body = await html('/projects/vcm-smoke/skills');
     expect(body).toMatch(/data-tab="matrix"/);
     expect(body).toMatch(/data-tab="coverage"/);
     expect(body).toMatch(/data-tab="registry"/);
@@ -140,9 +149,12 @@ describe('skill registry', () => {
 });
 
 describe('peers & settings', () => {
-  it('peers shows the empty-state CTA when no peers.yaml', async () => {
-    const body = await html('/peers');
-    expect(body).toContain('vcm peers add owner/name');
+  // v0.18.1 (ADR-0032): /peers → 302 redirect. Per-project peers
+  // template (project_peers_placeholder.html) shows a v0.19+ notice.
+  it('/projects/<name>/peers renders the per-project placeholder', async () => {
+    const body = await html('/projects/vcm-smoke/peers');
+    // The placeholder explicitly notes v0.19+ per-project peer refs.
+    expect(body).toMatch(/v0\.19|per-project/i);
   });
 
   it('settings renders docs links via /docs/ (no /static/../ leaks)', async () => {

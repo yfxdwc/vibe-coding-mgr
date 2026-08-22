@@ -13,7 +13,7 @@ import { userTokenCommand } from '../lib/cli/user.js';
 import { doctorCommand } from '../lib/cli/doctor.js';
 import { schemaDocCommand } from '../lib/cli/schema-doc.js';
 
-const VERSION = "0.18.1";
+const VERSION = "0.18.3";
 
 const program = new Command();
 

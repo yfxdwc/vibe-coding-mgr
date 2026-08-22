@@ -268,23 +268,31 @@ describe('ADR-0019 /api/dashboard/drift endpoint', () => {
   });
 });
 
-describe('ADR-0019 /drift HTML view', () => {
+describe('ADR-0019 /drift HTML view — project-scoped (ADR-0032)', () => {
+  // v0.18.1: /drift → 302 redirect. Drift UI lives at
+  // /projects/<name>/drift. Same DOM markers, new URL.
   it('returns 200 with the drift page chrome', async () => {
-    const r = await fetch(`http://127.0.0.1:${PORT}/drift?lang=en`);
+    const r = await fetch(`http://127.0.0.1:${PORT}/projects/vcm-smoke/drift?lang=en`);
     expect(r.status).toBe(200);
     const body = await r.text();
     expect(body).toContain('Cross-project drift');
     expect(body).toContain('data-c="drift"');
   });
 
-  it('includes the nav link to /drift', async () => {
-    const r = await fetch(`http://127.0.0.1:${PORT}/drift?lang=en`);
+  it('includes the drift i18n key (ADR-0034 subnav labels carry drift)', async () => {
+    // v0.18.1 (ADR-0032) removed the top-level /drift link — drift
+    // moved into the per-project sidebar subnav (ADR-0034). The
+    // /projects/<name>/drift link lives in the sidebar but only
+    // when the DB has at least one project. For tests where DB is
+    // empty, we instead assert the i18n catalog still carries the
+    // drift label so a future translator removing it would fail.
+    const r = await fetch(`http://127.0.0.1:${PORT}/projects/vcm-smoke/drift?lang=en`);
     const body = await r.text();
-    expect(body).toContain('href="/drift"');
+    expect(body).toMatch(/nav\.drift/);
   });
 
   it('exposes all four KPI cards (over-50, avg score, longest idle, total projects)', async () => {
-    const r = await fetch(`http://127.0.0.1:${PORT}/drift?lang=en`);
+    const r = await fetch(`http://127.0.0.1:${PORT}/projects/vcm-smoke/drift?lang=en`);
     const body = await r.text();
     expect(body).toContain('high-drift projects');
     expect(body).toContain('avg score');

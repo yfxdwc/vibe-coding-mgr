@@ -41,9 +41,11 @@ afterAll(() => {
   if (tmpDir) rmSync(tmpDir, { recursive: true, force: true });
 });
 
-describe('/audit view integration (v0.8.0)', () => {
-  it('GET /audit renders 200 with stats card hooks', async () => {
-    const r = await fetch(`http://127.0.0.1:${PORT}/audit`);
+describe('/audit view integration (v0.8.0) — project-scoped (ADR-0032)', () => {
+  // v0.18.1: /audit → 302 redirect. Audit UI lives at
+  // /projects/<name>/audit. Same DOM markers, new URL.
+  it('GET /projects/<name>/audit renders 200 with stats card hooks', async () => {
+    const r = await fetch(`http://127.0.0.1:${PORT}/projects/vcm-smoke/audit`);
     expect(r.status).toBe(200);
     const body = await r.text();
     expect(body).toContain('data-c="audit-stats"');

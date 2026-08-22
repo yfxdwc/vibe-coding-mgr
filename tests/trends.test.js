@@ -153,8 +153,10 @@ describe('trend endpoint (ADR-0010)', () => {
 });
 
 describe('trend view HTML (ADR-0010)', () => {
-  it('GET /trends renders chart + filter', async () => {
-    const r = await fetch(`http://127.0.0.1:${PORT}/trends?lang=en`);
+  it('GET /projects/<name>/trends renders chart + filter (ADR-0032 — was /trends)', async () => {
+    // v0.18.1: /trends → 302 redirect. Trends UI lives at
+    // /projects/<name>/trends. Same DOM markers, new URL.
+    const r = await fetch(`http://127.0.0.1:${PORT}/projects/vcm-smoke/trends?lang=en`);
     expect(r.status).toBe(200);
     const body = await r.text();
     expect(body).toContain('data-c="trends"');
