@@ -275,7 +275,10 @@ bash scripts/routine_coverage.sh   # → exit 0
 
 ### 不做
 
-- ❌ macOS launchd `.plist` (v0.14.0).
+- ✅ ~~macOS launchd `.plist` (v0.14.0)~~ — **DONE in v0.15.0
+  via [ADR-0027](0027-launchd-vcm-server.md)**. One canonical
+  installer per platform (`install-service.sh` / `install-launchd.sh`),
+  one env file (`~/.vcm/server.env`) shared across both.
 - ❌ Windows service (out of scope; use WSL or manual launch).
 - ❌ Auto-update on `git pull` (operator rebuilds + restarts).
 - ❌ Multi-instance (one vcm-server per user per host; if you

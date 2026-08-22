@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  scripts/vcm-server.plist — macOS launchd LaunchAgent template
+  for vcm-server (ADR-0027).
+
+  This file is a TEMPLATE. `scripts/install-launchd.sh` substitutes
+  the markers below with the actual install-time paths and writes
+  the real plist to
+  ~/Library/LaunchAgents/com.vibe-coding-mgr.vcm-server.plist.
+
+  Markers (search for these to substitute):
+    @VCM_REPO_DIR@       — absolute path to the repo checkout
+    @VCM_PYTHON@         — absolute path to .venv/bin/python3
+    @LOG_DIR@            — absolute path to the log directory
+    @VCM_PORT@           — the auto-picked port (default 7338)
+    @VCM_ENV_<KEY>@      — env-var snapshots rendered from
+                            ~/.vcm/server.env at install time
+
+  Do NOT enable this file directly via `launchctl load`. The
+  install script does the env-substitution + load -w.
+
+  Mirror of scripts/vcm-server.service (ADR-0025). The two
+  supervisors share ~/.vcm/server.env as the single source of
+  truth for runtime configuration.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.vibe-coding-mgr.vcm-server</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>@VCM_PYTHON@</string>
+    <string>@VCM_REPO_DIR@/server/app.py</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>@VCM_REPO_DIR@</string>
+
+  <!--
+    EnvironmentVariables snapshot of ~/.vcm/server.env at install
+    time. The install script re-renders this block on every run
+    (so editing ~/.vcm/server.env + re-running install is the
+    documented refresh path).
+
+    launchd does NOT have systemd's EnvironmentFile= directive,
+    so we inline the values here. Operators see ONE env file
+    (server.env) on both platforms; only the snapshot format
+    differs between the systemd unit and this plist.
+  -->
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>VCM_SERVER_PORT</key>
+    <string>@VCM_PORT@</string>
+  </dict>
+
+  <!--
+    Restart policy (mirrors systemd Restart=on-failure).
+    KeepAlive.SuccessfulExit=false  : restart on crash, NOT on clean
+                                       launchctl stop or SIGTERM.
+    KeepAlive.NetworkState=true     : also restart when the network
+                                       comes back, matching the Linux
+                                       unit's Wants=network-online.target.
+    RunAtLoad=true                   : start the moment launchctl
+                                       load -w completes; the -w
+                                       flag makes it stick across
+                                       reboot.
+  -->
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <dict>
+    <key>SuccessfulExit</key>
+    <false/>
+    <key>NetworkState</key>
+    <true/>
+  </dict>
+
+  <!--
+    Log redirection. macOS launchd does not natively rotate logs;
+    see ADR-0027 §Log rotation. The install script creates the
+    directory with umask 0077 so other users on the host cannot
+    read the vcm-server logs.
+  -->
+  <key>StandardOutPath</key>
+  <string>@LOG_DIR@/out.log</string>
+  <key>StandardErrorPath</key>
+  <string>@LOG_DIR@/err.log</string>
+
+  <!--
+    ProcessType=Background: runs in the user's GUI session
+    context (so it can access ~/Library and the user's Keychain
+    if future auth integrations need them). Equivalent to a
+    systemd user unit. Use ProcessType=Interactive only if the
+    agent must show UI; vcm-server has no UI so Background is
+    correct.
+  -->
+  <key>ProcessType</key>
+  <string>Background</string>
+</dict>
+</plist>
