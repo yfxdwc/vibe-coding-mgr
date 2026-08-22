@@ -133,9 +133,14 @@ without performing side effects.
 - `Restart=on-failure` (no auto-restart on clean
   `systemctl stop`).
 - `RestartSec=5s` (no tight loop).
-- `StartLimitBurst=5` + `StartLimitIntervalSec=60s` (cap
-  restart rate; if vcm-server fails 5 times in 60s, leave it
-  crashed so the operator notices — no zombie flap).
+- `StartLimitBurst=5` + `StartLimitIntervalSec=60s` in the
+  `[Unit]` section (NOT `[Service]` — `man systemd.service` says
+  those two directives belong in `[Unit]`; systemd 255 silently
+  ignores them in `[Service]`, which would defeat the cap. Earlier
+  v0.13.0 drafts placed them in `[Service]`; the spec was fixed
+  immediately once a live restart surfaced the warning). On 5
+  failures in 60s, the unit enters failed state for operator
+  inspection — no zombie flap.
 - `Type=simple` (Flask dev server has no separate notifier;
   systemd watches the PID).
 

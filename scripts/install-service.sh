@@ -159,10 +159,28 @@ if command -v loginctl >/dev/null 2>&1; then
   loginctl enable-linger "$USER" 2>/dev/null || true
 fi
 
-# Verify the server is actually serving.
-sleep 1
-if curl -s --max-time 3 "http://127.0.0.1:$PORT/api/health" \
-   | grep -q '"status":"ok"'; then
+# Verify the server is actually serving. systemd marks the unit
+# active BEFORE the in-process Flask bind() finishes + the schema
+# bootstrap + audit-log dir creation complete, so a single 3s curl
+# probe too often races. We retry for up to 5s (10 attempts × 0.5s)
+# and only fail if BOTH (a) every retry timed out and (b) the unit
+# ended up in 'failed' state. Otherwise exit 0 (idempotent installs
+# should not regress working setups on a slow first start).
+_wait_for_health() {
+  local url="$1"
+  local i
+  for i in 1 2 3 4 5 6 7 8 9 10; do
+    local body
+    body=$(curl -s --max-time 1 "$url" 2>/dev/null || true)
+    if printf '%s' "$body" | grep -qE '"status"[[:space:]]*:[[:space:]]*"(ok|healthy)"'; then
+      return 0
+    fi
+    sleep 0.5
+  done
+  return 1
+}
+
+if _wait_for_health "http://127.0.0.1:$PORT/api/health"; then
   printf '\nvcm-server installed: http://127.0.0.1:%s/\n\n' "$PORT"
   echo "  - status: systemctl --user status vcm-server"
   echo "  - logs:   journalctl --user -u vcm-server -n 20 -f"
@@ -172,9 +190,21 @@ if curl -s --max-time 3 "http://127.0.0.1:$PORT/api/health" \
   echo "Last 20 log lines:"
   journalctl --user -u vcm-server -n 20 --no-pager 2>&1 \
     | sed 's/^/    /'
-else
-  echo "" >&2
-  echo "WARNING: vcm-server is registered but /api/health did not return {\"status\":\"ok\"}." >&2
-  echo "Check: journalctl --user -u vcm-server -n 50" >&2
+  exit 0
+fi
+
+# Could not reach /api/health in ~5s. Show the actual unit state to
+# help diagnose, then pick a sensible exit code.
+unit_state=$(systemctl --user is-active vcm-server.service 2>&1 || true)
+echo "" >&2
+echo "WARNING: systemctl reports vcm-server is \"$unit_state\"." >&2
+echo "/api/health did not return healthy within ~5s. Diagnose with:" >&2
+echo "  journalctl --user -u vcm-server -n 50" >&2
+echo "  systemctl --user status vcm-server" >&2
+echo "  curl -v http://127.0.0.1:$PORT/api/health" >&2
+if [[ "$unit_state" == "failed" ]]; then
   exit 1
 fi
+# Unit is still activating or inactive — give the operator a chance
+# (idempotent installs should not regress a slow first boot).
+exit 0

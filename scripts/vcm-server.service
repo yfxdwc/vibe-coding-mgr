@@ -15,6 +15,13 @@ Description=vibe-coding-mgr dashboard server (vcm-server)
 Documentation=https://github.com/your-org/vibe-coding-mgr
 After=network-online.target
 Wants=network-online.target
+# Per `man systemd.service`, StartLimit* directives live in [Unit],
+# not [Service]. systemd 255 silently ignores them in [Service],
+# which would defeat the no-zombie-flap guarantee. Cap restart
+# attempts to 5 within 60s; if that threshold trips, leave the unit
+# in failed state for the operator to inspect.
+StartLimitBurst=5
+StartLimitIntervalSec=60s
 
 [Service]
 Type=simple
@@ -23,8 +30,6 @@ EnvironmentFile=@VCM_ENV_FILE@
 ExecStart=@VCM_PYTHON@ @VCM_REPO_DIR@/server/app.py
 Restart=on-failure
 RestartSec=5s
-StartLimitBurst=5
-StartLimitIntervalSec=60s
 
 # Lightweight hardening (Ubuntu 24.04 / systemd 255 minimum).
 # These follow `man systemd.exec`. If vcm-server fails to start on

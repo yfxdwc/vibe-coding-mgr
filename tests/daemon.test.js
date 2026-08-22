@@ -59,6 +59,35 @@ describe('scripts/vcm-server.service (ADR-0025)', () => {
     expect(SERVICE).not.toMatch(/^\/home\//m);
     expect(SERVICE).not.toMatch(/WorkingDirectory=\/(?!\$)/m);
   });
+  // Regression guard for the StartLimit* section bug: those two
+  // directives MUST sit in [Unit], not [Service] (man systemd.service).
+  // systemd 255 silently ignores them in [Service], so the test
+  // asserts the directive order in the file.
+  //
+  // We can't use plain `indexOf('[Service]')` because the .service
+  // file's preamble comment block also mentions the literal text
+  // '[Service]' when describing the bug. Match lines that are exactly
+  // a section header (`^[Name]$` at line start, end of line).
+  function sectionOffset(name) {
+    const re = new RegExp('^\\[' + name + '\\]$', 'm');
+    const m = SERVICE.match(re);
+    return m ? m.index : -1;
+  }
+  it('StartLimit* directives live in [Unit], not [Service]', () => {
+    const unitStart = sectionOffset('Unit');
+    const serviceStart = sectionOffset('Service');
+    expect(unitStart).toBeGreaterThanOrEqual(0);
+    expect(serviceStart).toBeGreaterThan(unitStart);
+    for (const directive of ['StartLimitBurst', 'StartLimitIntervalSec']) {
+      const re = new RegExp('^' + directive + '=', 'm');
+      const match = SERVICE.match(re);
+      expect(match, directive + ' present').toBeTruthy();
+      const offset = match.index;
+      expect(offset).toBeGreaterThan(unitStart);
+      expect(offset).toBeLessThan(serviceStart);
+    }
+  });
+
 });
 
 // --- env file template ---------------------------------------------------
@@ -151,5 +180,27 @@ describe('systemd-analyze verify (optional)', () => {
     if (placeholderErr) return;       // expected template error
     // Real parse error:
     throw new Error('systemd-analyze: ' + text);
+  });
+});
+
+// --- install script health-probe retry behavior (ADR-0025 follow-up) ----
+
+describe('install-service.sh /api/health probe (ADR-0025 retry)', () => {
+  it('bash syntax stays valid after the retry-loop patch', () => {
+    const r = spawnSync('bash', ['-n', INSTALL_SH],
+      { encoding: 'utf8', timeout: 5000 });
+    expect(r.status).toBe(0);
+  });
+
+  it('contains the _wait_for_health helper', () => {
+    const src = readFileSync(INSTALL_SH, 'utf8');
+    expect(src).toMatch(/_wait_for_health\s*\(\)/);
+    // Retries at least 5 times before giving up (was a single shot).
+    expect(src).toMatch(/for\s+i\s+in\s+1\s+2\s+3\s+4\s+5/);
+    // Accepts either "ok" (≤ v0.12) or "healthy" (v0.13+) status.
+    expect(src).toMatch(/\(ok\|healthy\)/);
+    // Reports the actual unit state on failure so the operator
+    // sees whether systemd thinks the unit is failed vs activating.
+    expect(src).toMatch(/systemctl --user is-active vcm-server\.service/);
   });
 });
