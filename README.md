@@ -6,12 +6,12 @@ Originally extracted from sales-ai where it was developed as the `dev domain`. N
 
 ```bash
 $ vcm --version
-0.14.1
+0.16.0
 $ vcm doctor                          # one-command health check
 vcm doctor — 4 sections
 [governance]  6 hard checks       OK (6 OK, 0 WARN, 0 FAIL)
-[skills]       3 registered        3 active
-[repository]   26 ADRs             newest: 0026-bilingual-ui
+[skills]       6 registered        6 active
+[repository]   28 ADRs             newest: 0028-skill-rollout
 [git hygiene]  working tree        clean
 VERDICT: all OK (6/6)
 ```
@@ -220,7 +220,7 @@ vcm status                        # opens .vcm/report.html
 vcm doctor
 
 # 6. (Optional) Push state to central dashboard
-vcm-server &                       # start the dashboard server (127.0.0.1:7338)
+vcm-server &                       # start the dashboard server (default 127.0.0.1:7338; auto-picks free port 7338-7399)
 vcm push --server http://127.0.0.1:7338
 #   Or, after `bash scripts/install-service.sh`, the unit is already running
 #   on whichever free port it auto-picked (see the install's last line).
@@ -246,13 +246,14 @@ vibe-coding-mgr/
 │   │   ├── skill.schema.json
 │   │   └── state.schema.json
 │   └── templates/              # AGENTS/CHARTER templates
-├── scripts/                    # 6 hard check scripts (Python)
+├── scripts/                    # 7 hard check scripts (Python)
 │   ├── check_charter.py
 │   ├── check_doc_drift.py
 │   ├── check_constraint_governance.py
 │   ├── check_adr_index.py
 │   ├── check_data_layout.py
-│   └── add_pi_skill.py
+│   ├── check_skills.py            # 7th check (ADR-0028, SKILL.md registry)
+│   └── routine_coverage.sh       # driver — runs all 7 checks
 ├── server/                     # Flask server for multi-project dashboard
 │   ├── app.py                  # routes + scopes
 │   ├── dashboard.py            # data assembly
@@ -261,9 +262,11 @@ vibe-coding-mgr/
 │   ├── scopes.py               # @require_scope decorator (ADR-0014)
 │   ├── mcp_server.py           # stdio MCP for AI agents
 │   └── templates/ + static/   # HTML + CSS + JS
-├── tests/                      # vitest (368 tests across 29 files)
+├── tests/                      # vitest (436 tests across 31 files; +36 from skills-meta)
 └── docs/                       # DESIGN, ARCHITECTURE, ONBOARDING, PHILOSOPHY
-    ├── adr/                    # 26 ADRs (one per hard constraint)
+    ├── adr/                    # 28 ADRs (one per hard constraint)
+    ├── SKILLS.md               # skill registry index (ADR-0028)
+    ├── skills/                 # 6 SKILL.md files (1 meta + 5 governance)
     ├── DESIGN.md               # design system source of truth
     ├── ARCHITECTURE.md
     └── ROADMAP.md
@@ -279,8 +282,9 @@ vcm is held to a strict set of self-applied rules captured in
 - **Local first** — works offline; the server is optional. Plain JSON
   files as the source of truth for skill registry, peer config.
 - **Hard constraints have ADRs** — any rule that the system enforces
-  must be written down in `docs/adr/` before code lands (368 tests
-  document 26 ADRs).
+  must be written down in `docs/adr/` before code lands (436 tests
+  document 28 ADRs across 6 hard checks; "6 hard checks" is the
+  project's historical name per [ADR-0028](docs/adr/0028-skill-rollout.md)).
 - **Long-term stability > short-term less diff** — accept redundancy
   if it makes the system clearer.
 
@@ -325,8 +329,8 @@ A clean doctor output looks like:
 ```
 vcm doctor — 4 sections
 [governance]  6 hard checks       OK (6 OK, 0 WARN, 0 FAIL)
-[skills]       3 registered        3 active
-[repository]   26 ADRs             newest: 0026-bilingual-ui
+[skills]       6 registered        6 active
+[repository]   28 ADRs             newest: 0028-skill-rollout
 [git hygiene]  working tree        clean
 VERDICT: all OK (6/6)
 ```
@@ -338,7 +342,9 @@ CI integration: `vcm doctor --strict` exits 1 on any warning
 
 | Version | Highlights |
 |---|---|
-| **v0.14.1** | Comprehensive bilingual coverage (380 keys, Alpine JS bridge) |
+| **v0.16.0** | SKILL.md rollout for governance constraints (ADR-0028); CHARTER §10 fully satisfied |
+| v0.15.0 | macOS launchd LaunchAgent (ADR-0027) — same `~/.vcm/server.env` as systemd |
+| v0.14.1 | Comprehensive bilingual coverage (380 keys, Alpine JS bridge) |
 | **v0.14.0** | Bilingual zh/en UI (ADR-0026) — server-side, zero new deps |
 | **v0.13.0** | First persistent-runtime release — systemd user unit + installer (ADR-0025) |
 | v0.12.0 | Audit filtering UI + facets endpoint (root-cause fix to `_read_sqlite`) |
@@ -354,6 +360,15 @@ CI integration: `vcm doctor --strict` exits 1 on any warning
 
 See [CHANGELOG.md](CHANGELOG.md) for the full history. [ROADMAP.md](docs/ROADMAP.md)
 tracks the future.
+
+## Contributing
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a PR. In short:
+
+1. **ADR first** — every hard constraint gets `docs/adr/NNNN-*.md` before code lands
+2. **Hard checks** — `bash scripts/routine_coverage.sh` must exit 0 (7 checks, see [CONTRIBUTING.md](CONTRIBUTING.md))
+3. **Tests** — `npm test` must pass (436+ tests)
+4. **Commit style** — [Conventional Commits](https://www.conventionalcommits.org/), must reference the related ADR
 
 ## License
 
