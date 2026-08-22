@@ -34,14 +34,62 @@
      contents (the sidebar lives outside <main>, so it stays mounted and
      Alpine state inside it is preserved across navigations). External
      links and `target="_blank"` are not affected. #}
+  <script defer>console.log("[vcm] probe-before-htmx: alpine=", typeof window.Alpine, "htmx=", typeof window.htmx);</script>
   <script defer src="/static/js/htmx.min.js"></script>
-  <script>
-    // HTMX 1.9 defaultTarget — set BEFORE any user click. Must run
-    // synchronously after htmx.min.js loads (both are deferred).
+  <script defer>console.log("[vcm] probe-after-htmx: alpine=", typeof window.Alpine, "htmx=", typeof window.htmx);</script>
+  <script defer>
+    // HTMX 1.9 config — set BEFORE any user click. Must run
+    // synchronously after htmx.min.js loads (both are deferred; the
+    // `defer` attribute here is REQUIRED — without it this script
+    // would execute while htmx.min.js (deferred) is still pending,
+    // `window.htmx` would be undefined, and every assignment below
+    // would silently no-op).
+    //
+    // Notes on what we override and why:
+    //
+    //   1. `defaultSwapStyle = 'outerHTML'` is HTMX 1.9's default
+    //      for boosted links; set explicitly so the swap style is
+    //      stable if a future HTMX version changes the default.
+    //
+    //   2. `scrollRestoration = true` — preserves scroll position
+    //      across hx-boosted navigations (browser back/forward also
+    //      affected). Default is `false`.
+    //
+    //   3. `attributesToSettle = ['class', 'width', 'height']` —
+    //      HTMX's default is `['class', 'style', 'width', 'height']`.
+    //      We drop 'style' because of a conflict with Alpine.js
+    //      x-show: HTMX 1.9's `Te()` function copies the old element's
+    //      `style` attribute onto the new element during a body swap
+    //      (matched by id), then RESTORES it ~20ms later in the settle
+    //      phase. This silently overwrites Alpine's inline `display: none`
+    //      that x-show applied based on the NEW state, causing
+    //      sidebar sub-navs to stay visible across navigation.
+    //      Width / height settling is harmless for our layout (no
+    //      animation continuity we care about); class settling is
+    //      needed so theme + theme-derived classes round-trip.
+    //
+    //   4. We DO NOT set `defaultTarget = 'main'` because HTMX 1.9
+    //      has no such config option (silently no-op'd in older
+    //      v0.18.x commits). For boosted requests HTMX swaps the
+    //      entire <body> by design — this is fine because:
+    //      - The sidebar component re-mounts with fresh Alpine state
+    //        (sidebarNav() init() runs again, re-syncing to URL).
+    //      - The sidebar's CSS-driven state (sidebar-project-row--active,
+    //        sidebar-sub-link.active) is re-rendered by Jinja on each
+    //        request, so server-side path matching still works.
+    //      - body[data-active-project] is set by Jinja on every page
+    //        load and is therefore correct for the just-navigated URL
+    //        (it goes stale only on subsequent HTMX swaps, which is
+    //        why sidebarNav() now parses window.location.pathname
+    //        directly instead of trusting the attribute).
     if (window.htmx && window.htmx.config) {
-      window.htmx.config.defaultTarget = 'main';
       window.htmx.config.defaultSwapStyle = 'outerHTML';
       window.htmx.config.scrollRestoration = true;
+      window.htmx.config.attributesToSettle = ['class', 'width', 'height'];
+      window.__vcm_config_applied = true;
+      console.log('[vcm] htmx config applied:', JSON.stringify(window.htmx.config.attributesToSettle));
+    } else {
+      console.log('[vcm] htmx config SKIPPED, window.htmx =', typeof window.htmx);
     }
 
     // HTMX swaps <main> contents; Alpine.js doesn't auto-attach to
@@ -101,23 +149,37 @@
     // Sidebar sub-nav state — ADR-0034 v0.18.2. The sidebar lives
     // outside <main> so HTMX (ADR-0033) doesn't re-render it across
     // page swaps; Alpine state inside it survives navigations.
-    // - Default: all projects collapsed
-    // - Auto-expand: any project whose /projects/<name>(/...) path is
-    //   active (server-side already marks .sidebar-project-row--active
-    //   via Jinja; this hook layers the sub-nav visibility on top).
-    // - Persist: chevron toggles write to localStorage so user choice
-    //   survives reload.
+    //
+    // Behavior (v0.18.2 fix-up — accordion):
+    // - Default: all projects collapsed.
+    // - Auto-expand: the project matching the current URL
+    //   (/projects/<name>[/<feature>]) is the ONLY expanded project.
+    //   On non-project pages (cockpit / settings / leaderboard), no
+    //   project's sub-nav is shown.
+    // - Chevron toggle: single-select. Click an expanded project's
+    //   chevron → collapse it. Click a collapsed project's chevron
+    //   → make it the only expanded one (regardless of current).
+    // - Persist: manual choices (the set minus the auto-expanded
+    //   current) are written to localStorage so they survive reload
+    //   on non-project pages where the user previously previewed.
+    //
+    // Source of truth for `current`: window.location.pathname, not
+    // the body[data-active-project] attribute. The attribute is set
+    // by Jinja at first paint only; HTMX swaps <main> but leaves
+    // body intact, so the attribute goes stale after any
+    // hx-boosted navigation. Parsing the URL reactively is robust
+    // to both SSR initial load and SPA-style client-side nav.
     function sidebarNav() {
       const KEY = 'vcm-sidebar-expanded';
-      // Active project is server-rendered as `data-active-project`
-      // on <body> in _layout.html (set by Jinja from request.path).
-      const currentActive = (function() {
-        try {
-          const el = document.body;
-          if (!el) return '';
-          return el.getAttribute('data-active-project') || '';
-        } catch (e) { return ''; }
-      })();
+      const COLLAPSED_KEY = 'vcm-sidebar-collapsed';
+      // Match /projects/<name>[/...]; allow trailing slash; reject
+      // anything else (so we don't accept `/projects-foo/bar` etc.).
+      const PATH_RE = /^\/projects\/([a-z0-9][a-z0-9-]*)/;
+
+      function getActiveFromPath(pathname) {
+        const m = pathname.match(PATH_RE);
+        return m ? m[1] : '';
+      }
 
       function readSet() {
         try {
@@ -132,51 +194,136 @@
           localStorage.setItem(KEY, JSON.stringify(arr));
         } catch (e) { /* localStorage disabled — silent */ }
       }
+      function readCollapsed() {
+        try {
+          return localStorage.getItem(COLLAPSED_KEY) === '1';
+        } catch (e) { return false; }
+      }
+      function writeCollapsed(v) {
+        try {
+          localStorage.setItem(COLLAPSED_KEY, v ? '1' : '0');
+        } catch (e) { /* localStorage disabled — silent */ }
+      }
 
       return {
-        current: currentActive,
-        // hydrated = persisted set + the current project (auto-expand)
-        expanded: Array.from(new Set([currentActive, ...readSet()].filter(Boolean))),
+        current: getActiveFromPath(window.location.pathname),
+        // Accordion: at most one project expanded, and it's the
+        // current project (or nothing, on non-project pages).
+        expanded: [],
+        // ADR-0034 §9 v0.18.3: whole-bar collapse (icon-only 64px).
+        // Hydrated from localStorage at first paint so a refresh
+        // keeps the user's choice.
+        collapsed: readCollapsed(),
 
         init() {
-          // Already initialized above; this hook is a no-op for
-          // first-paint, but lets HTMX-driven re-init re-hydrate
-          // if the project list re-renders (e.g. new project added).
+          // First-paint sync: if URL is on a project page, that
+          // project's sub-nav is the only one expanded. If URL is
+          // non-project (cockpit / settings / leaderboard), restore
+          // the user's last manual preview from localStorage.
+          this.syncToCurrent();
+
+          // React to URL changes from HTMX (hx-boosted links,
+          // hx-history-elt restores) and the browser history API.
+          // We re-parse `window.location.pathname` each time —
+          // body[data-active-project] is set by Jinja once at SSR
+          // and is not refreshed when HTMX swaps only <main>.
+          const onUrlChange = () => {
+            const next = getActiveFromPath(window.location.pathname);
+            if (next !== this.current) {
+              this.current = next;
+              this.syncToCurrent();
+            }
+          };
+          // htmx:pushedIntoHistory fires after a boost nav pushes
+          // history.pushState (click on sidebar project link, etc.).
+          document.body.addEventListener('htmx:pushedIntoHistory', onUrlChange);
+          // htmx:replacedInHistory covers hx-replace-url responses.
+          document.body.addEventListener('htmx:replacedInHistory', onUrlChange);
+          // htmx:historyRestore covers browser back/forward AND the
+          // initial load when the page was reached via history
+          // (e.g. user clicked back from a different site into a
+          // history-cached entry).
+          document.body.addEventListener('htmx:historyRestore', onUrlChange);
+          // popstate as a safety net (e.g. history.pushState called
+          // by non-HTMX code paths).
+          window.addEventListener('popstate', onUrlChange);
+        },
+
+        syncToCurrent() {
+          // Accordion rule:
+          // - On a project page (current non-empty): expanded = [current]
+          //   This makes "click another project tag" naturally collapse
+          //   the old one and expand the new one — see ADR-0034 fix-up.
+          // - On a non-project page (current empty): restore the
+          //   user's last manual preview (chevron-clicked non-current
+          //   projects). If nothing was manually previewed, expanded = [].
+          if (this.current) {
+            this.expanded = [this.current];
+          } else {
+            this.expanded = readSet();
+          }
         },
 
         isCurrentProject(name) {
           // Sub-path '/projects/<name>/foo' counts as current
           // project — the whole row should stay highlighted.
           if (!name) return false;
-          const p = '/' + name;
-          return this.current === p || this.current.startsWith(p + '/');
+          return this.current === name;
         },
 
         isExpanded(name) {
+          // §9.4: when whole-bar is collapsed, sub-nav can't fit —
+          // force-collapse regardless of user's prior chevron state.
+          if (this.collapsed) return false;
           return this.expanded.indexOf(name) !== -1;
         },
 
         toggle(name) {
+          // Accordion toggle:
+          // - If `name` is in expanded → it's currently the only
+          //   entry → collapse everything (empty the set).
+          // - If `name` is NOT in expanded → make it the only
+          //   expanded project, collapsing whatever was there.
+          // This applies uniformly to both current and non-current
+          // projects: clicking a project tag link (which navigates
+          // and fires syncToCurrent) and clicking the chevron
+          // (which calls toggle) both end up with exactly one
+          // project expanded.
           const i = this.expanded.indexOf(name);
-          if (i === -1) {
-            this.expanded.push(name);
+          if (i !== -1) {
+            this.expanded = [];
           } else {
-            this.expanded.splice(i, 1);
+            this.expanded = [name];
           }
-          // Persist WITHOUT the auto-expanded current project —
-          // user toggle on current project means "user wants this
-          // open across visits"; on others, persist their choice.
-          // Simpler: persist the whole set minus current.
+          // Persist: filter out the auto-expanded current project.
+          // Rationale: when user reloads on a project page, the
+          // current will be re-added automatically; we don't want
+          // it duplicated in localStorage. Manual previews (entries
+          // that are not the current project) survive reloads on
+          // non-project pages.
           writeSet(this.expanded.filter(n => n !== this.current));
+        },
+
+        // ADR-0034 §9 v0.18.3: toggle whole-bar between 240px
+        // text mode and 64px icon-only mode. State persists in
+        // localStorage so it survives reloads + HTMX navigation.
+        toggleCollapse() {
+          this.collapsed = !this.collapsed;
+          writeCollapsed(this.collapsed);
         },
       };
     }
   </script>
 </head>
 <body x-data="page()" x-init="init()" data-page="{{ nav_active or 'cockpit' }}" hx-boost="true"
-      {# ADR-0034: expose the active project path (e.g. "/projects/vcm-smoke")
-         to the sidebar Alpine component so it auto-expands the current
-         project's sub-nav. Empty on non-project pages. #}
+      {# ADR-0034: SSR marker for the active project (e.g. "vcm-smoke"
+         when request.path is /projects/vcm-smoke[/...]).
+         Note: sidebarNav() does NOT read this attribute as its source
+         of truth — it parses window.location.pathname reactively
+         (HTMX swaps <main> but leaves body intact, so this attribute
+         goes stale on every hx-boosted navigation). Kept here for
+         SSR-time debugging visibility and as a stable initial value
+         that CSS hooks / tests can rely on. Empty on non-project pages. #}
       data-c="active-project"
       data-active-project="{% if request.path.startswith('/projects/') and request.path.count('/') >= 2 %}{{ request.path.split('/')[2] }}{% endif %}">
 

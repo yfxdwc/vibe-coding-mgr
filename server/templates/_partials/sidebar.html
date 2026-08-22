@@ -1,8 +1,9 @@
 {# server/templates/_partials/sidebar.html — ADR-0030 sidebar (v0.18.0+)
                                            ADR-0034 sub-nav (v0.18.2+)
+                                           ADR-0034 §9 collapse (v0.18.3+)
 
    Renders the primary 3-section + footer left rail:
-     1. brand
+     1. brand (with whole-bar collapse toggle, v0.18.3)
      2. NAVIGATION (top-level nav links — cockpit / leaderboard / settings)
      3. PROJECTS (server-injected list; per-project sub-nav with 7 children:
         overview / drift / skills / trends / peers / audit / docs;
@@ -16,6 +17,12 @@
    ADR-0034 §2: per-project sub-nav default-collapsed; current project
    auto-expands; manual chevron click overrides; expanded state persists
    in localStorage under 'vcm-sidebar-expanded'.
+
+   ADR-0034 §9 v0.18.3: brand row has a ‹/› button that toggles the
+   entire sidebar between 240px text mode and 64px icon-only mode.
+   State persists in localStorage as 'vcm-sidebar-collapsed'. The
+   button text is computed via Alpine from `collapsed`; CSS hides
+   text + nav labels + section heads + sub-nav when collapsed.
 #}
 {% macro nav_icon(name) -%}
   <svg class="sidebar-icon" aria-hidden="true" focusable="false">
@@ -44,21 +51,34 @@
 ] %}
 
 <aside class="sidebar" data-c="sidebar" aria-label="Primary"
-       x-data="sidebarNav()" x-init="init()">
-  <a class="sidebar-brand" href="/" data-c="sidebar-brand">
-    <span class="sidebar-mark" aria-hidden="true">v</span>
-    <span>vibe coding mgr</span>
-  </a>
+       x-data="sidebarNav()" x-init="init()"
+       :data-collapsed="collapsed ? 'true' : 'false'">
+  <div class="sidebar-brand-row" data-c="sidebar-brand-row">
+    <a class="sidebar-brand" href="/" data-c="sidebar-brand">
+      <span class="sidebar-mark" aria-hidden="true">v</span>
+      <span class="sidebar-brand-text">vibe coding mgr</span>
+    </a>
+    <button class="sidebar-collapse-btn"
+            type="button"
+            data-c="sidebar-collapse-btn"
+            :aria-label="collapsed ? '{{ t('sidebar.expand.button_title') }}' : '{{ t('sidebar.collapse.button_title') }}'"
+            :title="collapsed ? '{{ t('sidebar.expand.button_title') }}' : '{{ t('sidebar.collapse.button_title') }}'"
+            :aria-expanded="!collapsed"
+            aria-controls="sidebar-shell-target"
+            @click="toggleCollapse()">
+      <span class="sidebar-collapse-icon" aria-hidden="true" x-text="collapsed ? '›' : '‹'"></span>
+    </button>
+  </div>
 
   <nav class="sidebar-section" aria-label="Navigation" data-c="sidebar-nav">
     <a class="sidebar-link {{ 'active' if request.path == '/' else '' }}" href="/" data-c="sidebar-link"
        data-link="cockpit"
        {% if request.path == '/' %}aria-current="page"{% endif %}>
-      {{ nav_icon('cockpit') }}{{ t("nav.cockpit") }}</a>
+      {{ nav_icon('cockpit') }}<span class="sidebar-link-text">{{ t("nav.cockpit") }}</span></a>
     <a class="sidebar-link {{ is_active('/settings') }}" href="/settings"
        data-c="sidebar-link" data-link="settings"
        {% if request.path.startswith('/settings') %}aria-current="page"{% endif %}>
-      {{ nav_icon('settings') }}{{ t("nav.settings") }}</a>
+      {{ nav_icon('settings') }}<span class="sidebar-link-text">{{ t("nav.settings") }}</span></a>
   </nav>
 
   <nav class="sidebar-section" aria-label="Projects" data-c="sidebar-projects">
@@ -87,8 +107,21 @@
                href="/projects/{{ p_name }}"
                data-c="sidebar-project"
                data-project="{{ p_name }}"
+               title="{{ p_name }}"
                {% if request.path == '/projects/' ~ p_name %}aria-current="page"{% endif %}>
-              <span class="status-dot" aria-label="{{ t('sidebar.project.status_aria') }}"></span>
+              {# ADR-0034 §9.9: per-project icon — avatar <img> when a git
+                 remote was resolvable, else hash-color monogram block.
+                 Shown in BOTH modes; name text hides when collapsed. #}
+              {% if p.icon_url %}
+                <img class="sidebar-project-icon"
+                     src="{{ p.icon_url }}" alt=""
+                     loading="lazy" referrerpolicy="no-referrer"
+                     aria-hidden="true">
+              {% else %}
+                <span class="sidebar-project-icon sidebar-project-icon--mono"
+                      aria-hidden="true"
+                      style="background: {{ p.icon_color or '#57534e' }}">{{ p_name[0] | upper }}</span>
+              {% endif %}
               <span class="sidebar-project-name">{{ p_name }}</span>
             </a>
             <button class="sidebar-project-toggle"
@@ -104,7 +137,7 @@
           <div class="sidebar-subnav"
                id="subnav-{{ p_name }}"
                data-c="sidebar-subnav"
-               x-show="isExpanded('{{ p_name }}')"
+               x-show="isExpanded('{{ p_name }}') && !collapsed"
                x-cloak>
             {% for sub_key, sub_label_key in SUBNAV_FEATURES %}
               {% set sub_url = '/projects/' ~ p_name if sub_key == 'overview' else '/projects/' ~ p_name ~ '/' ~ sub_key %}

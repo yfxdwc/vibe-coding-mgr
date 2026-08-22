@@ -9,6 +9,92 @@ The format is loosely: version, date, summary, list of changes, and a
 
 ---
 
+## v0.18.3 — 2026-08-22
+
+**Sidebar collapse (icon-only 64px mode). New ‹ button in the
+brand row toggles the whole sidebar between 240px text mode and
+64px icon-only mode. State persists in localStorage. ADR-0034
+amended to allow the feature.**
+
+### Added
+
+- **`sidebar.collapse.button_title` + `sidebar.expand.button_title`**
+  i18n keys (zh + en). Used as both `title` and `aria-label` on
+  the new toggle button.
+- **`<button class="sidebar-collapse-btn">` in `_partials/sidebar.html`**
+  — sits to the right of the "vibe coding mgr" brand title. Reads
+  `‹` (collapse) or `›` (expand) depending on state. Single character
+  for 64px-mode legibility.
+- **`--sidebar-icon-width: 64px`** design token (tokens.css).
+- **`.sidebar-collapse-btn` styles** — 22px square, transparent bg,
+  hover bg `var(--surface-alt)`, active bg `var(--accent-dim)`,
+  color `var(--text-muted) → var(--accent)`.
+- **`.sidebar-project-name-first-letter`** monogram element — shown
+  only in collapsed mode; displays first letter of the project name
+  in `var(--font-mono)` (matches existing project name font).
+- **`.sidebar[data-collapsed="true"]`** collapsed-mode CSS rule — hides
+  brand text, nav link text, section heads, project names, sub-nav,
+  chevron toggles, and footer version. Reduces width to 64px.
+- **`.shell-grid:has(.sidebar[data-collapsed="true"])`** grid override
+  — matches the new sidebar width so `<main>` gets the freed 176px.
+- **`server/project_icon.py` (new module, ADR-0034 §9.9)** — resolves
+  a project icon at add-time from its git remote:
+  `git -C <path> remote get-url origin` → GitHub/GitLab owner avatar
+  URL (`https://github.com/{owner}.png?size=32`), or a hash-color
+  fallback (`md5(name)` → HSL → hex). **No network calls from the
+  server** — it stores a URL the browser loads, so offline / rate-
+  limit / proxy environments are all safe.
+- **`projects` table +2 columns** (`icon_url`, `icon_color`) —
+  idempotent migration in `dashboard.init_db` (PRAGMA check →
+  ALTER TABLE). Existing projects get lazy backfilled at startup
+  via `_backfill_project_icons()` (NULL-only, best-effort).
+- **`.sidebar-project-icon` + `.sidebar-project-icon--mono`** CSS —
+  18px circular avatar `<img>` / hash-color monogram block in
+  expanded mode; scales to 24px in collapsed mode; active project
+  gets a 2px accent ring. Replaces the first-cut letter-only
+  monogram (`.sidebar-project-name-first-letter` removed).
+
+### Changed
+
+- **`docs/adr/0034-sidebar-subnav.md`** — §9 "整栏收起" added.
+  §不做 中 "❌ 不新增 sidebar 折叠模式" 红线**删除** (保留为删除线
+  + 修订说明)。新增长 "修订历史" 小节解释推翻理由。
+- **`_partials/sidebar.html`** — `.sidebar-brand` wrapping reorganized:
+  was `<a class="sidebar-brand">` containing mark + text; now wraps
+  the `<a>` + new `<button class="sidebar-collapse-btn">` in a
+  `<div class="sidebar-brand-row">` so the click targets are siblings
+  (no nested interactive elements inside an `<a>`).
+- **`sidebarNav()` Alpine function** — added 2 fields (`collapsed` +
+  init from localStorage) + 1 method (`toggleCollapse()`).
+- **`project-name` template** — added first-letter monogram element,
+  shown only when collapsed (`x-show="collapsed"`).
+
+### Design notes
+
+- ADR: [0034 §9](docs/adr/0034-sidebar-subnav.md) (amended from v0.18.2).
+- Why amend instead of new ADR: the §1-8 sub-nav decision tree is
+  orthogonal to §9 whole-bar collapse. Same author, same intent
+  (sidebar UX), same codebase. Splitting into a new ADR would
+  duplicate the 6-decision context.
+- Why 64px not hidden / hover-expand: chosen by user 2026-08-22
+  (icon-only > hidden > hover-expand). Trade-off matrix in the
+  question form preserved in HANDOFF.
+
+---
+
+## v0.18.2 — 2026-08-22
+
+> **未单独列条** — v0.18.2 的 sidebar sub-nav 改动在 master 上
+> 已合并，但 CHANGELOG.md 没单列条目（漏写）。本条 (v0.18.3)
+> 在 CHANGELOG 顶部补一段反向说明，避免历史空缺。
+
+ADR-0034 已在 v0.18.2 实施：per-project sub-nav + 7 个二级菜单
+(overview / drift / skills / trends / peers / audit / docs) +
+默认折叠 + 当前项目自动展开 + localStorage 持久化 (`vcm-sidebar-expanded`)。
+详见 [ADR-0034 §1-8](docs/adr/0034-sidebar-subnav.md)。
+
+---
+
 ## v0.18.1 — 2026-08-22
 
 **Project-internal feature architecture (ADR-0032). The 6 features

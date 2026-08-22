@@ -67,6 +67,8 @@
   </button>
   <button class="tab" role="tab" :class="{ active: tab === 'activity' }"
           @click="setTab('activity')" data-tab="activity">{{ t("cockpit.tabs.activity") }}</button>
+  <button class="tab" role="tab" :class="{ active: tab === 'leaderboard' }"
+          @click="setTab('leaderboard')" data-tab="leaderboard">{{ t("cockpit.tabs.leaderboard") }}</button>
 </nav>
 {% endblock %}
 
@@ -227,6 +229,76 @@
   </div>
 </section>
 
+<!-- —— tab=leaderboard : 项目排名（v0.18.2 起简化 — 默认 td_count desc）—————— -->
+<section x-show="tab === 'leaderboard'" class="stack-5" data-c="tab-panel" data-tab="leaderboard">
+  <div class="c-card">
+    <div class="c-card-head">
+      <h2 class="text-section">{{ t("leaderboard.title") }}</h2>
+      <span class="text-meta">
+        <span x-text="lbRows.length"></span>
+        <span x-text="lbRows.length !== 1 ? window.t('leaderboard.projects_unit_plural') : window.t('leaderboard.projects_unit')"></span>
+        · {{ t("leaderboard.sort.label.td_count") }}
+      </span>
+    </div>
+
+    <div x-show="!lbRows.length" class="empty-state">
+      <p>{{ t("leaderboard.empty") }}</p>
+    </div>
+
+    <div x-show="lbRows.length" style="overflow-x: auto;">
+      <table class="data-table" data-c="leaderboard-table">
+        <thead>
+          <tr>
+            <th class="num">#</th>
+            <th>{{ t("leaderboard.col.project") }}</th>
+            <th>{{ t("leaderboard.col.branch") }}</th>
+            <th class="num">{{ t("leaderboard.col.tds") }}</th>
+            <th class="num">{{ t("leaderboard.col.skills") }}</th>
+            <th class="num">{{ t("leaderboard.col.adrs") }}</th>
+            <th class="num">{{ t("leaderboard.col.compliance") }}</th>
+            <th class="num">{{ t("leaderboard.col.days_idle") }}</th>
+            <th>{{ t("leaderboard.col.dirty") }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <template x-for="(r, i) in lbRows" :key="r.name">
+            <tr @click="window.location = '/projects/' + r.name">
+              <td class="num muted" x-text="i + 1"></td>
+              <td>
+                <a class="mono" :href="'/projects/' + r.name" @click.stop x-text="r.name"></a>
+              </td>
+              <td><code x-text="r.branch || '—'"></code></td>
+              <td class="num"
+                  :style="r.td_count > 30 ? 'color: var(--fail)' : ''"
+                  x-text="r.td_count"></td>
+              <td class="num" x-text="r.skills"></td>
+              <td class="num" x-text="r.adrs"></td>
+              <td class="num">
+                <span class="tag"
+                      :style="r.compliance >= 0.66 ? 'background: var(--ok-dim); color: var(--ok)' :
+                              r.compliance >= 0.33 ? 'background: var(--warn-dim); color: var(--warn)' :
+                                                     'background: var(--fail-dim); color: var(--fail)'">
+                  <span x-text="Math.round(r.compliance * 100) + '%'"></span>
+                </span>
+              </td>
+              <td class="num"
+                  :style="r.stale_days != null && r.stale_days > 30 ? 'color: var(--fail)' : ''">
+                <span x-show="r.stale_days != null" x-text="r.stale_days + 'd'"></span>
+                <span x-show="r.stale_days == null" class="muted">—</span>
+              </td>
+              <td>
+                <span class="badge" :class="r.dirty ? 'badge--warn' : 'badge--ok'">
+                  <span x-text="r.dirty ? window.t('leaderboard.tree_dirty') : window.t('leaderboard.tree_clean')"></span>
+                </span>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
 {% endblock %}
 
 {% block extra_head %}
@@ -249,6 +321,9 @@ function page() {
     skillMatrix: [],
     attention: [],
     activity: [],
+    // v0.18.2 (ADR-0032 §v0.18.2 update): leaderboard 降级为 cockpit
+    // tab — 默认 td_count desc，不暴露排序 UI。
+    lbRows: [],
 
     async init() {
       // top-nav universal summary
@@ -267,6 +342,7 @@ function page() {
         this.loadSkillMatrix(),
         this.loadAttention(),
         this.loadActivity(),
+        this.loadLeaderboard(),
       ]);
       this.$nextTick(() => this.renderChart());
       this.subscribeStream();
@@ -316,6 +392,11 @@ function page() {
     async loadSkillMatrix() { this.skillMatrix = await this.fetchJSON('/api/dashboard/skill-matrix'); },
     async loadAttention()   { this.attention   = await this.fetchJSON('/api/dashboard/attention'); },
     async loadActivity()    { this.activity    = await this.fetchJSON('/api/dashboard/activity'); },
+    // v0.18.2: 不带 sort/order 参数 → 服务端默认 td_count desc。
+    async loadLeaderboard() {
+      const j = await this.fetchJSON('/api/dashboard/leaderboard');
+      this.lbRows = j.rows || [];
+    },
 
     setTab(t) {
       this.tab = t;

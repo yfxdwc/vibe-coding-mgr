@@ -573,6 +573,17 @@ def init_db():
     """)
     conn.commit()
 
+    # ADR-0034 §9.9 v0.18.3: project icon auto-fetch. Add icon_url +
+    # icon_color columns idempotently (existing DBs created before this
+    # column existed won't have them — CREATE TABLE IF NOT EXISTS won't
+    # touch an existing table, so we ALTER here).
+    cols = {row["name"] for row in conn.execute("PRAGMA table_info(projects)")}
+    if "icon_url" not in cols:
+        conn.execute("ALTER TABLE projects ADD COLUMN icon_url TEXT")
+    if "icon_color" not in cols:
+        conn.execute("ALTER TABLE projects ADD COLUMN icon_color TEXT")
+    conn.commit()
+
     # ADR-0031: post-init self-check.
     # Uses print (not logging) so the line shows up at import time when
     # app.py calls init_db() before basicConfig is set. Format mirrors

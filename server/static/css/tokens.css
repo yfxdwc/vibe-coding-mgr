@@ -44,7 +44,8 @@
 
   /* —— Sidebar 宽度 (ADR-0030, v0.18.0+) ——————————————— */
   --sidebar-width:                240px;   /* >= 1024px */
-  --sidebar-collapsed-width:      200px;   /* 768-1023px */
+  --sidebar-collapsed-width:      200px;   /* 768-1023px (responsive) */
+  --sidebar-icon-width:            64px;   /* ADR-0034 §9 v0.18.3 整栏收起 */
   --sidebar-footer-icon-size:     28px;
 
   /* —— 间距 (4 / 8 / 12 / 16 / 24 / 32 / 48 / 64) ————— */

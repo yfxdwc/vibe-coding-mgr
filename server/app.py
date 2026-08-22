@@ -35,6 +35,7 @@ from dashboard import (
 import docs_search  # ADR-0020
 import mcp_server  # ADR-0021 (HTTP transport; stdio lives in mcp_server.__main__)
 import peers  # ADR-0022
+import project_icon  # ADR-0034 §9.9 (project icon auto-fetch)
 
 ROOT = Path(__file__).resolve().parent.parent
 DB_PATH = Path(os.environ.get("VCM_SERVER_DB", str(ROOT / "server" / "vcm.db")))
@@ -275,6 +276,11 @@ def collect():
         project_path = state["project"]["path"]
         now = datetime.utcnow().isoformat() + "Z"
 
+        # ADR-0034 §9.9: resolve icon on first sight (git remote →
+        # avatar URL, or hash-color fallback). INSERT-only — existing
+        # projects keep their icon (don't re-run git per push).
+        icon = project_icon.resolve_project_icon(project_path, project_name)
+
         conn = get_db()
         # Upsert project
         existing = conn.execute(
@@ -288,8 +294,9 @@ def collect():
             )
         else:
             cursor = conn.execute(
-                "INSERT INTO projects (name, path, first_seen_at, last_seen_at) VALUES (?, ?, ?, ?)",
-                (project_name, project_path, now, now),
+                "INSERT INTO projects (name, path, icon_url, icon_color, first_seen_at, last_seen_at) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (project_name, project_path, icon["icon_url"], icon["icon_color"], now, now),
             )
             project_id = cursor.lastrowid
 
@@ -550,10 +557,13 @@ def create_project():
 
     # insert
     now = datetime.utcnow().isoformat() + "Z"
+    # ADR-0034 §9.9: auto-fetch icon at add-time. git remote → avatar
+    # URL, or hash-color monogram fallback. Never blocks on network.
+    icon = project_icon.resolve_project_icon(str(p), name)
     conn.execute(
-        "INSERT INTO projects (name, path, first_seen_at, last_seen_at) "
-        "VALUES (?, ?, ?, ?)",
-        (name, str(p), now, now),
+        "INSERT INTO projects (name, path, icon_url, icon_color, first_seen_at, last_seen_at) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        (name, str(p), icon["icon_url"], icon["icon_color"], now, now),
     )
     conn.commit()
     conn.close()
@@ -564,6 +574,8 @@ def create_project():
     payload = {
         "name": name,
         "path": str(p),
+        "icon_url": icon["icon_url"],
+        "icon_color": icon["icon_color"],
         "first_seen_at": now,
         "last_seen_at": now,
     }
@@ -583,7 +595,8 @@ def list_projects():
     # Get latest state per project
     rows = conn.execute("""
         SELECT
-            p.id, p.name, p.path, p.first_seen_at, p.last_seen_at,
+            p.id, p.name, p.path, p.icon_url, p.icon_color,
+            p.first_seen_at, p.last_seen_at,
             s.raw_json, s.received_at
         FROM projects p
         LEFT JOIN states s ON s.id = (
@@ -872,11 +885,13 @@ def _render(template_name, **kwargs):
     """Wrap render_template to inject auth_required context (ADR-0004)
     + sidebar context (ADR-0030: projects list for sidebar)."""
     # ADR-0030: sidebar needs project list. Cap at 50 to bound render time.
+    # ADR-0034 §9.9: include icon_url + icon_color so the sidebar can render
+    # per-project icons (avatar <img> or hash-color monogram block).
     sidebar_projects = []
     try:
         rows = get_db().execute("""
-            SELECT id, name, path, last_seen_at FROM projects
-            ORDER BY last_seen_at DESC LIMIT 50
+            SELECT id, name, path, icon_url, icon_color, last_seen_at
+            FROM projects ORDER BY last_seen_at DESC LIMIT 50
         """).fetchall()
         sidebar_projects = [dict(r) for r in rows]
     except Exception:
@@ -971,8 +986,18 @@ def settings_view():
 
 @app.route("/leaderboard")
 def leaderboard_view():
-    """Cross-project ranking (ADR-0005)."""
-    return _render("leaderboard.html")
+    """Cross-project ranking (ADR-0005).
+
+    v0.18.2 (ADR-0032 §v0.18.2 update): leaderboard 降级为 cockpit
+    的第 4 tab，原 `/leaderboard` URL 保留 302 重定向到
+    `/?tab=leaderboard`，保证书签 / curl / 外链不坏。
+    """
+    from flask import redirect, request
+    lang = request.args.get('lang')
+    target = '/?tab=leaderboard'
+    if lang:
+        target += f'&lang={lang}'
+    return redirect(target, code=302)
 
 
 @app.route("/api/peers")
@@ -1273,13 +1298,39 @@ def not_found(e):
     return jsonify({"error": "not found"}), 404
 
 
+def _backfill_project_icons():
+    """ADR-0034 §9.9: one-time backfill for projects created before the
+    icon columns existed (icon_url IS NULL AND icon_color IS NULL).
+    Idempotent: resolves once, then the row is non-NULL so it's skipped
+    on the next startup. Runs at import time + main() so both the
+    test_client path and the CLI path backfill."""
+    try:
+        conn = get_db()
+        rows = conn.execute(
+            "SELECT id, name, path FROM projects "
+            "WHERE icon_url IS NULL AND icon_color IS NULL"
+        ).fetchall()
+        for r in rows:
+            icon = project_icon.resolve_project_icon(r["path"] or "", r["name"])
+            conn.execute(
+                "UPDATE projects SET icon_url = ?, icon_color = ? WHERE id = ?",
+                (icon["icon_url"], icon["icon_color"], r["id"]),
+            )
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass  # backfill is best-effort; never block startup
+
+
 # Initialize DB at import time so test_client and CLI both work
 init_db()
+_backfill_project_icons()
 peers.load_peers()  # ADR-0022: register peer URLs at startup
 
 
 def main():
     init_db()
+    _backfill_project_icons()
     port = int(os.environ.get("VCM_SERVER_PORT", 7338))
     host = os.environ.get("VCM_SERVER_HOST", "127.0.0.1")
     print(f"vcm-server starting on http://{host}:{port}")

@@ -25,7 +25,7 @@ drift / skills / trends / peers / audit / docs / settings。但其中 6 项是
 
 ## 决策
 
-### 1. 顶级 sidebar 减到 3 项
+### 1. 顶级 sidebar 减到 3 项（v0.18.2 起减到 2 项）
 
 只保留服务级 / 全局级：
 
@@ -37,6 +37,13 @@ drift / skills / trends / peers / audit / docs / settings。但其中 6 项是
 
 其余 6 项（drift / skills / trends / peers / audit / docs）**全部**挪到
 项目内。
+
+> **v0.18.2 update (supersedes 本节"排行榜"行)**：详见文件末尾
+> `§v0.18.2 update` 章节。`/leaderboard` 从顶级 sidebar 降级为
+> cockpit 的第 4 个 tab（与 `overview` / `attention` / `activity` 平级），
+> 顶级 sidebar 减到 2 项（驾驶舱 + 设置）。`/leaderboard` 旧 URL
+> 保留 302 重定向 `/?tab=leaderboard` 以保证书签 / curl / 外链不坏。
+> 原"3 项"表保留作为历史快照，不删除。
 
 ### 2. `/projects/<name>` 加 project-section-nav（6 + 1 项）
 
@@ -196,6 +203,94 @@ npm run test:e2e
 - ❌ 不删 `_partials/nav.html`（保留作为 fallback / 测试 fixture）
 - ❌ 不重构 ADR-0030 的 sidebar decision（仅加 §"v0.18.1 update"）
 
+## v0.18.2 update — Leaderboard 降级为 cockpit tab
+
+**状态**：已采纳（v0.18.2，未实施）
+**作者**：mm7 / pi
+**触发**：v0.18.1 上线后 1 周回访 — 排行榜虽然跨项目，但语义是
+"项目视角的全局榜单"（看到自己在群体中的位置），与 cockpit
+"多项目总览"概念重叠。顶级 sidebar 3 项 → 2 项后，排行榜作为
+cockpit 的第 4 tab（`overview` / `attention` / `activity` / `leaderboard`）
+语义上更清晰。
+
+### 决策
+
+**1. 顶级 sidebar 减到 2 项**：驾驶舱 + 设置。**2. cockpit 新增第 4 tab `leaderboard`**：与 `overview` / `attention` / `activity` 平级。**3. 简化 tab 内功能**：原 `/leaderboard` 有 6 个排序按钮 + 升降序切换 + URL state。迁入 tab 后只保留**默认排序**（`td_count desc`，最严重的项目排最前）+ 表格。**4. URL 重定向**：`/leaderboard` 302 redirect 到 `/?tab=leaderboard`，保留书签 / curl / 外链兼容。
+
+### 取舍
+
+- **简化排序功能**：原 `/leaderboard` 支持 6 种排序（td_count / skills / adrs / compliance / last_seen / dirty_clean）+ 升降序。tab 内降级后只保留默认排序，**不暴露排序 UI**。理由：排行榜在 cockpit tab 中的位置是"项目群体中的位置"，默认 td_count desc 已经回答了"哪个项目最需要注意"——这正是 cockpit 的核心问题。技能数 / ADR 数 / 合规度等次级排序在 cockpit `overview` 矩阵中已经可见（按列排序或 hover 查看）。**净债最小**：少 ~80 行 Alpine 状态 + URL state 逻辑，少 ~12 行 i18n 排序 label；功能损失可接受（次级排序 = 不常用 + overview 矩阵可补）。
+- **API 不变**：`/api/dashboard/leaderboard?sort=...&order=...` 保留。tab 内 fetch 不带参数，服务端默认 `td_count desc`——已有逻辑自动满足。
+- **SSE 不监听 leaderboard 数据**：排行榜数据变化不频繁（只在 push 时变），tab 切换时 fetch 一次即可。**少监听 = 少 SSE 重连风险**，符合 CHARTER §5 净债最小。
+
+### 改动清单
+
+| 文件 | 改动 |
+|---|---|
+| `server/templates/_partials/sidebar.html` | 删 leaderboard 链接（3 行） |
+| `server/templates/dashboard.html` | tabs 块加 `leaderboard` button；content 块加简化版 leaderboard section；page() 函数加 `lbRows` + `loadLeaderboard()` |
+| `server/app.py` | `/leaderboard` 路由改为 `redirect(/?tab=leaderboard, code=302)` |
+| `server/templates/leaderboard.html` | 删（内容 inline 到 dashboard.html） |
+| `server/i18n.py` | 加 `cockpit.tabs.leaderboard` 键（en + zh） |
+
+### 验收
+
+> **端口约定**：本 ADR 验收脚本使用 `127.0.0.1:7340` 作示例，但
+> **实际端口由 `~/.vcm/server.env` 的 `VCM_SERVER_PORT` 决定**
+> （`scripts/install-service.sh::pick_free_port()` 在 7338..7399
+> 中自动选空闲端口，避免与 repowise / 其他本地服务冲突）。
+> 安装后用 `systemctl --user status vcm-server` 或
+> `cat ~/.vcm/server.env` 查实际端口。
+
+```bash
+# 拿实际端口（避免文档中的示例端口与本机不符）
+PORT="${VCM_SERVER_PORT:-$(grep ^VCM_SERVER_PORT= ~/.vcm/server.env 2>/dev/null | cut -d= -f2)}"
+PORT="${PORT:-7339}"  # install-service.sh 默认首选 7338，7399 退回
+BASE="http://127.0.0.1:${PORT}"
+
+# 1. 6 hard check 全过
+bash scripts/routine_coverage.sh   # exit 0
+
+# 2. 顶级 sidebar 剩 2 项
+curl -s "$BASE/" | grep -c 'data-link='
+# → 2
+
+# 3. /leaderboard 302 → /?tab=leaderboard
+curl -s -o /dev/null -w '%{http_code} → %{redirect_url}' \
+  "$BASE/leaderboard"
+# → 302 → http://127.0.0.1:${PORT}/?tab=leaderboard
+
+# 4. /?tab=leaderboard 显示 leaderboard tab
+curl -s "$BASE/?tab=leaderboard" | grep -q 'data-tab="leaderboard"'
+# → exit 0
+
+# 5. /api/dashboard/leaderboard 仍工作
+curl -s "$BASE/api/dashboard/leaderboard" \
+  | grep -q '"rows"'
+# → exit 0
+
+# 6. 测试通过
+npm test
+```
+
+### 反对意见（self-argue）
+
+- **Q：3 → 2 项会不会让 sidebar 太轻？**  
+  **A**：sidebar 不是菜单，是"信息密度载体的索引"（ADR-0001 repowise 启发）。2 项 = 驾驶舱（唯一索引页）+ 设置（服务元信息），足够。剩余功能在驾驶舱 tab 内部 / 项目页内部都有入口。
+
+- **Q：删 leaderboard.html 是否破坏测试 fixture？**  
+  **A**：测试只 curl URL 不读模板文件（`tests/server/dashboard.test.js` 用 selector 抓 `<nav>` / `<aside>`，不引用文件名）。删模板安全。
+
+- **Q：为什么不留"高级排序"折叠面板？**  
+  **A**：CHARTER §3「长期稳定 > 短期少 diff」+ §5「净债最小」。折叠面板 = ~50 行新 JS + 新 i18n 键 + 新 token；功能价值低（次级排序不常用）；不划算。
+
+### 不做
+
+- ❌ 不删 `nav.leaderboard` i18n 键（保留以防历史 fallback）
+- ❌ 不删旧 `leaderboard.*` i18n 键（保留 — `/api/dashboard/leaderboard` 端点仍可访问，未来 reverse 也可能用到）
+- ❌ 不重构 cockpit `overview` tab（矩阵已能补次级排序需求）
+- ❌ 不加 SSE 监听 leaderboard（变化不频繁 + 简化 = 少债）
+
 ## 参考
 
 - [ADR-0030 sidebar](0030-sidebar-and-multi-project.md) — sidebar 基础
@@ -205,3 +300,6 @@ npm run test:e2e
 - [docs/DESIGN.md §5 视图模式](../DESIGN.md) — 顶级 nav 减负
 - 主人决策：v0.18.1 起"服务级 / 全局级" = cockpit + leaderboard +
   settings；其他 = 项目内
+- v0.18.2 update：上述决策的 v0.18.1 版快照保留作为历史；v0.18.2 起
+  leaderboard 降级为 cockpit 第 4 tab，顶级 sidebar 减到 2 项 = cockpit +
+  settings

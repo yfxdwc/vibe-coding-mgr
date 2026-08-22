@@ -26,9 +26,9 @@ describe('vcm CLI', () => {
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it('vcm --version shows 0.17.0', () => {
+  it('vcm --version shows 0.18.3', () => {
     const out = run(`node ${VCM_ROOT}/bin/vcm.js --version`);
-    expect(out.trim()).toBe('0.17.0');
+    expect(out.trim()).toBe('0.18.3');
   });
 
   it('vcm init creates AGENTS.md and CHARTER.md', () => {

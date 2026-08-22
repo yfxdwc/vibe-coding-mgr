@@ -119,26 +119,28 @@ describe('leaderboard endpoint (ADR-0005)', () => {
   });
 });
 
-describe('leaderboard view (HTML)', () => {
-  it('GET /leaderboard renders table + 6 sort options', async () => {
-    const r = await fetch(`http://127.0.0.1:${PORT}/leaderboard`);
-    expect(r.status).toBe(200);
-    const body = await r.text();
-    expect(body).toContain('data-c="leaderboard-table"');
-    // 6 sort keys via Alpine setSort(value)
-    expect(body).toContain("'td_count'");
-    expect(body).toContain("'skills'");
-    expect(body).toContain("'adrs'");
-    expect(body).toContain("'governance_compliance'");
-    expect(body).toContain("'last_seen_days'");
-    expect(body).toContain("'dirty_clean'");
+describe('leaderboard view (HTML) — v0.18.2 demoted to cockpit tab (ADR-0032 §v0.18.2 update)', () => {
+  it('GET /leaderboard 302 redirects to /?tab=leaderboard', async () => {
+    const r = await fetch(`http://127.0.0.1:${PORT}/leaderboard`, { redirect: 'manual' });
+    expect(r.status).toBe(302);
+    expect(r.headers.get('location')).toMatch(/\/\?tab=leaderboard/);
   });
 
-  it('GET /leaderboard?sort=skills reflects state via Alpine x-text', async () => {
-    const r = await fetch(`http://127.0.0.1:${PORT}/leaderboard?sort=skills&order=desc&lang=en`);
+  it('GET /?tab=leaderboard renders cockpit with leaderboard tab + table', async () => {
+    const r = await fetch(`http://127.0.0.1:${PORT}/?tab=leaderboard&lang=en`);
+    expect(r.status).toBe(200);
     const body = await r.text();
-    expect(body).toContain('Sorted by');
-    // Alpine reactivity: `sort` is initialised from URL ?sort=
-    expect(body).toContain("new URLSearchParams(location.search).get('sort')");
+    expect(body).toContain('data-tab="leaderboard"');
+    expect(body).toContain('data-c="leaderboard-table"');
+  });
+
+  it('cockpit leaderboard tab does not expose sort UI (simplified — default td_count desc only)', async () => {
+    const r = await fetch(`http://127.0.0.1:${PORT}/?tab=leaderboard&lang=en`);
+    const body = await r.text();
+    // Simplified: no 6 sort buttons, no URL state for ?sort=/?order=
+    expect(body).not.toContain('setSort');
+    expect(body).not.toContain('sortOptions');
+    expect(body).not.toContain("'governance_compliance'");
+    expect(body).not.toContain("'last_seen_days'");
   });
 });

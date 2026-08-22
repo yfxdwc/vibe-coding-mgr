@@ -534,6 +534,9 @@ EN: dict[str, str] = {
     # -- v0.18.2 sidebar sub-nav (ADR-0034) ---------------------------
     'sidebar.subnav.overview':               'Overview',
     'sidebar.subnav.toggle_aria':            'Toggle sub-navigation',
+    # -- v0.18.3 sidebar collapse (ADR-0034 §9) -----------------------
+    'sidebar.collapse.button_title':         'Collapse sidebar',
+    'sidebar.expand.button_title':           'Expand sidebar',
     'common.add':                            'Add',
 
 
@@ -1002,6 +1005,9 @@ ZH: dict[str, str] = {
     # -- v0.18.2 sidebar sub-nav (ADR-0034) ---------------------------
     'sidebar.subnav.overview':               '概览',
     'sidebar.subnav.toggle_aria':            '展开/收起子导航',
+    # -- v0.18.3 sidebar collapse (ADR-0034 §9) -----------------------
+    'sidebar.collapse.button_title':         '收起侧边栏',
+    'sidebar.expand.button_title':           '展开侧边栏',
     'common.add':                            '添加',
 
 

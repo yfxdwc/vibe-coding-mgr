@@ -1,8 +1,10 @@
 # ADR-0034 — Sidebar sub-nav (project-as-folder with collapsible children)
 
-**状态**: 已采纳（未实施 — 等待主人从 ADR-0032 与本方案二选一）
-**日期**: 2026-08-22
+**状态**: 已采纳 + 修订 (v0.18.3)
+**日期**: 2026-08-22（v0.18.2 实施）；2026-08-22 修订加 §9 整栏收起
 **作者**: mm7 / pi
+**修订**: v0.18.3 — 删除 §不做 中 "不新增 sidebar 折叠模式" 红线，新增 §9
+"整栏收起" 决策段；详见文末 "修订历史" 小节
 **前置**: [ADR-0030](0030-sidebar-and-multi-project.md), [ADR-0032](0032-project-internal-features.md), [ADR-0033](0033-htmx-spa-navigation.md)
 **备选**: [ADR-0032 横排 tabs](0032-project-internal-features.md)
 
@@ -136,6 +138,170 @@ nav.docs`（已存在，i18n.py line 61-65 / 69）。**新增**：
 
 **不**新增 token；颜色 / 间距 / 字号全部用现有 tokens.css 变量。
 
+### 9. 整栏收起 (v0.18.3 加) — icon-only 64px
+
+> **本节为修订新增**，推翻原 §不做 中 "不新增 sidebar 折叠模式" 红线。
+> 详细理由见文末 "修订历史" 小节。
+
+把 **整条侧栏**从 240px 收到 64px icon-only 模式，触发器在 brand 行
+("vibe coding mgr" 标题右边的 `‹` 按钮)。状态写 `localStorage['vcm-sidebar-collapsed']`,
+刷新 + 跨页保留。
+
+**9.1 触发器位置**
+
+```
+┌──────────────────────────────┐
+│ [v] vibe coding mgr     [‹]  │ ← brand 行 + 收起按钮
+├──────────────────────────────┤
+│ 🚗 驾驶舱                       │
+│ ⚙ 设置                        │
+├──────────────────────────────┤
+│ PROJECTS                  +  │
+│ • vcm-smoke                    │ ← active 项目
+│ • sales-ai                     │
+│ • vibe-coding-mgr              │
+├──────────────────────────────┤
+│ 🌐  ☀/☾  v18                  │
+└──────────────────────────────┘
+```
+
+按钮位于 `.sidebar-brand` 行**右侧** (`brand-line` 方案)。`‹` / `›`
+字符分别表示 "收起" / "展开"。点击切换。
+
+**9.2 收起态视觉 (64px)**
+
+```
+┌────┐
+│ v  │
+├────┤
+│ 🚗 │
+│ ⚙  │
+├────┤
+│ (S) │  ← 18→24px 项目图标（avatar <img> 或 hash 色 monogram 块）
+│ (V) │
+├────┤
+│ 🌐 │
+│ ☀  │
+└────┘
+```
+
+- **brand**：只保留 `.sidebar-mark` ("v" 圆)，文字隐藏。
+- **顶级 nav**：`.sidebar-link` 只显示 `<svg class="sidebar-icon">`，文字隐藏。
+- **section head**：`.sidebar-section-head > span` 隐藏 (`PROJECTS` 标签不显示)。
+  `+` add 按钮隐藏 (收起态禁用新增项目——避免误触，且 64px 装不下 dialog 触发)。
+- **project 行**：`.sidebar-project` 只显示项目图标（§9.9：有 git remote
+  时是 avatar `<img>`，否则 hash 色 monogram 块），名字隐藏。整行可点击，
+  鼠标悬停 `title` 属性显示完整项目名。active 项目图标加 2px accent 外环。
+- **chevron 收起按钮**：隐藏 (`/projects/<name>/<feature>` 子菜单在 64px
+  下塞不下；收起态下点击项目 → 直接进 overview，不展开子菜单)。
+- **footer**：`.sidebar-footer-version` 隐藏 ("v18" 在 64px 下太挤)。
+  🌐 / ☀ 按钮保留。
+
+**9.3 主区域调整**
+
+`.shell-grid` 模板列由 `--sidebar-width` (240px) 改 `--sidebar-icon-width`
+(64px)，主区域 `<main>` 多出 176px 可用宽度。**不**重新计算 `<main>`
+padding，由 tokens.css 一处控制。
+
+**9.4 子菜单展开与整栏收起的冲突**
+
+当用户**收起整栏**时，项目内子菜单 (`/projects/<name>/<feature>`) 无法
+显示——`64px` 宽度物理上无法放 7 个子链接。**处理规则**：
+
+- 收起态下：项目 sub-nav **强制折叠** (`x-show="!collapsed || isExpanded(name)"`)。
+- 展开态下：恢复 ADR-0034 §决策.2 行为 (默认折叠 + 当前项目自动展开)。
+- 用户在收起态点击项目 → 进 `/projects/<name>` (Overview)，返回首页
+  路径仍可在导航中找到 (因为 `.sidebar-project` 仍是 `<a>` 链接)。
+
+**9.5 localStorage 键**
+
+| key | type | 说明 |
+|---|---|---|
+| `vcm-sidebar-expanded` | JSON 数组 (ADR-0034 已用) | 项目子菜单展开列表 |
+| `vcm-sidebar-collapsed` | `"1"` / `"0"` (本节新增) | 整栏是否收起 |
+
+两个 key 互不干扰——一个管 "哪些项目的子菜单展开"，一个管 "整栏是
+不是收起来了"。
+
+**9.6 CSS 新增 (~25 行)**
+
+仅追加：
+
+- `--sidebar-icon-width: 64px` token
+- `.sidebar[data-collapsed="true"]` 宽度收缩 + 子元素隐藏
+- `.shell-grid:has(.sidebar[data-collapsed="true"])` 模板列收缩
+- `.sidebar-collapse-btn` 样式 (transparent bg + hover bg)
+- `.sidebar-project-icon` (avatar <img> / hash 色 monogram 块)
+  18px 展开态 / 24px 收起态 + active accent 外环
+- 响应式：`< 1024px` 时收起态也生效 (override media query)
+
+**9.7 i18n 新增 2 个**
+
+| Key | en | zh |
+|---|---|---|
+| `sidebar.collapse.button_title` | Collapse sidebar | 收起侧边栏 |
+| `sidebar.expand.button_title` | Expand sidebar | 展开侧边栏 |
+
+`button_title` 同时用于 `aria-label` 和 `title` (鼠标悬停 tooltip)。
+
+**9.8 Alpine 状态合并**
+
+`sidebarNav()` 函数新增 1 个字段 + 1 个方法：
+
+```js
+collapsed: localStorage.getItem('vcm-sidebar-collapsed') === '1',
+toggleCollapse() {
+  this.collapsed = !this.collapsed;
+  localStorage.setItem('vcm-sidebar-collapsed', this.collapsed ? '1' : '0');
+}
+```
+
+`<aside>` 上加 `:data-collapsed="collapsed ? 'true' : 'false'"`，CSS
+按 `[data-collapsed="true"]` 渲染收缩态。
+
+**9.9 项目图标自动获取 (v0.18.3 二次修订)**
+
+> **本节为修订新增**，替代 §9.2 中 "status dot + 1 字母 monogram" 的
+> 初版方案。主人反馈折叠后的图标需要优化 → 决策升级为"真实项目图标"。
+
+**动机**：初版 monogram（点 + 首字母）在 64px 下不可区分——
+`vcm-smoke` / `vibe-coding-mgr` 同以 `v` 开头，折叠态下只能靠
+hover tooltip 猜。主人要求：**添加项目时自动获取图标**，展开态
+项目名前也显示。
+
+**9.9.1 图标来源（服务器不出网）**
+
+- `projects` 表新增 2 列：`icon_url TEXT` + `icon_color TEXT`
+  （init_db 幂等迁移：`PRAGMA table_info` 检查缺列则 `ALTER TABLE`）。
+- 添加项目 (`POST /api/projects`) 或首次推送 (`POST /api/collect`
+  INSERT 分支) 时调用 `server/project_icon.resolve_project_icon(path, name)`：
+  1. `git -C <path> remote get-url origin`（subprocess，timeout 3s）
+  2. 解析 host → GitHub / GitLab 构造 owner avatar URL：
+     `https://github.com/{owner}.png?size=32` / `gitlab.com/{owner}.png`
+  3. 无 remote / 非托管平台 / 目录缺失 → `icon_url=None`，
+     `icon_color` = 项目名 md5 hash → HSL(48%, 42%) → hex 稳定色
+- **服务器不发起任何网络请求**：只存 URL，浏览器 `<img>` 加载。
+  离线 / API rate-limit / 代理环境全部安全；头像 404 时浏览器静默。
+- 现有项目启动时懒回填（`_backfill_project_icons()`：只处理
+  `icon_url IS NULL AND icon_color IS NULL` 行，幂等，失败静默）。
+
+**9.9.2 渲染**
+
+- 展开态：项目名前显示 18px 圆形图标 —— 有 `icon_url` 用
+  `<img class="sidebar-project-icon" loading="lazy">`，否则
+  `<span class="sidebar-project-icon--mono" style="background: {color}">S</span>`
+  （首字母大写 + hash 色背景，白字）。
+- 收起态：同一图标放大到 24px，项目名隐藏。active 项目图标加
+  2px accent 外环 (`box-shadow: 0 0 0 2px var(--accent)`)。
+- 旧 `.sidebar-project-name-first-letter`（纯字母）**废弃删除**。
+- status-dot 在两种模式下都隐藏（图标接管状态/识别职责）。
+
+**9.9.3 为什么不直接请求 GitHub API 拿 repo 专属头像**
+
+owner avatar 已足够区分项目（每个 owner 一个头像），且零网络依赖。
+Repo 专属 social preview 需要 API 调用（rate limit + 超时 + 缓存），
+v0.19+ 可升级。
+
 ## 反对意见（self-argue）
 
 - **Q: 二级菜单把 sidebar 撑得很长，与 cockpit 列表视觉冲突？**  
@@ -247,8 +413,66 @@ const { chromium } = require('playwright');
 - ❌ 不实现 `/projects/<name>/docs` per-project docs 目录扫描（v0.19）
 - ❌ **不实施本 ADR**（主人后续从 ADR-0032 / ADR-0034 二选一再实施）
 - ❌ 不扩 sidebar 宽度（保持 240px）
-- ❌ 不新增 sidebar 折叠模式（v0.18.x sidebar 永远挂在左侧）
+- ~~❌ 不新增 sidebar 折叠模式（v0.18.x sidebar 永远挂在左侧）~~  
+  **v0.18.3 修订删除本条** —— 已新增 §9 整栏收起方案 (icon-only 64px)。
 - ❌ 不重命名 i18n 现有 key（`nav.drift` 等原样复用）
+
+## 修订历史
+
+### v0.18.3 (2026-08-22) — 整栏收起
+
+**为什么修订**：主人 (mm7) v0.18.2 上线后试用，发现：
+
+1. **主区域挤**：1280px 视口下，sidebar 240px + main padding 32px × 2
+   + content padding 24px × 2 ≈ 主区域可用 928px。ECharts cockpit 在小
+   数据集下经常出现 y 轴标签被裁切，需要缩小字体或旋转标签。
+2. **演示场景**：给团队演示 dashboard 时，希望"侧栏不要抢戏"——只留
+   icon 列作为导航锚点，把视觉焦点让给图表。
+3. **桌面 vs 笔记本**：mm7 用 13 寸笔记本外接显示器，主屏 1280×800，
+   sidebar 240px 在小屏下占用 18.75% 横向空间——比例过高。
+
+**推翻了什么**：
+
+- §不做 中 "❌ 不新增 sidebar 折叠模式（v0.18.x sidebar 永远挂在左侧）"
+- **没**推翻 ADR-0030 sidebar 基础设计 (仍是 sticky left rail, 仍是
+  primary layout, 仍是 240px 默认) —— 仅在默认态基础上加了一个可切换
+  的 icon-only 态。
+
+**保留了什么**：
+
+- ADR-0034 §决策.1-8 全部不变 (sub-nav / 项目 chevron / active state
+  / `{% block tabs %}` 删除 / 路由不变 / i18n key 复用 / CSS 不新增 token)
+- §9 是 §1-8 的**正交扩展**，不冲突：§1-8 管 "sidebar 内部子菜单展
+  收"，§9 管 "sidebar 整条收不收"。
+
+**迁移成本**：0 个老用户受影响 (默认态不变，新增按钮为 opt-in)；CSS
+仅追加，不改 token；Alpine state 是新增字段。
+
+### v0.18.3b (2026-08-22) — 折叠图标优化 + 项目图标自动获取
+
+**为什么再修**：v0.18.3 初版折叠态 monogram（点 + 首字母）上线后，
+主人反馈"折叠后的图标需要优化"——`vcm-smoke` / `vibe-coding-mgr`
+同首字母不可区分。主人决策升级：**添加项目时自动获取项目图标**，
+展开态项目名前也显示。
+
+**推翻了什么**：
+
+- §9.2 "status dot + 1 字母 monogram" 初版方案 → §9.9 项目图标
+  (avatar `<img>` / hash 色 monogram 块)
+- `.sidebar-project-name-first-letter` 纯字母元素 → 废弃删除
+- status-dot 在 sidebar 隐藏（图标接管识别职责）
+
+**没推翻什么**：§9.1-9.8 全部保留（64px 宽度 / brand 触发器 /
+localStorage / grid 收缩 / i18n key / Alpine state）。
+
+**新增落地物**：
+
+- `server/project_icon.py` — git remote 解析 → avatar URL / hash 色
+- `projects` 表 +2 列 (`icon_url` / `icon_color`)，init_db 幂等迁移
+- `_backfill_project_icons()` — 启动时懒回填旧项目，幂等
+- `POST /api/projects` + `/api/collect` INSERT 分支接入 resolve
+- `.sidebar-project-icon` / `.sidebar-project-icon--mono` CSS
+- `check-collapse.cjs` 更新为 icon 断言
 
 ## 参考
 
