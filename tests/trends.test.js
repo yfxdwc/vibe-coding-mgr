@@ -154,7 +154,7 @@ describe('trend endpoint (ADR-0010)', () => {
 
 describe('trend view HTML (ADR-0010)', () => {
   it('GET /trends renders chart + filter', async () => {
-    const r = await fetch(`http://127.0.0.1:${PORT}/trends`);
+    const r = await fetch(`http://127.0.0.1:${PORT}/trends?lang=en`);
     expect(r.status).toBe(200);
     const body = await r.text();
     expect(body).toContain('data-c="trends"');

@@ -184,7 +184,7 @@ describe('audit facets — /api/audit/facets (ADR-0024)', () => {
 
 describe('audit page integration (ADR-0024)', () => {
   it('/audit renders new Project + Source IP inputs', async () => {
-    const r = await fetch(`http://127.0.0.1:${PORT}/audit`);
+    const r = await fetch(`http://127.0.0.1:${PORT}/audit?lang=en`);
     expect(r.status).toBe(200);
     const body = await r.text();
     expect(body).toContain('Project');
@@ -196,7 +196,7 @@ describe('audit page integration (ADR-0024)', () => {
   });
 
   it('/audit renders facet chip loop (x-for over facets.events)', async () => {
-    const r = await fetch(`http://127.0.0.1:${PORT}/audit`);
+    const r = await fetch(`http://127.0.0.1:${PORT}/audit?lang=en`);
     const body = await r.text();
     // Alpine template iterating the events facet.
     expect(body).toContain("for=\"t in Object.entries(facets.events");
@@ -204,7 +204,7 @@ describe('audit page integration (ADR-0024)', () => {
   });
 
   it('/audit URL state includes project + source_ip query params', async () => {
-    const r = await fetch(`http://127.0.0.1:${PORT}/audit?project=alpha&source_ip=10.0.0.1`);
+    const r = await fetch(`http://127.0.0.1:${PORT}/audit?project=alpha&source_ip=10.0.0.1&lang=en`);
     expect(r.status).toBe(200);
     const body = await r.text();
     // The Alpine x-model reads URL params at init.

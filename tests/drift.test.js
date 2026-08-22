@@ -270,7 +270,7 @@ describe('ADR-0019 /api/dashboard/drift endpoint', () => {
 
 describe('ADR-0019 /drift HTML view', () => {
   it('returns 200 with the drift page chrome', async () => {
-    const r = await fetch(`http://127.0.0.1:${PORT}/drift`);
+    const r = await fetch(`http://127.0.0.1:${PORT}/drift?lang=en`);
     expect(r.status).toBe(200);
     const body = await r.text();
     expect(body).toContain('Cross-project drift');
@@ -278,13 +278,13 @@ describe('ADR-0019 /drift HTML view', () => {
   });
 
   it('includes the nav link to /drift', async () => {
-    const r = await fetch(`http://127.0.0.1:${PORT}/drift`);
+    const r = await fetch(`http://127.0.0.1:${PORT}/drift?lang=en`);
     const body = await r.text();
     expect(body).toContain('href="/drift"');
   });
 
   it('exposes all four KPI cards (over-50, avg score, longest idle, total projects)', async () => {
-    const r = await fetch(`http://127.0.0.1:${PORT}/drift`);
+    const r = await fetch(`http://127.0.0.1:${PORT}/drift?lang=en`);
     const body = await r.text();
     expect(body).toContain('high-drift projects');
     expect(body).toContain('avg score');
