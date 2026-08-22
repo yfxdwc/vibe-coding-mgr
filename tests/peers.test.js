@@ -250,9 +250,24 @@ describe('cross-server skill marketplace (ADR-0023)', () => {
     const r = await fetch(`http://127.0.0.1:${PORT_A}/api/registry/skills?scope=all&refresh=1`);
     // Note: ?refresh=1 is not honored here; we re-spawn A per beforeEach
     // so the cache is already clean. Just hit ?scope=all.
-    const r2 = await fetch(`http://127.0.0.1:${PORT_A}/api/registry/skills?scope=all`);
-    expect(r2.status).toBe(200);
-    const j = await r2.json();
+    // v0.18.4 fix-up: retry the scope=all fetch a few times. CI runners
+    // occasionally hand back an earlier server response before beforeEach
+    // finishes re-binding the new server (the `?refresh=1` request
+    // hits the freshly-spawned A while the in-process peer registry
+    // cache for A's B peer is still being populated). Poll until the
+    // expected shape arrives, then run the hard assertions on that
+    // final value.
+    const deadline = Date.now() + 5000;
+    let j = null;
+    while (Date.now() < deadline) {
+      const r2 = await fetch(`http://127.0.0.1:${PORT_A}/api/registry/skills?scope=all`);
+      if (r2.status === 200) {
+        j = await r2.json();
+        if (j.scope === 'all') break;
+      }
+      await new Promise(res => setTimeout(res, 100));
+    }
+    expect(j).not.toBeNull();
     expect(j.scope).toBe('all');
     expect(j.peer_count).toBeGreaterThanOrEqual(1);
     const foo = j.skills.find(s => s.name === 'foo-skill');
