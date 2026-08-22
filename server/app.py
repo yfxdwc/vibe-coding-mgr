@@ -774,8 +774,22 @@ def api_dashboard_stream():
 
 
 def _render(template_name, **kwargs):
-    """Wrap render_template to inject auth_required context (ADR-0004)."""
-    ctx = {"auth_required": AUTH_ENABLED}
+    """Wrap render_template to inject auth_required context (ADR-0004)
+    + sidebar context (ADR-0030: projects list for sidebar)."""
+    # ADR-0030: sidebar needs project list. Cap at 50 to bound render time.
+    sidebar_projects = []
+    try:
+        rows = get_db().execute("""
+            SELECT id, name, path, last_seen_at FROM projects
+            ORDER BY last_seen_at DESC LIMIT 50
+        """).fetchall()
+        sidebar_projects = [dict(r) for r in rows]
+    except Exception:
+        pass  # init_db not run; sidebar shows empty state
+    ctx = {
+        "auth_required": AUTH_ENABLED,
+        "sidebar_projects": sidebar_projects,
+    }
     ctx.update(kwargs)
     return render_template(template_name, **ctx)
 

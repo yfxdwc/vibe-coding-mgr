@@ -2,7 +2,10 @@
  * 依赖 tokens.css / base.css。禁上调：本文件不 import 任何东西（只暴露类名）。
  */
 
-/* —————— Top Navigation ———————————————————————————————————— */
+/* —————— Top Navigation (v0.3.0–v0.17.0 fallback) ———————— */
+/* ADR-0030: replaced by Sidebar in v0.18.0+. This block remains so
+   _partials/nav.html still renders if a test fixture or theme
+   forces the old layout. New primary layout uses .sidebar below. */
 .nav {
   display: flex;
   align-items: center;
@@ -12,6 +15,201 @@
   border-bottom: 1px solid var(--border-subtle);
   position: sticky; top: 0;
   z-index: 50;
+}
+
+/* —————— Sidebar (ADR-0030, v0.18.0+ primary layout) ——————— */
+.sidebar {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  width: var(--sidebar-width);
+  min-height: 100vh;
+  background: var(--bg);
+  border-right: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-4) 0;
+  box-sizing: border-box;
+  font-family: var(--font-sans);
+}
+@media (max-width: 1023px) {
+  .sidebar { width: var(--sidebar-collapsed-width); }
+}
+/* < 768px: v0.18.0 NOT responsive (ADR-0030 §6). No collapse. */
+
+.sidebar-brand {
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: 0 var(--space-4) var(--space-4);
+  color: var(--text-primary);
+  font-family: var(--font-serif);
+  font-size: var(--fs-section);
+  font-weight: 300;
+  letter-spacing: var(--tracking-tight);
+  text-decoration: none;
+}
+.sidebar-mark {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-dim);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.sidebar-section {
+  display: flex; flex-direction: column;
+  padding: 0 var(--space-2);
+  margin-bottom: var(--space-4);
+}
+.sidebar-section-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--space-2) var(--space-2);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  font-weight: 600;
+}
+.sidebar-section-head .sidebar-add {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-button);
+  color: var(--text-secondary);
+  background: transparent;
+  font-size: var(--fs-card);
+  line-height: 1;
+  cursor: pointer;
+  transition: color var(--t-base) var(--ease),
+              border-color var(--t-base) var(--ease);
+}
+.sidebar-section-head .sidebar-add:hover {
+  color: var(--accent);
+  border-color: var(--accent-border);
+}
+
+.sidebar-link {
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: 6px var(--space-2);
+  margin: 1px 0;
+  color: var(--text-secondary);
+  border-radius: var(--radius-button);
+  font-size: var(--fs-body);
+  text-decoration: none;
+  transition: color var(--t-base) var(--ease),
+              background var(--t-base) var(--ease);
+}
+.sidebar-link:hover {
+  color: var(--text-primary);
+  background: var(--surface-alt);
+}
+.sidebar-link.active {
+  color: var(--accent);
+  background: var(--accent-dim);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.sidebar-link .sidebar-icon {
+  width: 14px; height: 14px;
+  flex-shrink: 0;
+  color: currentColor;
+}
+
+.sidebar-project {
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: 6px var(--space-2);
+  margin: 1px 0;
+  color: var(--text-secondary);
+  border-radius: var(--radius-button);
+  font-size: var(--fs-body);
+  text-decoration: none;
+  transition: color var(--t-base) var(--ease),
+              background var(--t-base) var(--ease);
+}
+.sidebar-project:hover {
+  color: var(--text-primary);
+  background: var(--surface-alt);
+}
+.sidebar-project.active {
+  color: var(--accent);
+  background: var(--accent-dim);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.sidebar-project .status-dot {
+  width: 8px; height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--idle);
+  flex-shrink: 0;
+}
+.sidebar-project .status-dot--ok   { background: var(--ok); }
+.sidebar-project .status-dot--warn { background: var(--warn); }
+.sidebar-project .status-dot--fail { background: var(--fail); }
+.sidebar-project .sidebar-project-name {
+  font-family: var(--font-mono);
+  font-size: var(--fs-meta);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-empty {
+  padding: var(--space-3) var(--space-2);
+  color: var(--text-muted);
+  font-size: var(--fs-meta);
+  font-style: italic;
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding: var(--space-3) var(--space-4) 0;
+  border-top: 1px solid var(--border-subtle);
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--space-2);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--fs-meta);
+}
+.sidebar-footer .sidebar-footer-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: var(--sidebar-footer-icon-size);
+  height: var(--sidebar-footer-icon-size);
+  border-radius: var(--radius-button);
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--fs-meta);
+  cursor: pointer;
+  text-decoration: none;
+  transition: color var(--t-base) var(--ease),
+              background var(--t-base) var(--ease),
+              border-color var(--t-base) var(--ease);
+}
+.sidebar-footer .sidebar-footer-btn:hover,
+.sidebar-footer .sidebar-footer-btn[aria-expanded="true"] {
+  color: var(--accent);
+  background: var(--accent-dim);
+  border-color: var(--accent-border);
+}
+
+/* —————— Shell grid (ADR-0030) —————————————————————————————— */
+.shell-grid {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) 1fr;
+  gap: 0;
+  align-items: start;
+  max-width: 100%;
+}
+@media (max-width: 1023px) {
+  .shell-grid { grid-template-columns: var(--sidebar-collapsed-width) 1fr; }
+}
+.shell-grid > .shell {
+  padding: var(--space-6) var(--space-5);
+  max-width: 1280px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
 }
 .nav-brand {
   display: flex; align-items: center; gap: var(--space-2);

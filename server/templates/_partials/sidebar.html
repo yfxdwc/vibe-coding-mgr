@@ -1,0 +1,153 @@
+{# server/templates/_partials/sidebar.html — ADR-0030 sidebar (v0.18.0+)
+
+   Renders the primary 3-section + footer left rail:
+     1. brand
+     2. NAVIGATION (9 nav links)
+     3. PROJECTS (server-injected list; empty state + Add button)
+     4. footer (lang + theme + version)
+
+   Active state is computed by matching `request.path` against each link's
+   href. ADR-0030 §决策.4: no persistent active project — click a project
+   to navigate to /projects/<name>; do not store selection.
+#}
+{% macro nav_icon(name) -%}
+  <svg class="sidebar-icon" aria-hidden="true" focusable="false">
+    <use href="/static/icons/sprite.svg#{{ name }}"></use>
+  </svg>
+{%- endmacro %}
+
+{% macro is_active(prefix) -%}
+  {%- if prefix == '/' -%}
+    {{- 'active' if request.path == '/' else '' -}}
+  {%- else -%}
+    {{- 'active' if request.path.startswith(prefix) else '' -}}
+  {%- endif -%}
+{%- endmacro %}
+
+<aside class="sidebar" data-c="sidebar" aria-label="Primary">
+  <a class="sidebar-brand" href="/" data-c="sidebar-brand">
+    <span class="sidebar-mark" aria-hidden="true">v</span>
+    <span>vibe coding mgr</span>
+  </a>
+
+  <nav class="sidebar-section" aria-label="Navigation" data-c="sidebar-nav">
+    <a class="sidebar-link" :class="active" href="/" data-c="sidebar-link"
+       data-link="cockpit" :aria-current="active === 'cockpit' ? 'page' : null">
+      {{ nav_icon('cockpit') }}{{ t("nav.cockpit") }}</a>
+    <a class="sidebar-link {{ is_active('/leaderboard') }}" href="/leaderboard"
+       data-c="sidebar-link" data-link="leaderboard"
+       {% if request.path.startswith('/leaderboard') %}aria-current="page"{% endif %}>
+      {{ nav_icon('leaderboard') }}{{ t("nav.leaderboard") }}</a>
+    <a class="sidebar-link {{ is_active('/drift') }}" href="/drift"
+       data-c="sidebar-link" data-link="drift"
+       {% if request.path.startswith('/drift') %}aria-current="page"{% endif %}>
+      {{ nav_icon('drift') }}{{ t("nav.drift") }}</a>
+    <a class="sidebar-link {{ is_active('/skills') }}" href="/skills"
+       data-c="sidebar-link" data-link="skills"
+       {% if request.path.startswith('/skills') %}aria-current="page"{% endif %}>
+      {{ nav_icon('skills') }}{{ t("nav.skills") }}</a>
+    <a class="sidebar-link {{ is_active('/trends') }}" href="/trends"
+       data-c="sidebar-link" data-link="trends"
+       {% if request.path.startswith('/trends') %}aria-current="page"{% endif %}>
+      {{ nav_icon('trends') }}{{ t("nav.trends") }}</a>
+    <a class="sidebar-link {{ is_active('/peers') }}" href="/peers"
+       data-c="sidebar-link" data-link="peers"
+       {% if request.path.startswith('/peers') %}aria-current="page"{% endif %}>
+      {{ nav_icon('peers') }}{{ t("nav.peers") }}</a>
+    <a class="sidebar-link {{ is_active('/audit') }}" href="/audit"
+       data-c="sidebar-link" data-link="audit"
+       {% if request.path.startswith('/audit') %}aria-current="page"{% endif %}>
+      {{ nav_icon('audit') }}{{ t("nav.audit") }}</a>
+    <a class="sidebar-link {{ is_active('/docs') }}" href="/docs/DESIGN.md"
+       data-c="sidebar-link" data-link="docs"
+       {% if request.path.startswith('/docs') %}aria-current="page"{% endif %}>
+      {{ nav_icon('docs') }}{{ t("nav.docs") }}</a>
+    <a class="sidebar-link {{ is_active('/settings') }}" href="/settings"
+       data-c="sidebar-link" data-link="settings"
+       {% if request.path.startswith('/settings') %}aria-current="page"{% endif %}>
+      {{ nav_icon('settings') }}{{ t("nav.settings") }}</a>
+  </nav>
+
+  <nav class="sidebar-section" aria-label="Projects" data-c="sidebar-projects">
+    <div class="sidebar-section-head">
+      <span>{{ t("nav.projects") }}</span>
+      <button class="sidebar-add" type="button" data-c="sidebar-add"
+              aria-haspopup="dialog" aria-label="{{ t('common.add') or 'Add project' }}"
+              title="Add project"
+              onclick="document.getElementById('add-project-dialog').showModal()">
+        +
+      </button>
+    </div>
+
+    {% if sidebar_projects %}
+      {% for p in sidebar_projects %}
+        <a class="sidebar-project {{ 'active' if request.path == '/projects/' + p.name else '' }}"
+           href="/projects/{{ p.name }}"
+           data-c="sidebar-project"
+           data-project="{{ p.name }}"
+           {% if request.path == '/projects/' + p.name %}aria-current="page"{% endif %}>
+          <span class="status-dot" aria-label="project status"></span>
+          <span class="sidebar-project-name">{{ p.name }}</span>
+        </a>
+      {% endfor %}
+    {% else %}
+      <div class="sidebar-empty" data-c="sidebar-empty">
+        No projects yet.
+      </div>
+    {% endif %}
+  </nav>
+
+  <div class="sidebar-footer" data-c="sidebar-footer">
+    <div class="nav-lang" x-data="{ open: false }" @click.outside="open = false">
+      <button class="sidebar-footer-btn"
+              :class="{ 'sidebar-footer-btn--active': open }"
+              @click="open = !open"
+              title="{{ t('nav.lang.switch') }}"
+              :aria-expanded="open">
+        🌐
+      </button>
+      <ul class="nav-lang-dropdown" x-show="open" x-transition.opacity.duration.120ms>
+        {% for L in LANGUAGES %}
+          <li>
+            <a class="nav-lang-option"
+               :class="{ 'nav-lang-option--current': '{{ L }}' === '{{ lang }}' }"
+               href="{{ lang_url(L) }}"
+               @click="open = false">
+              <span class="nav-lang-option-label">{{ LANGUAGE_LABELS[L] }}</span>
+              <span class="nav-lang-option-code">{{ L }}</span>
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+    <button class="sidebar-footer-btn" type="button"
+            @click="toggleTheme()" title="Toggle theme">☀/☾</button>
+    <span class="sidebar-footer-version" title="vcm-server version">v18</span>
+  </div>
+</aside>
+
+{# Add Project modal — ADR-0030 §决策.3. Native <dialog> element
+   (HTML 5.2). Form posts to POST /api/projects (B.2 will add the
+   endpoint). B.1 ships the markup; the form is inert until B.2
+   ships the endpoint. #}
+<dialog id="add-project-dialog" data-c="add-project-dialog"
+        aria-labelledby="add-project-title">
+  <form method="dialog" style="min-width: 320px;">
+    <h2 id="add-project-title" class="text-section" style="margin-top: 0;">Add project</h2>
+    <p class="text-meta">Register a project directory. The path must be under your $HOME.</p>
+    <label class="text-label" for="add-project-name">Name</label>
+    <input id="add-project-name" name="name" type="text" required
+           pattern="[a-z0-9-]{3,40}" class="btn--ghost"
+           style="width: 100%; padding: 6px 10px; background: var(--surface); color: var(--text-primary); border: 1px solid var(--border-medium); border-radius: var(--radius-button); margin: 4px 0 12px;">
+    <label class="text-label" for="add-project-path">Absolute path</label>
+    <input id="add-project-path" name="path" type="text" required
+           class="btn--ghost"
+           style="width: 100%; padding: 6px 10px; background: var(--surface); color: var(--text-primary); border: 1px solid var(--border-medium); border-radius: var(--radius-button); margin: 4px 0 12px;">
+    <div style="display: flex; gap: var(--space-2); justify-content: flex-end;">
+      <button class="btn btn--sm btn--ghost" type="button"
+              onclick="this.closest('dialog').close()">Cancel</button>
+      <button class="btn btn--sm btn--primary" type="submit"
+              formaction="/api/projects" formmethod="post">Add</button>
+    </div>
+  </form>
+</dialog>

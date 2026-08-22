@@ -42,6 +42,11 @@
   --radius-button:   8px;
   --radius-pill:     9999px;
 
+  /* —— Sidebar 宽度 (ADR-0030, v0.18.0+) ——————————————— */
+  --sidebar-width:                240px;   /* >= 1024px */
+  --sidebar-collapsed-width:      200px;   /* 768-1023px */
+  --sidebar-footer-icon-size:     28px;
+
   /* —— 间距 (4 / 8 / 12 / 16 / 24 / 32 / 48 / 64) ————— */
   --space-1: 4px;
   --space-2: 8px;

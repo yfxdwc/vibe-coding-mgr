@@ -47,28 +47,30 @@
 </head>
 <body x-data="page()" x-init="init()" data-page="{{ nav_active or 'cockpit' }}">
 
-  {% include "_partials/nav.html" %}
+  <div class="shell-grid" data-c="shell-grid">
+    {% include "_partials/sidebar.html" %}
 
-  <main class="shell">
+    <main class="shell">
 
-    {% block page_head %}{% endblock %}
+      {% block page_head %}{% endblock %}
 
-    {% if self.answers_line is defined %}
-      {% block answers_line %}{% endblock %}
-    {% endif %}
+      {% if self.answers_line is defined %}
+        {% block answers_line %}{% endblock %}
+      {% endif %}
 
-    {% block top_kpi %}{% endblock %}
+      {% block top_kpi %}{% endblock %}
 
-    {% block tabs %}{% endblock %}
+      {% block tabs %}{% endblock %}
 
-    {% block content %}{% endblock %}
+      {% block content %}{% endblock %}
 
-    <footer class="foot">
-      vcm-server v<span x-text="version"></span>
-      · powered by Flask + Alpine.js + ECharts
-      · <a href="/api/health">/api/health</a>
-    </footer>
-  </main>
+      <footer class="foot">
+        vcm-server v<span x-text="version"></span>
+        · powered by Flask + Alpine.js + ECharts
+        · <a href="/api/health">/api/health</a>
+      </footer>
+    </main>
+  </div>
 
   {% block extra_body %}{% endblock %}
 </body>
