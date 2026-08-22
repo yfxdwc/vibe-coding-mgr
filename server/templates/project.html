@@ -79,7 +79,14 @@
    / docs. Governance + health + history content stays reachable from
    /projects/<name>?tab=overview (where they were folded into Overview
    sections below). #}
-<nav class="tabs" data-c="project-section-nav" x-show="data" x-cloak>
+{# ADR-0033: project-section-nav used to have x-show="data" which hid
+   the nav until Alpine.page()'s data was fetched. With HTMX boost,
+   swap-driven page navigations re-init Alpine but the page() instance
+   still hasn't populated `data` synchronously, leaving the nav
+   invisible. Drop the x-show — nav links work fine even when the
+   project body is still loading, and the body itself shows a
+   loading-state empty element. #}
+<nav class="tabs" data-c="project-section-nav">
   <a class="tab {% if request.path == '/projects/' ~ project_name %}active{% endif %}"
      href="/projects/{{ project_name }}"
      data-tab="overview"

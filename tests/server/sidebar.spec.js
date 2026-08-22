@@ -115,4 +115,37 @@ test.describe('Sidebar (ADR-0030)', () => {
       await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
     }
   });
+
+  test('scenario 5: SPA-style nav — clicks swap <main>, sidebar stays mounted', async ({ page }) => {
+    // ADR-0033: hx-boost on body intercepts internal <a> + <form>
+    // clicks. Sidebar lives outside <main> so it stays mounted; only
+    // <main> is swapped. URL is pushed via history.pushState.
+    await page.goto('/projects/vcm-smoke');
+
+    // Snapshot a DOM-stable identity token on the sidebar (the brand
+    // link element). After a nav, this same DOM node must still be
+    // attached — proving the sidebar wasn't replaced.
+    const brand = page.locator('[data-c="sidebar-brand"]');
+    await expect(brand).toBeVisible();
+
+    // Click a top-level sidebar nav link
+    await page.locator('a[data-link="leaderboard"]').click();
+
+    // URL should update via history.pushState (no full reload)
+    await expect(page).toHaveURL(/\/leaderboard/);
+
+    // The brand node is still the SAME DOM element (sidebar unchanged)
+    await expect(brand).toBeVisible();
+
+    // The <main> contents changed (new page rendered)
+    await expect(page.locator('main')).toContainText(/leaderboard|排行榜/i);
+
+    // Now click a project-internal tab from project section nav
+    await page.goto('/projects/vcm-smoke');
+    const brandBefore = await brand.evaluate((el) => el.outerHTML);
+    await page.locator('a[data-tab="drift"]').click();
+    await expect(page).toHaveURL(/\/projects\/vcm-smoke\/drift/);
+    const brandAfter = await brand.evaluate((el) => el.outerHTML);
+    expect(brandAfter).toBe(brandBefore);  // identical node, no re-mount
+  });
 });

@@ -28,6 +28,41 @@
   <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/favicon-16.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/static/icons/favicon-180.png">
   <script defer src="/static/js/alpine.min.js"></script>
+  {# ADR-0033: HTMX for SPA-style navigation. `hx-boost="true"` on body
+     intercepts every internal <a> + <form> and replaces the browser's
+     default full-page navigation with an AJAX GET that swaps <main>
+     contents (the sidebar lives outside <main>, so it stays mounted and
+     Alpine state inside it is preserved across navigations). External
+     links and `target="_blank"` are not affected. #}
+  <script defer src="/static/js/htmx.min.js"></script>
+  <script>
+    // HTMX 1.9 defaultTarget — set BEFORE any user click. Must run
+    // synchronously after htmx.min.js loads (both are deferred).
+    if (window.htmx && window.htmx.config) {
+      window.htmx.config.defaultTarget = 'main';
+      window.htmx.config.defaultSwapStyle = 'outerHTML';
+      window.htmx.config.scrollRestoration = true;
+    }
+
+    // HTMX swaps <main> contents; Alpine.js doesn't auto-attach to
+    // the swapped-in DOM. Without this hook, x-show / x-data / etc.
+    // stop responding on the new <main> (e.g. project-section-nav
+    // stays hidden because x-show="data" never re-evaluates).
+    document.body.addEventListener('htmx:afterSwap', function (e) {
+      if (window.Alpine && typeof Alpine.initTree === 'function') {
+        // Rescan the WHOLE body so x-data on <body> re-attaches its
+        // page() instance to the freshly swapped descendants. Calling
+        // initTree on the target alone doesn't propagate to children.
+        Alpine.initTree(document.body);
+      }
+    });
+    // Also handle swaps triggered by HTMX form posts (Add Project modal).
+    document.body.addEventListener('htmx:historyRestore', function (e) {
+      if (window.Alpine && typeof Alpine.initTree === 'function') {
+        Alpine.initTree(document.body);
+      }
+    });
+  </script>
   {% block extra_head %}{% endblock %}
 
   {# ADR-0026: Alpine.js bridge. window.__vcm_i18n__ exposes the active
@@ -64,7 +99,7 @@
     })();
   </script>
 </head>
-<body x-data="page()" x-init="init()" data-page="{{ nav_active or 'cockpit' }}">
+<body x-data="page()" x-init="init()" data-page="{{ nav_active or 'cockpit' }}" hx-boost="true">
 
   <div class="shell-grid" data-c="shell-grid">
     {% include "_partials/sidebar.html" %}
