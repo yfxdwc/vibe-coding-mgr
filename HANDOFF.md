@@ -29,30 +29,30 @@ layers (`lib/adapters/`), never vendored.
 
 ---
 
-## 2. Current state (v0.18.0)
+## 2. Current state (v0.18.1)
 
 | Item | Value |
 |---|---|
-| Version | `0.18.0` (in `package.json` + `bin/vcm.js` + `server/mcp_server.py`) |
-| Tests | **436 unit + 3 e2e passing** (31 vitest files + 1 Playwright spec, 3 scenarios) |
-| 7 hard checks | 7 OK (`bash scripts/routine_coverage.sh` exit 0; v0.18.0 added `check_db_schema.py` as the 7th, plus a warn-only `check_db_path_grep`) |
-| ADRs | **31** in `docs/adr/0001-` to `0031-` (latest: db-path-hygiene; newest sidebar: 0030) |
-| Routes | **40** `@app.route` decorators in `server/app.py` (added `POST /api/projects`) |
+| Version | `0.18.1` (in `package.json` + `bin/vcm.js` + `server/mcp_server.py`) |
+| Tests | **436 unit + 4 e2e passing** (31 vitest files + 1 Playwright spec, 4 scenarios incl. theme toggle persistence + 3-nav regression) |
+| 7 hard checks | 7 OK (`bash scripts/routine_coverage.sh` exit 0; check_db_schema.py + check_db_path_grep both pass) |
+| ADRs | **32** in `docs/adr/0001-` to `0032-` (latest: project-internal-features) |
+| Routes | **46** `@app.route` decorators in `server/app.py` (added 6 `/projects/<name>/<feature>`; removed direct view of 5 top-level routes that 302-redirect to /) |
 | Python modules | 10 in `server/` (`app`, `audit`, `dashboard`, `docs_search`, `i18n`, `markdown_render`, `mcp_server`, `peers`, `scopes`, `users`) |
 | CLI commands | 11 (init/snapshot/skill/status/validate/push/peers/user/token/doctor/schema) |
-| Templates | 12 in `server/templates/` (`_layout`, `_docs`, `_partials/sidebar` + retained `_partials/nav`, audit/dashboard/drift/leaderboard/peers/project/settings/skills/trends) |
-| Source files | ~145 in git tree |
-| Bilingual UI | zh (default) + en, ~391 keys (+11 sidebar), server-rendered (ADR-0026) |
+| Templates | 13 in `server/templates/` (added `project_peers_placeholder.html`) |
+| Source files | ~148 in git tree |
+| Bilingual UI | zh (default) + en, ~391 keys, server-rendered (ADR-0026) |
 | Repo | `https://github.com/your-org/vibe-coding-mgr` (URL in README; placeholder) |
 
-**v0.18.0 is the latest release**. It ships ADR-0030 (sidebar layout +
-multi-project registry) and ADR-0031 (DB path hygiene + 7th hard check).
-The v0.3.0–v0.17.0 top nav is **replaced** by a left sidebar on every
-page; project registration is now exposed via the UI (native `<dialog>`
-modal → `POST /api/projects`). A side-effect bug in `users.py` was
-discovered during B.2 wiring and shipped in the same release
-(cwd-relative `_db_path()` silently read root `vcm.db` and accidentally
-enabled auth against an orphan user; one-line fix to absolute path).
+**v0.18.1 is the latest release**. It ships ADR-0032 — the
+project-internal feature architecture. Top-level sidebar drops from 9
+items to 3 (cockpit / leaderboard / settings); the 6 features that
+were "service pages" (drift / skills / trends / peers / audit / docs)
+move into `/projects/<name>/<feature>` and are now project-scoped.
+Old top-level routes 302-redirect to `/` for bookmark back-compat.
+Per-project peers + per-project docs scan are deferred to v0.19
+(placeholders ship now to close the routes).
 
 **Release lineage since v0.9.0** (the version this handoff was originally
 written for):

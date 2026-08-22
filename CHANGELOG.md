@@ -9,6 +9,59 @@ The format is loosely: version, date, summary, list of changes, and a
 
 ---
 
+## v0.18.1 — 2026-08-22
+
+**Project-internal feature architecture (ADR-0032). The 6 features
+that look like "service pages" (drift / skills / trends / peers /
+audit / docs) move into the project detail view. Top-level sidebar
+drops from 9 items to 3.**
+
+### Added
+
+- **`/projects/<name>/<feature>` routes** — 6 new project-internal
+  endpoints: `drift`, `skills`, `trends`, `peers`, `audit`, `docs`.
+  Each renders the existing feature template with a project filter
+  injected, so the user sees the project's slice (not the global
+  aggregate).
+- **`project_peers_placeholder.html`** — placeholder template shown
+  when `/projects/<name>/peers` is hit. Per-project peer references
+  are a v0.19 feature; this closes the route + secondary nav now so
+  the architecture is in place.
+- **`docs/adr/0032-project-internal-features.md`** — design record.
+
+### Changed
+
+- **Top-level sidebar drops from 9 to 3 items.** Old items removed:
+  `/drift`, `/skills`, `/trends`, `/peers`, `/audit`, `/docs` links
+  in `sidebar.html`. Remaining: `/` (cockpit), `/leaderboard`,
+  `/settings`.
+- **`/projects/<name>` (project detail) secondary nav** replaces the
+  v0.17.0 4-tab set (overview / governance / health / history) with
+  7 cross-page links: Overview / Drift / Skills / Trends / Peers /
+  Audit / Docs. Governance / Health / History content stays reachable
+  from `/projects/<name>?tab=overview` (folded into Overview sections).
+- **Top-level routes `/drift` /skills /trends /peers /audit** now
+  302-redirect to `/` (bookmark / external-link back-compat).
+- **API filters**:
+    * `/api/dashboard/drift?project=<name>` — filter to one project's
+      drift row (was all-projects only)
+    * `/api/dashboard/skill-matrix?project=<name>` — filter to one
+      project's skills (was all-projects only)
+    * `dashboard.py:get_drift(project=...)` /
+      `get_skill_matrix(project=...)` added.
+- **Template init** (`audit.html` / `drift.html` / `skills.html` /
+  `trends.html`): reads `?project=` URL param OR the Jinja-injected
+  `project_filter` context (set by `/projects/<name>/*` routes).
+
+### Design notes
+
+- [ADR-0032 project-internal features](docs/adr/0032-project-internal-features.md) —
+  full design record (owner decision + 6 implementation sections
+  + 反对意见 + 不做 + 验收). Aligns sidebar with the principle
+  "top-level = service / global; everything else is project-context".
+
+---
+
 ## v0.18.0 — 2026-08-22
 
 **Sidebar layout + multi-project registry (ADR-0030 + ADR-0031). The
