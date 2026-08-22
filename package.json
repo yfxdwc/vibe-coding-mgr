@@ -1,6 +1,6 @@
 {
   "name": "vibe-coding-mgr",
-  "version": "0.15.0",
+  "version": "0.16.0",
   "description": "Vibe Coding Manager — governance + tooling + cross-project attention for vibe coding projects",
   "type": "module",
   "bin": {

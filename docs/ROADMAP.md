@@ -1,6 +1,6 @@
 # ROADMAP
 
-## v0.14.1 (current — 2026-08-22)
+## v0.16.0 (current — 2026-08-22)
 
 Latest release. All v0.8.0 – v0.14.1 items below are DONE.
 v0.15.0 candidates at the bottom — pick one and write the ADR first.
@@ -176,15 +176,39 @@ v0.15.0 candidates at the bottom — pick one and write the ADR first.
 - [x] **Updated HANDOFF §11.2, README, ONBOARDING** to reflect
       launchd availability.
 
-## v0.16.0 (next, ~2 months)
+## v0.16.0 ✅ DONE (2026-08-22)
+
+- [x] **SKILL.md rollout for governance constraints** (ADR-0028).
+      `docs/SKILLS.md` index + `docs/skills/<name>/SKILL.md` for
+      `skill-authoring` (meta) + `persistent-runtime`,
+      `i18n-authoring`, `drift-detection`, `mcp-transport`,
+      `docs-search` (5 governance). New 7th hard check
+      `scripts/check_skills.py` enforces: frontmatter present,
+      banned-words regex (synced with sales-ai skill-authoring §3),
+      canonical_ref resolves. `tests/skills-meta.test.js` (36
+      assertions) mirrors the check at the unit-test layer. AGENTS.md
+      §1's reference to `docs/SKILLS.md` now resolves.
+- [x] **CHARTER §10 "三项全满足"** mechanically enforced — every
+      governance constraint now has SKILL.md + ADR + CI check.
+
+- [x] **macOS launchd `vcm-server.plist`** — ADR-0027. Mirrors the
+      systemd user-unit install/uninstall flow under
+      `~/Library/LaunchAgents/com.vibe-coding-mgr.vcm-server.plist`.
+      Same `~/.vcm/server.env` contract as Linux, no new runtime
+      deps (launchd is part of macOS). Smoke test verifies plist
+      shape + install/uninstall --dry-run on Linux CI.
+- [x] **Updated HANDOFF §11.2, README, ONBOARDING** to reflect
+      launchd availability.
+
+## v0.17.0 (next, ~2 months)
 
 Candidates (no ADR written yet — pick one and write the ADR first):
 
-- [ ] **SKILL.md files per CHARTER §10** — `docs/SKILLS.md` is referenced
-      in AGENTS.md but per-skill `SKILL.md` files for "peer protocol",
-      "MCP HTTP transport", "drift detection", "docs search", "launchd
-      install" are not yet checked into `.pi/skills/`.
+- [ ] **Backfill SKILL.md for older ADRs** — ADR-0028 §"不做" explicitly
+      defers this, but if SKILL.md count stays at 6 long-term the
+      governance surface drifts.
 - [ ] **CONTRIBUTING.md + npm-published version polish** — minor.
+- [ ] **WebSocket MCP transport** (deferred since v0.10.0).
 
 Deferred (do not pick up without an explicit ask):
 - WebSocket MCP transport — high-risk protocol migration

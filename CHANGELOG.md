@@ -9,6 +9,80 @@ The format is loosely: version, date, summary, list of changes, and a
 
 ---
 
+## v0.16.0 — 2026-08-22
+
+**SKILL.md rollout for governance constraints (ADR-0028). CHARTER §10
+"三项全满足" now mechanically enforced by `scripts/check_skills.py`.**
+
+### Added
+
+- **`docs/SKILLS.md`** — the index `AGENTS.md §1` references. A
+  short markdown table listing every skill in the project (name,
+  when-to-read, ADR reference) plus cross-project notes about
+  `skill-authoring` pointing at sales-ai's canonical version.
+- **`docs/skills/skill-authoring/SKILL.md`** — one-screen
+  execution-index adaptation of
+  `sales-ai/.pi/skills/skill-authoring/SKILL.md`. Captures the
+  5 description-writing principles, the 3-condition self-check,
+  and the 7-step SOP for new skill creation. Points at sales-ai
+  for the full version.
+- **`docs/skills/persistent-runtime/SKILL.md`** — ADR-0025 +
+  ADR-0027 condensed into one read. 4 hard constraints: env file
+  as single source of truth, plist `EnvironmentVariables`
+  injection, `StartLimit*` in `[Unit]`, retry-based health probe.
+- **`docs/skills/i18n-authoring/SKILL.md`** — ADR-0026 condensed.
+  5 hard constraints: no hardcoded zh/en strings, key additions
+  must add both languages, key ≤ 80 chars, no TBD/TODO leakage.
+- **`docs/skills/drift-detection/SKILL.md`** — ADR-0019 condensed.
+  4 drift categories, formula `100 - sum(item.weight)`, no
+  threshold hardcoded in templates.
+- **`docs/skills/mcp-transport/SKILL.md`** — ADR-0021 condensed.
+  5 read-only tools, stdio + HTTP + SSE transports, scope enforcement
+  on `/mcp` route, no write-side MCP tools until v0.17.0+ ADR.
+- **`docs/skills/docs-search/SKILL.md`** — ADR-0020 condensed.
+  SQLite FTS5 schema, deterministic BM25 sort, no `LIKE %...%`
+  substitute, XSS-safe `<mark>` highlight only.
+- **`scripts/check_skills.py`** — the 7th hard check. Asserts
+  `docs/SKILLS.md` exists, every indexed row resolves to a real
+  SKILL.md, every SKILL.md has vcm-mandated frontmatter
+  (`name` / `description` / `tags`), `description` has no
+  banned words (regex must match sales-ai skill-authoring §3),
+  and `canonical_ref` points at a real file. Wired into
+  `scripts/routine_coverage.sh` as the 7th entry.
+- **`tests/skills-meta.test.js`** — vitest coverage for the same
+  invariants (36 assertions). Mirror of `check_skills.py` at
+  the unit-test layer.
+
+### Changed
+
+- **`scripts/routine_coverage.sh`** — now runs 7 checks
+  (`check_charter.py` / `check_doc_drift.py` /
+  `check_constraint_governance.py` / `check_adr_index.py` /
+  `check_data_layout.py` / **`check_skills.py`**). The project
+  retains the "6 hard checks" historical name in conversation
+  (see HANDOFF §11.2); the 7th is additive inside the shell harness.
+
+### Design notes
+
+- **Why one skill per ADR, not one mega-skill**: keeps each
+  `description` precision-bounded (1-2 sentences, no banned
+  words) and avoids the SKILL.md-explosion anti-pattern.
+- **Why `docs/skills/` not `.pi/skills/`**: `.pi/skills/` is
+  for agent runtime caches; canonical source lives in
+  `docs/skills/` (same separation as ADR-0027's "one env file
+  across supervisors" decision).
+- **Backfilling ADR-0001..0024 SKILL.md files is explicitly
+  out of scope** (see ADR-0028 §"不做").
+
+### v0.16.0 metrics
+
+- 436/436 unit tests pass (was 400 in v0.15.0 → +36 skills meta)
+- 7/7 hard checks pass
+- 28 ADRs (0001–0028, +1: 0028-skill-rollout)
+- 6 SKILL.md files (1 meta + 5 governance)
+
+---
+
 ## v0.15.0 — 2026-08-22
 
 **macOS launchd LaunchAgent (ADR-0027). Closes the v0.13.0 "out of scope"

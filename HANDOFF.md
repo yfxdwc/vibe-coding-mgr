@@ -29,14 +29,14 @@ layers (`lib/adapters/`), never vendored.
 
 ---
 
-## 2. Current state (v0.14.1)
+## 2. Current state (v0.16.0)
 
 | Item | Value |
 |---|---|
-| Version | `0.15.0` (in `package.json` + `bin/vcm.js` + `server/mcp_server.py`) |
-| Tests | **400/400 passing** (30 test files, 53 in i18n.test.js + 32 in launchd.test.js) |
-| 6 hard checks | 6 OK (`bash scripts/routine_coverage.sh` exit 0) |
-| ADRs | **26** in `docs/adr/0001-` to `0026-` (latest: bilingual UI) |
+| Version | `0.16.0` (in `package.json` + `bin/vcm.js` + `server/mcp_server.py`) |
+| Tests | **436/436 passing** (31 test files, 36 new in skills-meta.test.js; 53 in i18n.test.js + 32 in launchd.test.js) |
+| 7 hard checks | 7 OK (`bash scripts/routine_coverage.sh` exit 0; 6 + skills registry) |
+| ADRs | **28** in `docs/adr/0001-` to `0028-` (latest: skill-rollout) |
 | Routes | **39** `@app.route` decorators in `server/app.py` |
 | Python modules | 10 in `server/` (`app`, `audit`, `dashboard`, `docs_search`, `i18n`, `markdown_render`, `mcp_server`, `peers`, `scopes`, `users`) |
 | CLI commands | 11 (init/snapshot/skill/status/validate/push/peers/user/token/doctor/schema) |
@@ -45,11 +45,12 @@ layers (`lib/adapters/`), never vendored.
 | Bilingual UI | zh (default) + en, 380 keys, server-rendered (ADR-0026) |
 | Repo | `https://github.com/your-org/vibe-coding-mgr` (URL in README; placeholder) |
 
-**v0.15.0 is the latest release**. It ships ADR-0027 — the macOS
-launchd LaunchAgent counterpart to ADR-0025's Linux systemd user unit —
-plus 32 new smoke tests in `tests/launchd.test.js`. v0.14.1's bilingual
-UI (380 keys, Alpine JS bridge) ships intact; the patch-level bump
-to **0.15.0** reflects the new platform-supported install path.
+**v0.16.0 is the latest release**. It ships ADR-0028 — the SKILL.md
+rollout that closes CHARTER §10 "三项全满足" — plus the new 7th hard
+check `scripts/check_skills.py` and 36 new assertions in
+`tests/skills-meta.test.js`. v0.15.0's launchd LaunchAgent and
+v0.14.1's bilingual UI ship intact; the minor-version bump to
+**0.16.0** reflects the new SKILL.md registry.
 
 **Release lineage since v0.9.0** (the version this handoff was originally
 written for):
@@ -468,7 +469,7 @@ counts files matching `\d{4}-` prefix).
 
 ---
 
-## 11. Open work (v0.15.0 plan)
+## 11. Open work (v0.17.0 plan)
 
 This section has been **mostly retired** — every item from the v0.10.0
 plan is now shipped (drift view, docs full-text search, audit filtering,
@@ -485,12 +486,13 @@ plus more added since). What remains is genuinely future-looking.
 | **`/drift` view (ADR-0019)** | **done in v0.10.0** | `/drift` route + `dashboard.py:get_drift_score` |
 | **Tests for ADR-0018 markdown_render** | **done** | `tests/markdown-render.test.js` (19 tests) + `tests/docs-viewer.test.js` |
 
-### 11.2 v0.15.0 candidates (post v0.14.1)
+### 11.2 v0.17.0 candidates (post v0.16.0)
 
-The user's most recent push-back ("翻译得不够彻底") closed v0.14.1 with
-the bilingual UI fully covered.
+The SKILL.md rollout (ADR-0028) closed v0.16.0 with CHARTER §10
+fully satisfied — every governance constraint now has a SKILL.md
+file, an ADR, and a CI check.
 
-**Status as of v0.15.0:**
+**Status as of v0.16.0:**
 
 1. ✅ **macOS launchd `vcm-server.plist`** — **DONE in v0.15.0** (ADR-0027).
    Mirrors the systemd path exactly: `scripts/vcm-server.plist`
@@ -498,20 +500,26 @@ the bilingual UI fully covered.
    + `tests/launchd.test.js` (32 tests). Operators on Linux CI can
    validate plist rendering via `--dry-run`.
 
-2. **SKILL.md files per CHARTER §10** — `docs/SKILLS.md` is referenced
-   in AGENTS.md but the per-skill `SKILL.md` files for "peer protocol",
-   "MCP HTTP transport", "drift detection", "docs search" are not yet
-   checked into `.pi/skills/`. This is the "self-document the
-   system" pass.
+2. ✅ **SKILL.md files per CHARTER §10** — **DONE in v0.16.0** (ADR-0028).
+   `docs/SKILLS.md` index + `docs/skills/<name>/SKILL.md` for
+   `skill-authoring` (meta) + `persistent-runtime` /
+   `i18n-authoring` / `drift-detection` / `mcp-transport` /
+   `docs-search` (5 governance). New 7th hard check
+   `scripts/check_skills.py` enforces: frontmatter present,
+   banned-words regex (synced with sales-ai skill-authoring §3),
+   canonical_ref resolves. `tests/skills-meta.test.js` (36
+   assertions) mirrors the check at the unit-test layer. AGENTS.md
+   §1's reference to `docs/SKILLS.md` now resolves.
 
 3. **README modernization — minor polish** — the v0.14.1 README pass
    fixed version numbers + bilingual mention. Remaining: install
    commands on non-Ubuntu, npm-published versions, contributor
    workflow (no CONTRIBUTING.md yet).
 
-4. **v0.16.0 scoped feature**: pick one of (a) `SKILL.md` rollout,
-   (b) cross-language server messaging protocol. Neither has a
-   written ADR yet — write the ADR first.
+4. **v0.17.0 candidates**: pick one of (a) backfill SKILL.md for
+   older ADRs (out of scope per ADR-0028 §"不做"), (b) WebSocket
+   MCP transport, (c) cross-language server messaging protocol.
+   None has a written ADR yet — write the ADR first.
 
 ### 11.3 Future-only items (do not pick up without explicit ask)
 
@@ -742,7 +750,7 @@ Approximate sizes (growing fast — refresh yourself before quoting):
 
 ## 16. TL;DR for the next agent
 
-1. The project is **v0.15.0, healthy, 400/400 tests passing**.
+1. The project is **v0.16.0, healthy, 436/436 tests passing**.
 2. **Read `AGENTS.md` and `CHARTER.md` first** — they define the rules.
 3. **Read the most recent ADRs** (0025–0026) — they describe the
    "what we just decided" trajectory. ADR-0025 is the
@@ -811,9 +819,10 @@ Approximate sizes (growing fast — refresh yourself before quoting):
      - Uninstall preserved ~/.vcm/server.env (md5 5d06f168… unchanged).
      - Port auto-pick fell to 7339 because repowise held 7338 again.
 8. **Next milestones** (from `docs/ROADMAP.md`):
-   - SKILL.md files per CHARTER §10 for peer protocol,
-     MCP HTTP transport, drift detection, docs search.
-   - macOS launchd `vcm-server.plist` (ADR-0025 §"不做", v0.14.0).
+   - v0.17.0: pick one of (a) backfill SKILL.md for older ADRs
+     (per ADR-0028 §"不做", currently out of scope), (b) WebSocket
+     MCP transport (deferred since v0.10.0), or (c) cross-language
+     server messaging protocol. None has a written ADR yet.
    - README modernization for v0.12.0+ reality (still has v0.11
      claims in some places).
 
