@@ -1,9 +1,80 @@
 # ROADMAP
 
-## v0.17.0 (current — 2026-08-22)
+## v0.18.3 (current — 2026-08-22)
 
-Latest release. All v0.8.0 – v0.14.1 items below are DONE.
-v0.15.0 candidates at the bottom — pick one and write the ADR first.
+Latest release. Three layered features shipped in a combined tag:
+
+- [x] **Sidebar sub-nav** (ADR-0034) — each project row wraps a chevron
+      toggle + 7-entry sub-nav (overview / drift / skills / trends /
+      peers / audit / docs). Replaces ADR-0032's horizontal tabs.
+- [x] **Leaderboard demoted to cockpit tab** (ADR-0032 §v0.18.2 update)
+      — `/leaderboard` → 302 to `/?tab=leaderboard`. Top-level sidebar
+      3 → 2 items. Default sort `td_count desc`, no sort UI.
+- [x] **Sidebar collapse (icon-only 64px)** (ADR-0034 §9) — ‹ button
+      toggles 240px ↔ 64px, persists in localStorage.
+- [x] **Project icon auto-fetch** (ADR-0034 §9.9) — git remote parse
+      → `icon_url` + `icon_color` DB columns + monogram fallback.
+
+**Accordion decision (ADR-0034 §2 final)**: 4-level fallback chain
+when syncing the sidebar to the current URL:
+`current > stored > first > []`. Single expanded project at any time.
+Owner's original spec ("仅展开当前选中的二级目录") is honored by the
+core accordion invariant; the `first` fallback only fires on
+non-project pages (cockpit / settings) where there is no current
+selection and localStorage is empty.
+
+**Bugfixes shipped in this tag**: HTMX config silent no-op fixed
+(htmx.onLoad hook); sidebar auto-expand uses live pathname instead
+of stale `body[data-active-project]`; CLI VERSION synced with
+package.json; vitest `pool: 'forks', singleFork: true` to stop
+parallel suites racing for the same free port; markdown-render
+sweep baseline bumped 4 → 10 to track the actual current layout
+script count; 23 vitest redirect test debt cleared by adapting
+tests to ADR-0032's project-scoped URLs.
+
+---
+
+## v0.18.1 ✅ DONE (2026-08-22)
+
+- [x] **Project-internal feature architecture** (ADR-0032) — 6 new
+      `/projects/<name>/<feature>` routes (drift / skills / trends /
+      peers / audit / docs). Top-level sidebar drops from 9 → 3
+      items. `/projects/<name>/peers` shows the per-project
+      placeholder (v0.19+ will reference per-project).
+- [x] **`project_peers_placeholder.html`** — closes the route +
+      secondary nav now so the architecture is in place.
+- [x] **`docs/adr/0032-project-internal-features.md`** — design record.
+
+---
+
+## v0.18.0 ✅ DONE (2026-08-22)
+
+- [x] **Sidebar layout + multi-project registry** (ADR-0030) — left
+      rail (brand / nav / projects section / footer) replaces the v0.17
+      top nav. Top-level sidebar 9 items (cockpit / leaderboard / drift /
+      skills / trends / peers / audit / docs / settings). Server now
+      reads `projects` table from SQLite to populate the registry.
+- [x] **`POST /api/projects`** — `Add Project` modal in the sidebar
+      lets the user register a repo via the UI (no longer CLI-only).
+- [x] **`docs/adr/0030-sidebar-and-multi-launch.md`** — design record.
+
+---
+
+## v0.17.0 ✅ DONE (2026-08-22)
+
+- [x] **README modernization** (ADR-0029) — 6 edits restoring accuracy
+      after 3 skipped releases (v0.14.1, v0.15.0, v0.16.0): banner
+      version, `vcm doctor` example output, project structure block,
+      design discipline section, release cadence table, port
+      references. No structural rewrite.
+- [x] **CONTRIBUTING.md** (ADR-0029) — first-ever contributor
+      workflow doc. 9 sections: TL;DR, code of conduct, before-you-code
+      (3 questions), ADR discipline, the 6 hard checks, Conventional
+      Commits, release process, local sanity check, where to ask.
+- [x] **Release process codified** — 5-surface version bump pattern
+      (`package.json` / `bin/vcm.js` / `server/mcp_server.py` /
+      `tests/cli.test.js` / `tests/server.test.js`) + annotated tag
+      (`git tag -a v<X>.<Y>.<Z>` triggers `.github/workflows/publish.yml`).
 
 ---
 
@@ -216,7 +287,7 @@ v0.15.0 candidates at the bottom — pick one and write the ADR first.
       `tests/cli.test.js` / `tests/server.test.js`) + annotated tag
       (`git tag -a v<X>.<Y>.<Z>` triggers `.github/workflows/publish.yml`).
 
-## v0.18.0 (next, ~2 months)
+## v0.18.4 (next, ~2 weeks)
 
 Candidates (no ADR written yet — pick one and write the ADR first):
 
@@ -225,19 +296,26 @@ Candidates (no ADR written yet — pick one and write the ADR first):
       governance surface drifts.
 - [ ] **CONTRIBUTING.md + npm-published version polish** — minor.
 - [ ] **WebSocket MCP transport** (deferred since v0.10.0).
+- [ ] **Per-project docs scanning** (ADR-0032 §"不做") — the
+      `/projects/<name>/docs` route currently reuses the global
+      `/docs/` scan; v0.19 was the planned ship target.
+- [ ] **Per-project peer references** (ADR-0032 §"不做") — currently
+      the `/projects/<name>/peers` route shows a v0.19+ placeholder.
+- [ ] **Stale test fixes from v0.18.3 release** — the
+      `tests/templates.test.js "serves DESIGN.md with text/html"` and
+      a handful of MCP/registry/SSE suites still assert legacy
+      `/audit /drift /trends /skills /peers` URLs and 0-error ACL
+      semantics. Pre-existing test debt from v0.18.1 ADR-0032 redirect
+      migration. (`tests/audit-purge.test.js`,
+      `tests/users.test.js` Bearer-token shape, `tests/sse.test.js`
+      heartbeat window, `tests/scopes.test.js` scope_forbidden audit,
+      `tests/mcp.test.js` cross-channel, `tests/registry-publish.test.js`,
+      `tests/peers.test.js` marketplace / gossip.)
 
 Deferred (do not pick up without an explicit ask):
 - WebSocket MCP transport — high-risk protocol migration
 - Cross-server gossip / marketplace — networking surface
 - Anything requiring mcp 2.0 or a new runtime dep — violates CHARTER §8
-
-## v1.0.0 (~3 months, stability milestone)
-
-- [ ] **Stable JSON Schema** (no breaking changes for 6 months)
-- [ ] **Documented plugin API** (3rd parties can extend vcm)
-- [ ] **Backstage integration** (optional, for teams already using Backstage)
-- [ ] **Performance**: <100ms for `vcm status`, <500ms for `vcm validate`
-- [ ] **Adoption**: 10+ projects actively using vibe-coding-mgr
 
 ## v1.0.0 (~3 months, stability milestone)
 
