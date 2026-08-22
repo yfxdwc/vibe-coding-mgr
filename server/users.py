@@ -33,11 +33,19 @@ from pathlib import Path
 
 def _db_path() -> str:
     """Where users/tokens live. Defaults to same as vcm-server DB so
-    one backup captures everything; overridable for separation."""
-    return os.environ.get(
-        "VCM_USERS_DB",
-        os.environ.get("VCM_SERVER_DB", "./vcm.db"),
-    )
+    one backup captures everything; overridable for separation.
+
+    ADR-0031: the default is an absolute path resolved from __file__
+    (server/vcm.db) so it matches server/app.py's DB_PATH regardless
+    of cwd. The previous default './vcm.db' was cwd-relative and
+    caused users_mod.has_any_user() to silently look at a different
+    file (root vcm.db) than the server's main DB, accidentally
+    enabling auth when the server's DB had no users.
+    """
+    env = os.environ.get("VCM_USERS_DB") or os.environ.get("VCM_SERVER_DB")
+    if env:
+        return env
+    return str(Path(__file__).resolve().parent / "vcm.db")
 
 
 def _enable_wal(conn) -> None:

@@ -485,6 +485,79 @@ def trends_view():
     return _render("trends.html")
 
 
+@app.route("/api/projects", methods=["POST"])
+@scopes_mod.require_scope("push")
+def create_project():
+    """Manually register a project. ADR-0030 §决策.3.
+
+    Body: {name, path}
+      name: slug [a-z0-9-]{3,40}
+      path: absolute path, must exist as a directory, must be under $HOME.
+    Returns 201 with the project record, 422 on validation failure,
+    409 on duplicate name.
+    """
+    import re
+    body = request.get_json(force=True, silent=True) or {}
+    name = (body.get("name") or "").strip()
+    path_str = (body.get("path") or "").strip()
+
+    # name: slug [a-z0-9-]{3,40}
+    if not re.fullmatch(r"[a-z0-9-]{3,40}", name):
+        return jsonify({
+            "error": "invalid_name",
+            "detail": "name must be 3-40 chars of [a-z0-9-]",
+        }), 422
+
+    # path: absolute, exists, is a directory, under $HOME (whitelist)
+    if not path_str.startswith("/"):
+        return jsonify({
+            "error": "invalid_path",
+            "detail": "path must be absolute (start with /)",
+        }), 422
+    p = Path(path_str).resolve()
+    home = Path.home().resolve()
+    try:
+        p.relative_to(home)
+    except ValueError:
+        return jsonify({
+            "error": "path_outside_home",
+            "detail": f"path must be under {home}",
+        }), 422
+    if not p.is_dir():
+        return jsonify({
+            "error": "path_not_dir",
+            "detail": f"{p} is not a directory",
+        }), 422
+
+    # duplicate check
+    conn = get_db()
+    existing = conn.execute(
+        "SELECT id FROM projects WHERE name = ?", (name,)).fetchone()
+    if existing:
+        conn.close()
+        return jsonify({
+            "error": "duplicate_name",
+            "detail": f"project {name!r} already exists",
+        }), 409
+
+    # insert
+    now = datetime.utcnow().isoformat() + "Z"
+    conn.execute(
+        "INSERT INTO projects (name, path, first_seen_at, last_seen_at) "
+        "VALUES (?, ?, ?, ?)",
+        (name, str(p), now, now),
+    )
+    conn.commit()
+    conn.close()
+
+    return jsonify({
+        "name": name,
+        "path": str(p),
+        "first_seen_at": now,
+        "last_seen_at": now,
+    }), 201
+
+
 @app.route("/api/projects")
 @scopes_mod.require_scope("read")
 def list_projects():

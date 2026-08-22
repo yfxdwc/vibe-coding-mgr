@@ -72,8 +72,8 @@
     <div class="sidebar-section-head">
       <span>{{ t("nav.projects") }}</span>
       <button class="sidebar-add" type="button" data-c="sidebar-add"
-              aria-haspopup="dialog" aria-label="{{ t('common.add') or 'Add project' }}"
-              title="Add project"
+              aria-haspopup="dialog" aria-label="{{ t('sidebar.add.button_title') }}"
+              title="{{ t('sidebar.add.button_title') }}"
               onclick="document.getElementById('add-project-dialog').showModal()">
         +
       </button>
@@ -86,13 +86,13 @@
            data-c="sidebar-project"
            data-project="{{ p.name }}"
            {% if request.path == '/projects/' + p.name %}aria-current="page"{% endif %}>
-          <span class="status-dot" aria-label="project status"></span>
+          <span class="status-dot" aria-label="{{ t('sidebar.project.status_aria') }}"></span>
           <span class="sidebar-project-name">{{ p.name }}</span>
         </a>
       {% endfor %}
     {% else %}
       <div class="sidebar-empty" data-c="sidebar-empty">
-        No projects yet.
+        {{ t("sidebar.empty") }}
       </div>
     {% endif %}
   </nav>
@@ -127,27 +127,28 @@
 </aside>
 
 {# Add Project modal — ADR-0030 §决策.3. Native <dialog> element
-   (HTML 5.2). Form posts to POST /api/projects (B.2 will add the
-   endpoint). B.1 ships the markup; the form is inert until B.2
-   ships the endpoint. #}
+   (HTML 5.2). Form posts to POST /api/projects. On 2xx the dialog
+   closes and the page reloads so the new project shows in the
+   sidebar. On error the dialog stays open and the browser shows
+   the response body (basic; v0.19+ could swap to fetch() for
+   in-place error display). #}
 <dialog id="add-project-dialog" data-c="add-project-dialog"
         aria-labelledby="add-project-title">
-  <form method="dialog" style="min-width: 320px;">
-    <h2 id="add-project-title" class="text-section" style="margin-top: 0;">Add project</h2>
-    <p class="text-meta">Register a project directory. The path must be under your $HOME.</p>
-    <label class="text-label" for="add-project-name">Name</label>
+  <form method="post" action="/api/projects" style="min-width: 320px;">
+    <h2 id="add-project-title" class="text-section" style="margin-top: 0;">{{ t("sidebar.add.title") }}</h2>
+    <p class="text-meta">{{ t("sidebar.add.intro") }}</p>
+    <label class="text-label" for="add-project-name">{{ t("sidebar.add.name_label") }}</label>
     <input id="add-project-name" name="name" type="text" required
            pattern="[a-z0-9-]{3,40}" class="btn--ghost"
            style="width: 100%; padding: 6px 10px; background: var(--surface); color: var(--text-primary); border: 1px solid var(--border-medium); border-radius: var(--radius-button); margin: 4px 0 12px;">
-    <label class="text-label" for="add-project-path">Absolute path</label>
+    <label class="text-label" for="add-project-path">{{ t("sidebar.add.path_label") }}</label>
     <input id="add-project-path" name="path" type="text" required
            class="btn--ghost"
            style="width: 100%; padding: 6px 10px; background: var(--surface); color: var(--text-primary); border: 1px solid var(--border-medium); border-radius: var(--radius-button); margin: 4px 0 12px;">
     <div style="display: flex; gap: var(--space-2); justify-content: flex-end;">
       <button class="btn btn--sm btn--ghost" type="button"
-              onclick="this.closest('dialog').close()">Cancel</button>
-      <button class="btn btn--sm btn--primary" type="submit"
-              formaction="/api/projects" formmethod="post">Add</button>
+              onclick="this.closest('dialog').close()">{{ t("sidebar.add.cancel") }}</button>
+      <button class="btn btn--sm btn--primary" type="submit">{{ t("sidebar.add.submit") }}</button>
     </div>
   </form>
 </dialog>

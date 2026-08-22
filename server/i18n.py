@@ -520,6 +520,18 @@ EN: dict[str, str] = {
     'cockpit.matrix.col.tree_dirty':         '⚠ dirty',
     'cockpit.matrix.col.tree_clean':         '✓ clean',
 
+    # -- v0.18.0 sidebar (ADR-0030) ---------------------------------------
+    'sidebar.add.title':                     'Add project',
+    'sidebar.add.intro':                     'Register a project directory. The path must be under your $HOME.',
+    'sidebar.add.name_label':                'Name',
+    'sidebar.add.path_label':                'Absolute path',
+    'sidebar.add.cancel':                    'Cancel',
+    'sidebar.add.submit':                    'Add',
+    'sidebar.add.button_title':              'Add project',
+    'sidebar.empty':                          'No projects yet.',
+    'sidebar.project.status_aria':           'project status',
+    'common.add':                            'Add',
+
 
 }
 
@@ -971,6 +983,18 @@ ZH: dict[str, str] = {
     'cockpit.activity.events':               '条事件',
     'cockpit.matrix.col.tree_dirty':         '⚠ 脏',
     'cockpit.matrix.col.tree_clean':         '✓ 干净',
+
+    # -- v0.18.0 sidebar (ADR-0030) ---------------------------------------
+    'sidebar.add.title':                     '添加项目',
+    'sidebar.add.intro':                     '注册一个项目目录。路径必须在 $HOME 子树下。',
+    'sidebar.add.name_label':                '名称',
+    'sidebar.add.path_label':                '绝对路径',
+    'sidebar.add.cancel':                    '取消',
+    'sidebar.add.submit':                    '添加',
+    'sidebar.add.button_title':              '添加项目',
+    'sidebar.empty':                          '暂无项目。',
+    'sidebar.project.status_aria':           '项目状态',
+    'common.add':                            '添加',
 
 
 }
