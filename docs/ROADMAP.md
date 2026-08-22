@@ -301,16 +301,16 @@ Candidates (no ADR written yet — pick one and write the ADR first):
       `/docs/` scan; v0.19 was the planned ship target.
 - [ ] **Per-project peer references** (ADR-0032 §"不做") — currently
       the `/projects/<name>/peers` route shows a v0.19+ placeholder.
-- [ ] **Stale test fixes from v0.18.3 release** — the
-      `tests/templates.test.js "serves DESIGN.md with text/html"` and
-      a handful of MCP/registry/SSE suites still assert legacy
-      `/audit /drift /trends /skills /peers` URLs and 0-error ACL
-      semantics. Pre-existing test debt from v0.18.1 ADR-0032 redirect
-      migration. (`tests/audit-purge.test.js`,
-      `tests/users.test.js` Bearer-token shape, `tests/sse.test.js`
-      heartbeat window, `tests/scopes.test.js` scope_forbidden audit,
-      `tests/mcp.test.js` cross-channel, `tests/registry-publish.test.js`,
-      `tests/peers.test.js` marketplace / gossip.)
+
+> **Resolved in v0.18.3 (no longer candidates)**: the "stale test
+> fixes" bullet listed audit-purge / users / mcp / registry-publish /
+> peers / scopes / sse / templates suites as asserting legacy
+> `/audit /drift /trends /skills /peers` URLs. Re-verified after the
+> release: those suites were failing only because vitest's default
+> `threads` pool raced suites for the same free port (ECONNREFUSED),
+> not because of stale assertions. The `pool: 'forks',
+> singleFork: true` fix (shipped in `037ad15`) makes them pass:
+> 436 / 436 vitest, 12 / 12 playwright, 6 hard check exit 0.
 
 Deferred (do not pick up without an explicit ask):
 - WebSocket MCP transport — high-risk protocol migration
