@@ -1,6 +1,13 @@
 # ROADMAP
 
-## v0.1.0 (current — 2026-08-20)
+## v0.14.1 (current — 2026-08-22)
+
+Latest release. All v0.8.0 – v0.14.1 items below are DONE.
+v0.15.0 candidates at the bottom — pick one and write the ADR first.
+
+---
+
+## v0.1.0 ✅ DONE (2026-08-20)
 
 - [x] CLI: init / snapshot / skill / status / validate / push / peers
 - [x] Schemas: skill, state (JSON Schema with Ajv)
@@ -101,13 +108,87 @@
 - Flask decorator-order gotcha documented (out-of-order decorators → silent
   loss of scope check)
 
-## v0.8.0 (next, ~2 months)
+## v0.8.0 ✅ DONE (2026-08-21)
 
-- [ ] **CHANGELOG.md** — captures v0.2.0 → v0.7.0 history
-- [ ] **README modernization** — written for v0.7.0 reality
-- [ ] **/api/registry/publish endpoint** — server-side publish (push scope)
-- [ ] **Audit log: filtering UI** (event_type / project / source_ip facets)
-- [ ] **Per-endpoint ACL scopes: admin endpoints** — /api/audit/purge
+- [x] **CHANGELOG.md** — captures v0.2.0 → v0.7.0 history
+- [x] **README modernization** — written for v0.7.0 reality
+- [x] **/api/registry/publish endpoint** — server-side publish (push scope)
+- [x] **Audit log: filtering UI** (event_type / project / source_ip facets)
+- [x] **Per-endpoint ACL scopes: admin endpoints** — /api/audit/purge
+
+## v0.9.0 ✅ DONE (2026-08-21)
+
+- [x] **/api/audit/purge admin endpoint** (ADR-0016) + DELETE method
+- [x] **/docs viewer with TOC + client-side search** (ADR-0017)
+- [x] **/docs renders markdown to HTML** (ADR-0018, vendored commonmark)
+- [x] **Tests for markdown_render** — `tests/markdown-render.test.js` (19 tests)
+
+## v0.10.0 ✅ DONE (2026-08-21)
+
+- [x] **Drift detection view** (ADR-0019) — `dashboard.py:get_drift_score`,
+      `/api/dashboard/drift`, `/drift` view, nav link.
+- [x] **/api/registry HTTP endpoints** — server-side publish + list
+
+## v0.11.0 ✅ DONE (2026-08-21)
+
+- [x] **MCP-HTTP transport** (replaces stdio for network reach)
+- [x] **Peer gossip + marketplace** (LAN registry discovery)
+- [x] **Docs full-text server-side search** (ADR-0020) — `server/docs_search.py`
+
+## v0.12.0 ✅ DONE (2026-08-21)
+
+- [x] **Audit log filtering UI + /api/audit/facets** (ADR-0024)
+- [x] **Root-cause fix** to `_read_sqlite` (NameError swallowed by
+      JSONL fallback that made `?source_ip=` silently return 0 rows)
+
+## v0.13.0 ✅ DONE (2026-08-22)
+
+- [x] **First persistent-runtime release** — `systemd` user unit
+      (ADR-0025), `scripts/install-service.sh` / `uninstall-service.sh`,
+      `~/.vcm/server.env` template. `loginctl enable-linger` enabled.
+- [x] **StartLimit* in [Unit]** — moved from [Service] per `man systemd.service`
+- [x] **Retry-based install probe** — 10 × 0.5s survives the
+      systemd-active/in-process-bind race
+
+## v0.14.0 ✅ DONE (2026-08-22)
+
+- [x] **Bilingual UI** (ADR-0026) — server-side `t()` per ADR-0026,
+      `?lang=` + cookie + Accept-Language resolution, nav toggle,
+      default `zh`, zero new runtime deps, 220 keys per language.
+
+## v0.14.1 ✅ DONE (2026-08-22)
+
+- [x] **Comprehensive translation rollout** — 220 → 380 keys balanced
+      en↔zh, Alpine JS bridge (`window.__vcm_i18n__` + `window.t`),
+      all 11 templates end-to-end translated, +27 i18n test assertions
+      (per-page zh + en presence, "no English leakage", JS bridge wired).
+
+---
+
+## v0.15.0 (next, ~2 months)
+
+Candidates (no ADR written yet — pick one and write the ADR first):
+
+- [ ] **macOS launchd `vcm-server.plist`** — ADR-0025 explicitly defers
+      this. Mirror the systemd user-unit install/uninstall flow.
+- [ ] **SKILL.md files per CHARTER §10** — `docs/SKILLS.md` is referenced
+      in AGENTS.md but per-skill `SKILL.md` files for "peer protocol",
+      "MCP HTTP transport", "drift detection", "docs search" are not
+      yet checked into `.pi/skills/`.
+- [ ] **CONTRIBUTING.md + npm-published version polish** — minor.
+
+Deferred (do not pick up without an explicit ask):
+- WebSocket MCP transport — high-risk protocol migration
+- Cross-server gossip / marketplace — networking surface
+- Anything requiring mcp 2.0 or a new runtime dep — violates CHARTER §8
+
+## v1.0.0 (~3 months, stability milestone)
+
+- [ ] **Stable JSON Schema** (no breaking changes for 6 months)
+- [ ] **Documented plugin API** (3rd parties can extend vcm)
+- [ ] **Backstage integration** (optional, for teams already using Backstage)
+- [ ] **Performance**: <100ms for `vcm status`, <500ms for `vcm validate`
+- [ ] **Adoption**: 10+ projects actively using vibe-coding-mgr
 
 ## v1.0.0 (~3 months, stability milestone)
 

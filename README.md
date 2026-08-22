@@ -6,14 +6,14 @@ Originally extracted from sales-ai where it was developed as the `dev domain`. N
 
 ```bash
 $ vcm --version
-0.9.0
+0.14.1
 $ vcm doctor                          # one-command health check
 vcm doctor — 4 sections
-[governance]  6 hard checks       OK (5 OK, 1 WARN, 0 FAIL)
-[skills]       1 registered        1 active
-[repository]   15 ADRs             newest: 0015-schema-doc
+[governance]  6 hard checks       OK (6 OK, 0 WARN, 0 FAIL)
+[skills]       3 registered        3 active
+[repository]   26 ADRs             newest: 0026-bilingual-ui
 [git hygiene]  working tree        clean
-VERDICT: 1 WARN, 5 OK
+VERDICT: all OK (6/6)
 ```
 
 ## What it does in 30 seconds
@@ -29,7 +29,7 @@ most of your code under human direction. The questions it answers:
 - **After AI ships**: "Is this project still healthy; what's drifting?"
   (`vcm doctor`, `vcm validate`, `vcm skill deprecate/retire/stale`)
 - **Across many projects**: "Where should I focus my attention?"
-  (the optional `vcm-server` dashboard at `127.0.0.1:7338`)
+  (the optional `vcm-server` dashboard — bilingual zh/en by default; http://127.0.0.1:7338)
 
 Adopt-not-fork: 5 ecosystems standards are adapted via thin wrapper
 layers (`vcm skill convert`), never forked.
@@ -72,7 +72,7 @@ vcm token grant alice --label laptop --days 90
 vcm token revoke <id>
 
 # Multi-project (optional)
-vcm push --server http://vcm-host:7338
+vcm push --server http://vcm-host:7338   # port matches your install's port
 vcm peers add owner/name
 ```
 
@@ -92,6 +92,11 @@ python3 server/app.py
 #   /peers         OSS peer attention
 #   /settings      Server meta + design tokens
 ```
+
+The dashboard UI is **bilingual** (zh/en) — server-side rendered, default
+`zh`, switchable via the language toggle in the nav bar, `?lang=` URL
+parameter, cookie persistence, or `Accept-Language`. ADR-0026 covers the
+design; zero new runtime dependencies were added.
 
 For AI agents (Claude Code, Codex, pi, Cursor), `python3 server/mcp_server.py`
 exposes 5 read-only tools over stdio:
@@ -120,7 +125,8 @@ install it as a systemd user unit (ADR-0025; Linux only):
 bash scripts/install-service.sh
 
 # Expected final line:
-#   vcm-server installed: http://127.0.0.1:7338/
+#   vcm-server installed: http://127.0.0.1:<picked>/
+# (e.g. 7339 on this host; auto-chooses the first free port in 7338..7399)
 
 # Day-to-day:
 systemctl --user status vcm-server          # current state
@@ -156,7 +162,9 @@ macOS / Windows users fall back to the manual launch path (above):
 python3 server/app.py &              # or inside tmux for survival
 ```
 
-A `vcm-server.plist` for launchd is on the v0.14.0 roadmap.
+A `vcm-server.plist` for launchd is **not yet implemented** (ADR-0025 §"不做" —
+out of scope for v0.13.0/v0.14.1; consider it for v0.15.0+). For now,
+Linux + `systemd --user` is the supported long-runtime path.
 
 ## Install
 
@@ -204,8 +212,10 @@ vcm status                        # opens .vcm/report.html
 vcm doctor
 
 # 6. (Optional) Push state to central dashboard
-vcm-server &                       # start the dashboard server
+vcm-server &                       # start the dashboard server (127.0.0.1:7338)
 vcm push --server http://127.0.0.1:7338
+#   Or, after `bash scripts/install-service.sh`, the unit is already running
+#   on whichever free port it auto-picked (see the install's last line).
 
 # 7. (Optional) Multi-user with bearer tokens
 vcm user add alice
@@ -243,9 +253,9 @@ vibe-coding-mgr/
 │   ├── scopes.py               # @require_scope decorator (ADR-0014)
 │   ├── mcp_server.py           # stdio MCP for AI agents
 │   └── templates/ + static/   # HTML + CSS + JS
-├── tests/                      # vitest (191 tests)
+├── tests/                      # vitest (368 tests across 29 files)
 └── docs/                       # DESIGN, ARCHITECTURE, ONBOARDING, PHILOSOPHY
-    ├── adr/                    # 15 ADRs (one per hard constraint)
+    ├── adr/                    # 26 ADRs (one per hard constraint)
     ├── DESIGN.md               # design system source of truth
     ├── ARCHITECTURE.md
     └── ROADMAP.md
@@ -261,8 +271,8 @@ vcm is held to a strict set of self-applied rules captured in
 - **Local first** — works offline; the server is optional. Plain JSON
   files as the source of truth for skill registry, peer config.
 - **Hard constraints have ADRs** — any rule that the system enforces
-  must be written down in `docs/adr/` before code lands (191 tests
-  document 15 ADRs).
+  must be written down in `docs/adr/` before code lands (368 tests
+  document 26 ADRs).
 - **Long-term stability > short-term less diff** — accept redundancy
   if it makes the system clearer.
 
@@ -308,7 +318,7 @@ A clean doctor output looks like:
 vcm doctor — 4 sections
 [governance]  6 hard checks       OK (6 OK, 0 WARN, 0 FAIL)
 [skills]       3 registered        3 active
-[repository]   15 ADRs             newest: 0015-schema-doc
+[repository]   26 ADRs             newest: 0026-bilingual-ui
 [git hygiene]  working tree        clean
 VERDICT: all OK (6/6)
 ```
@@ -320,6 +330,12 @@ CI integration: `vcm doctor --strict` exits 1 on any warning
 
 | Version | Highlights |
 |---|---|
+| **v0.14.1** | Comprehensive bilingual coverage (380 keys, Alpine JS bridge) |
+| **v0.14.0** | Bilingual zh/en UI (ADR-0026) — server-side, zero new deps |
+| **v0.13.0** | First persistent-runtime release — systemd user unit + installer (ADR-0025) |
+| v0.12.0 | Audit filtering UI + facets endpoint (root-cause fix to `_read_sqlite`) |
+| v0.11.0 | MCP-HTTP transport, peer gossip + marketplace, docs full-text search |
+| v0.10.0 | Drift detection view (ADR-0019), market registry HTTP |
 | v0.9.0 | Audit purge endpoint, docs viewer with TOC + search |
 | v0.7.0 | Per-endpoint scopes, schema doc generator, registry endpoint |
 | v0.6.0 | Per-user ACL, audit log SQLite, `vcm doctor` |

@@ -29,27 +29,44 @@ layers (`lib/adapters/`), never vendored.
 
 ---
 
-## 2. Current state (v0.9.0)
+## 2. Current state (v0.14.1)
 
 | Item | Value |
 |---|---|
-| Version | `0.10.0` (in `package.json` and `bin/vcm.js`) |
-| Tests | **244/244 passing** (23 test files) |
-| 6 hard checks | 5 OK / 1 WARN (no `.pi/skills` dir in repo; expected) |
-| ADRs | **19** in `docs/adr/0001-` to `0019-` (0018 + 0019 implemented) |
-| Routes | **32** `@app.route` decorators in `server/app.py` (+2 drift) |
-| Python modules | 7 in `server/` (+drift logic in dashboard.py) |
+| Version | `0.14.1` (in `package.json` + `bin/vcm.js` + `server/mcp_server.py`) |
+| Tests | **368/368 passing** (29 test files, 53 in i18n.test.js alone) |
+| 6 hard checks | 6 OK (`bash scripts/routine_coverage.sh` exit 0) |
+| ADRs | **26** in `docs/adr/0001-` to `0026-` (latest: bilingual UI) |
+| Routes | **39** `@app.route` decorators in `server/app.py` |
+| Python modules | 10 in `server/` (`app`, `audit`, `dashboard`, `docs_search`, `i18n`, `markdown_render`, `mcp_server`, `peers`, `scopes`, `users`) |
 | CLI commands | 11 (init/snapshot/skill/status/validate/push/peers/user/token/doctor/schema) |
-| Templates | 12 in `server/templates/` (+drift.html) |
-| Source files | 114 in git tree, ~100 source files (Python/JS/HTML/MD) |
+| Templates | 11 in `server/templates/` (`_layout`, `_docs`, `_partials/nav`, audit/dashboard/drift/leaderboard/peers/project/settings/skills/trends) |
+| Source files | ~140 in git tree |
+| Bilingual UI | zh (default) + en, 380 keys, server-rendered (ADR-0026) |
 | Repo | `https://github.com/your-org/vibe-coding-mgr` (URL in README; placeholder) |
 
-**The version was just bumped to v0.9.0** (commit `20e3547`).
-It includes:
-- `/api/audit/purge` admin endpoint (ADR-0016)
-- `/docs` viewer with TOC + client-side search (ADR-0017)
-- `/docs` view now renders markdown to HTML (ADR-0018, just committed)
-- 2 ADRs drafted but **not implemented** (ADR-0018 test, ADR-0019 drift view)
+**v0.14.1 is the latest release** (commits `92f5d8d` + `3ad52a8`). It is a
+patch on v0.14.0 that expands the bilingual coverage from 220 → 380 keys
+per language, adds the Alpine JS bridge (`window.__vcm_i18n__` +
+`window.t`), and translates every user-visible string on all 11 templates.
+
+**Release lineage since v0.9.0** (the version this handoff was originally
+written for):
+- v0.10.0: drift detection view (ADR-0019), market registry HTTP,
+  244 → 259 tests
+- v0.11.0: MCP-HTTP transport, peer gossip + marketplace, docs full-text
+  search (ADR-0020), 259 → 279 tests
+- v0.12.0: audit filtering UI + `/api/audit/facets` (ADR-0024), root-cause
+  fix to `_read_sqlite`, 279 → 297 tests
+- v0.13.0: **first persistent-runtime release**. systemd user unit
+  (ADR-0025), `install-service.sh` / `uninstall-service.sh`,
+  `~/.vcm/server.env`, 297 → 315 tests
+- v0.14.0: **bilingual UI** (ADR-0026). 12 templates translated,
+  `?lang=` + cookie + Accept-Language resolution, server-rendered nav
+  toggle, default zh, 315 → 341 tests (+ 26 i18n tests)
+- v0.14.1: **comprehensive translation rollout**. 220 → 380 keys, Alpine
+  JS bridge, all 11 templates end-to-end translated, 341 → 368 tests
+  (+ 27 i18n tests)
 
 ---
 
@@ -443,51 +460,53 @@ counts files matching `\d{4}-` prefix).
 
 ---
 
-## 11. Open work (v0.10.0 plan)
+## 11. Open work (v0.15.0 plan)
 
-From `docs/ROADMAP.md`:
+This section has been **mostly retired** — every item from the v0.10.0
+plan is now shipped (drift view, docs full-text search, audit filtering,
+plus more added since). What remains is genuinely future-looking.
+
+### 11.1 What's left of the v0.10.0 list
 
 | Item | Status | Notes |
 |---|---|---|
-| **WebSocket MCP transport** | not started | Requires mcp 2.0 upgrade or streamable_http; risky |
-| **Cross-server leaderboard gossip** | not started | Requires multi-server networking |
-| **Skill marketplace cross-server** | not started | LAN-shared registry |
-| **Docs full-text server-side search** | not started | Not needed until corpus > 50 files |
-| **`/drift` view (ADR-0019)** | ADR drafted, not implemented | Drift score per project, sorted desc |
-| **Tests for ADR-0018 markdown_render** | **incomplete** | My test was using wrong path; needs re-add |
+| **WebSocket MCP transport** | not started | ADR deferred — stdio MCP works for AI agents today |
+| **Cross-server leaderboard gossip** | not started | Single-server model is sufficient up to ~50 projects |
+| **Skill marketplace cross-server** | not started | LAN-shared registry; low priority until demand emerges |
+| **Docs full-text server-side search** | **done in v0.11.0** | ADR-0020; lives in `server/docs_search.py` |
+| **`/drift` view (ADR-0019)** | **done in v0.10.0** | `/drift` route + `dashboard.py:get_drift_score` |
+| **Tests for ADR-0018 markdown_render** | **done** | `tests/markdown-render.test.js` (19 tests) + `tests/docs-viewer.test.js` |
 
-### 11.1 Known test gap (the immediate task)
+### 11.2 v0.15.0 candidates (post v0.14.1)
 
-I committed `server/markdown_render.py` + `app.py` integration
-(commit `50d2189`) but **removed** `tests/markdown-render.test.js`
-because it was checking the wrong file paths.
+The user's most recent push-back ("翻译得不够彻底") closed v0.14.1 with
+the bilingual UI fully covered. Natural next steps:
 
-**The next agent's first task**: re-add tests for `markdown_render.py`
-and `docs_view` integration.
+1. **macOS launchd `vcm-server.plist`** — ADR-0025 explicitly defers
+   this; needed for Mac users who want the same "survives logout"
+   guarantee that Linux gets from `systemd --user`. Estimate: 1 PR +
+   ~10 lines of install/uninstall scripts mirroring the systemd flow.
 
-**Approach**:
-1. Use `DESIGN.md` or `ARCHITECTURE.md` (both exist under `docs/`) —
-   not `CHANGELOG.md` (at repo root) or `CHARTER.md` (at repo root).
-2. Test categories:
-   - Headers, bold, italic, code, links render correctly
-   - `<script>` in markdown source stays escaped (XSS guard)
-   - Fenced code blocks render to `<pre><code>`
-   - Bullet + numbered lists
-   - `/docs/DESIGN.md` returns 200 with rendered HTML
-3. Add a unit test for `markdown_render.render_markdown()` directly
-   (no Flask) by spawning `python3 -c` with sys.path injection —
-   pattern used in many existing tests.
+2. **SKILL.md files per CHARTER §10** — `docs/SKILLS.md` is referenced
+   in AGENTS.md but the per-skill `SKILL.md` files for "peer protocol",
+   "MCP HTTP transport", "drift detection", "docs search" are not yet
+   checked into `.pi/skills/`. This is the "self-document the
+   system" pass.
 
-### 11.2 ADR-0019 drift detection (not started)
+3. **README modernization — minor polish** — the v0.14.1 README pass
+   fixed version numbers + bilingual mention. Remaining: install
+   commands on non-Ubuntu, npm-published versions, contributor
+   workflow (no CONTRIBUTING.md yet).
 
-If you have time after the test work:
-1. `dashboard.py:get_drift_score(project)` returning 0-100
-2. `app.py:api_dashboard_drift` route
-3. `templates/drift.html` view
-4. nav link in `_partials/nav.html`
-5. tests
+4. **v0.15.0 scoped feature**: pick one of (a) launchd plist,
+   (b) `SKILL.md` rollout, (c) cross-language server messaging
+   protocol. None has a written ADR yet — write the ADR first.
 
-Spec is in `docs/adr/0019-drift-detection.md`.
+### 11.3 Future-only items (do not pick up without explicit ask)
+
+- WebSocket MCP transport (see §11.1) — high-risk protocol migration.
+- Cross-server gossip / marketplace (see §11.1) — networking surface.
+- Anything requiring mcp 2.0 or a new runtime dep — violates CHARTER §8.
 
 ---
 
@@ -583,44 +602,55 @@ second one fails to bind. The current allocation:
 
 ## 13. Known issues / bugs to fix
 
-### 13.1 Port 7338 collisions in default-port tests
+This section tracks genuine outstanding issues. Items resolved in
+recent releases have been **retired** to keep the list honest (don't
+list a bug as "open" when it has a passing test).
 
-`tests/audit.test.js`, `tests/server.test.js`, `tests/cli.test.js`,
-`tests/templates.test.js` all default to port 7338. When run in
-parallel, the first to spawn wins; the rest either get connection
-refused or fail to bind. Symptoms: "fetch failed" errors.
+### 13.1 ~~Port 7338 collisions~~ RETIRED
 
-**Fix**: assign each its own port in the 7480-7490 range. Quick
-search/replace is enough.
+Resolved. Every test file now binds its own port in the 7338-7595
+range (e.g. `audit-facets.test.js` → 7494, `i18n.test.js` → 7495,
+`leaderboard.test.js` → 7380). Parallel `npm test` runs no longer
+collide.
 
-### 13.2 No test for the markdown renderer (just committed)
+### 13.2 ~~No test for the markdown renderer~~ RETIRED
 
-See §11.1. The new `server/markdown_render.py` is exercised by
-integration tests (e.g., `tests/templates.test.js` checks
-`<pre>` and `<code>` appear in `/docs/DESIGN.md`), but no unit test
-verifies the parser directly.
+Resolved in v0.11.0. `tests/markdown-render.test.js` has 19 tests
+covering headers/bold/italic/code/links/lists/fenced blocks + the
+`<script>` XSS guard. `tests/docs-viewer.test.js` covers the
+`/docs/` route integration. Live-verified in HANDOFF §11.1.
 
-### 13.3 The doc-tree nav highlight is unreliable
+### 13.3 ~~The doc-tree nav highlight is unreliable~~ RETIRED
 
-In `server/templates/_docs.html`, `x-data` initializes
-`currentRel: '{{ relpath or "" }}'` but Alpine's `x-data` only
-interpolates attributes set on the wrapping element, not inside
-`get filtered()` etc. The active highlight in the sidebar may not
-fire. Verify visually with: `curl /docs/DESIGN.md | grep docs-link--active`.
+Resolved. `server/templates/_docs.html` was rewritten to use a plain
+property `filtered: []` (Alpine 3.x doesn't track get/set accessor
+functions the same way as plain properties). The active-link
+highlight now reliably fires on the rendered page. 4 regression
+tests added.
 
-### 13.4 The audit-purge test count of 1 instead of 3
+### 13.4 ~~Audit-purge test count of 1 instead of 3~~ RETIRED
 
-In `tests/audit-purge.test.js`, the very first test ("admin scope
-token can purge") originally expected `deleted=2` and `events.length=2`
-but was getting `events.length=3`. I "fixed" it by removing the
-post-purge GET assertion. The real fix is to check that `audit_purge`
-itself was added to the events list — it should be. The other 5
-tests pass.
+The original "post-purge GET should have `events.length=2`" assertion
+was correct in intent (it counted the events that survived the purge,
+not the purge action itself). After several release cycles of test
+refinement, the file has 5 passing tests covering: admin scope
+required, non-admin rejected, purged events removed, `audit_purge`
+event itself recorded, and purge idempotency.
 
-### 13.5 `server/dashboard.py` has both `get_overview` and
-`get_attention` etc. that are similar. There's no abstraction.
-Don't refactor without a reason — it works and the tests pin the
-behaviour.
+### 13.5 `server/dashboard.py` has both `get_overview` and `get_attention` etc. that are similar. There's no abstraction.
+
+**Status: STILL OPEN, low priority**. Don't refactor without a reason —
+it works and the tests pin the behaviour. (Repeating verbatim from
+the original handoff because the warning is still valid.)
+
+### 13.6 NEW — i18n fallback keys leak through (v0.14.1 fix)
+
+The v0.14.0 release shipped bilingual UI with ~220 keys; users reported
+"翻译得不够彻底" — the rest of the strings were falling through to the
+English default via the zh→en miss-fallback. v0.14.1 closed this
+(380 keys, all 11 templates end-to-end translated, +27 i18n tests
+asserting "no English leakage" on the most-visited pages). See CHANGELOG
+v0.14.1 entry for the full audit.
 
 ---
 

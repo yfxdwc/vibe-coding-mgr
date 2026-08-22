@@ -90,6 +90,7 @@ python3 server/app.py   # binds 127.0.0.1:7338
 # From each project:
 vcm push --server http://your-dev-server:7338
 # → See all projects at http://your-dev-server:7338/
+#   (zh by default; toggle the language in the nav bar to switch to en)
 ```
 
 ## Step 7b: (Optional) Run `vcm-server` persistently (systemd, v0.13.0+)
@@ -100,7 +101,8 @@ install as a systemd user unit (ADR-0025; Linux only):
 ```bash
 cd vibe-coding-mgr
 bash scripts/install-service.sh
-# → vcm-server installed: http://127.0.0.1:7338/
+# → vcm-server installed: http://127.0.0.1:<picked>/
+# (the installer auto-chooses 7338..7399; on this host it picked 7339)
 
 # Day-to-day:
 systemctl --user status vcm-server
@@ -127,7 +129,9 @@ Notes:
   logout.
 - macOS / Windows: use `tmux` to keep `python3 server/app.py` alive
   across logout, OR run inside WSL where the Linux path applies.
-  A `vcm-server.plist` for launchd is on the v0.14.0 roadmap.
+  A `vcm-server.plist` for launchd is **not yet implemented** (ADR-0025
+  §"不做" — out of scope for v0.13.0/v0.14.1). Linux + `systemd --user`
+  is the supported long-runtime path.
 
 ## Daily workflow
 
