@@ -125,23 +125,37 @@ drift / skills / trends / peers / audit / settings / projects / docs。
   浏览器。
 - 项目 status dot：`aria-label="health: warning"`。
 
-### 8. 顺路发现的 bug：**不**在 v0.18.0 scope 内
+### 8. 顺路发现的 DB path 风险：**不**在 v0.18.0 scope 内
 
-发现：`projects` 表 schema 在 `server/dashboard.py:535` 有
-`CREATE TABLE IF NOT EXISTS`，但当前 DB 实例里**没建**——只有
-`audit_events / tokens / users` 三张表。`list_projects` 现在返回
-空数组且不报错（silent-broken）。
+**事实更正（v0.18.0 启动时核对）**：ADR-0030 起草时基于对仓库根
+`vcm.db` 的查询（`sqlite_master` 只有 `audit_events / tokens /
+users` 三表）写下了"projects 表 silent-broken"的判断。但 service
+实际跑的 DB 是 `server/vcm.db`（env 默认；4 表齐全 + 2 个项目：
+vcm-smoke / sales-ai）。仓库根的 `vcm.db` 是孤儿文件——可能是
+某次手动 init、CLI 工具、或测试残留创建的，service 进程并不读
+它。两个 DB 同存但角色不同。
 
-**决策：本 ADR 不修。** 拆独立 fix PR（预计 ADR-0031 + 1 个 commit）：
+**真正的风险**（不是现状 silent-broken，而是未来某次）：
+- 有人改 `VCM_SERVER_DB` 指向根 db，4 张表的假设瞬间失效。
+- service 因 cwd / 路径变更误读根 db，缺表会让 `list_projects`
+  静默返回空数组（与今天看到的一样）。
+- 任何 ad-hoc Python 脚本直接 `sqlite3.connect('vcm.db')` 走到根
+  db，会得到"看似健康"的 3 表 schema 而不知道缺表。
 
-- 修 `init_db()` 末尾加 `PRAGMA table_info('projects')` 自检 + 显式
-  re-create。
-- 加 `bash scripts/routine_coverage.sh` 后的冒烟：
-  `python3 -c "import sqlite3; ..."` 确认 4 表齐全。
+**决策：本 ADR 不修。** 拆独立 fix PR（预计 ADR-0031 + 多 commit）：
+
+- 修 `init_db()` 末尾加 `PRAGMA table_info('projects')` 自检 + log
+  ERROR（不抛——保持向后兼容；缺表只是给运维看，不让 service 拒
+  启动）。
+- 加 `scripts/check_db_schema.py`：从 `VCM_SERVER_DB` env 读路径，
+  默认 `server/vcm.db`，assert 4 表齐全；钩进 `routine_coverage.sh`。
+- 删除仓库根 `vcm.db` 的**生成路径**（grep 所有 `sqlite3.connect`
+  调用，确保没人会偶然创建它）—— 不是删文件本身（保留孤儿，让
+  owner 决定怎么处置）。
 - 理由：bug fix 自带最小冒烟，独立 PR 让 v0.18.0（sidebar + 多项目
   registry UI）保持"只增能力"边界；reviewer 不会被无关改动干扰。
-- v0.18.0 的 `POST /api/projects` 路径会**自动**因这个 fix 而正常
-  持久化（不依赖该 PR 时序）。
+- v0.18.0 的 `POST /api/projects` 路径会**自动**在 service db 正常
+  路径下工作（不依赖该 PR 时序）。
 
 ## 反对意见（self-argue）
 
@@ -222,9 +236,13 @@ bash scripts/routine_coverage.sh   # exit 0
 python3 scripts/check_adr_index.py
 # → "30 ADRs, all unique"
 
-# 3. projects 表能正常持久化（依赖独立 bug fix PR，见 §决策.8）
-sqlite3 vcm.db ".schema projects" | grep -q "CREATE TABLE projects"
-sqlite3 vcm.db "SELECT COUNT(*) FROM projects;"   # 数字 ≥ 0
+# 3. service db 4 表齐全 + projects 可持久化（依赖独立 fix PR，见 §决策.8）
+DB="${VCM_SERVER_DB:-server/vcm.db}"
+sqlite3 "$DB" ".schema projects" | grep -q "CREATE TABLE projects"
+sqlite3 "$DB" "SELECT COUNT(*) FROM projects;"   # 数字 ≥ 0
+sqlite3 "$DB" ".tables" | tr -s ' ' '\n' | sort -u \
+  | grep -E "^(projects|states|users|tokens)$" \
+  | wc -l   # 应 ≥ 4
 
 # 4. sidebar 在所有 9 个页面渲染
 for path in / /leaderboard /drift /skills /trends /peers /audit /settings /docs/DESIGN.md; do
