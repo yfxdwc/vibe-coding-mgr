@@ -1073,7 +1073,7 @@ def api_registry_skills():
         return jsonify({"skills": results, "count": len(results), "scope": "local"})
 
     # scope=all: merge peer skills (ADR-0023). Local wins on name+name conflict.
-    peer_skills = peers.merge_peer_skills()
+    peer_skills = peers.merge_peer_skills(refresh=request.args.get('refresh') == '1')
     seen_names = {r["name"] for r in results if r.get("name")}
     merged = list(local_results)
     for s in peer_skills:

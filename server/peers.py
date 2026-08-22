@@ -227,15 +227,22 @@ def get_peer_registry(peer: dict) -> dict:
         return entry
 
 
-def all_peer_registries() -> list[dict]:
+def all_peer_registries(refresh: bool = False) -> list[dict]:
+    if refresh:
+        with _LOCK:
+            # Drop the registry rows so the next get_peer_registry call
+            # actually re-fetches instead of returning the cached entry.
+            stale = [k for k in _CACHE if k.startswith("registry:")]
+            for k in stale:
+                _CACHE.pop(k, None)
     with _LOCK:
         return [get_peer_registry(p) for p in _PEERS_CFG]
 
 
-def merge_peer_skills() -> list[dict]:
+def merge_peer_skills(refresh: bool = False) -> list[dict]:
     """Flatten each peer's skill list, tagged with origin."""
     out = []
-    for entry in all_peer_registries():
+    for entry in all_peer_registries(refresh=refresh):
         if entry.get("status") != "ok":
             continue
         for s in entry.get("skills", []):
