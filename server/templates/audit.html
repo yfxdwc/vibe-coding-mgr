@@ -34,7 +34,7 @@
   <div class="c-card">
     <div class="c-card-head">
       <h2 class="text-section">{{ t("common.filter") }}</h2>
-      <span class="text-meta"><span x-text="filtered.length"></span> events shown</span>
+      <span class="text-meta"><span x-text="filtered.length"></span>{{ t("audit.events_shown") }}</span>
     </div>
     <div class="cluster-3" style="flex-wrap: wrap; align-items: flex-end;">
       <label class="stack-2" style="min-width: 180px;">
@@ -43,12 +43,12 @@
                 style="background: var(--surface-alt); border: 1px solid var(--border-subtle);
                        color: var(--text-primary); padding: 6px 8px; border-radius: 6px;
                        font-family: inherit; font-size: var(--fs-body);">
-          <option value="">all</option>
-          <option value="auth_failure">auth_failure</option>
-          <option value="state_pushed">state_pushed</option>
-          <option value="state_rejected">state_rejected</option>
-          <option value="registry_publish">registry_publish</option>
-          <option value="registry_unpublish">registry_unpublish</option>
+          <option value="">{{ t("common.all") }}</option>
+          <option value="auth_failure">{{ t("audit.event.auth_failure") }}</option>
+          <option value="state_pushed">{{ t("audit.event.state_pushed") }}</option>
+          <option value="state_rejected">{{ t("audit.event.state_rejected") }}</option>
+          <option value="registry_publish">{{ t("audit.event.registry_publish") }}</option>
+          <option value="registry_unpublish">{{ t("audit.event.registry_unpublish") }}</option>
         </select>
       </label>
       <label class="stack-2" style="min-width: 200px;">
@@ -79,7 +79,7 @@
                       color: var(--text-primary); padding: 6px 8px; border-radius: 6px;
                       font-family: var(--font-mono); font-size: var(--fs-meta);" />
       </label>
-      <button class="btn btn--sm btn--ghost" @click="resetFilters()">clear</button>
+      <button class="btn btn--sm btn--ghost" @click="resetFilters()">{{ t("audit.clear") }}</button>
     </div>
     <!-- ADR-0024: facet chips for discoverability -->
     <div class="cluster-3" style="flex-wrap: wrap; margin-top: var(--space-3);"
@@ -118,7 +118,7 @@
 
   <div class="c-card" x-show="events.length">
     <div class="c-card-head">
-      <h2 class="text-section">Events</h2>
+      <h2 class="text-section">{{ t("audit.events_section") }}</h2>
       <span class="text-meta">
         <span class="mono" x-text="events.length"></span> total ·
         <span class="badge badge--fail"   x-show="countByType('auth_failure')   > 0">
@@ -138,7 +138,7 @@
 
   <section class="kpi-grid" data-c="audit-stats" x-show="loaded">
     <div class="kpi-cell">
-      <span class="kpi-label">Total events</span>
+      <span class="kpi-label">{{ t("audit.kpi.total") }}</span>
       <span class="kpi-value" x-text="stats.total || 0"></span>
       <span class="kpi-meta">
         <span x-text="filterSince ? 'since ' + filterSince.slice(0,10) : 'all time'"></span>
@@ -151,7 +151,7 @@
             x-text="stats.by_type?.auth_failure || 0"></span>
       <span class="kpi-meta">
         <span class="badge badge--idle" x-show="(stats.by_type?.auth_failure || 0) === 0">no failed attempts</span>
-        <span class="badge badge--fail" x-show="(stats.by_type?.auth_failure || 0) > 0">requires attention</span>
+        <span class="badge badge--fail" x-show="(stats.by_type?.auth_failure || 0) > 0">{{ t("audit.health.requires_attention") }}</span>
       </span>
     </div>
     <div class="kpi-cell">
@@ -160,7 +160,7 @@
             :style="(stats.by_type?.state_pushed || 0) > 0 ? 'color: var(--ok)' : ''"
             x-text="stats.by_type?.state_pushed || 0"></span>
       <span class="kpi-meta">
-        <span x-show="(stats.by_type?.state_pushed || 0) > 0">healthy ingestion</span>
+        <span x-show="(stats.by_type?.state_pushed || 0) > 0">{{ t("audit.health.healthy_ingestion") }}</span>
         <span x-show="(stats.by_type?.state_pushed || 0) === 0">no pushes yet</span>
       </span>
     </div>
@@ -168,7 +168,7 @@
 
   <div class="c-card" x-show="loaded && Object.keys(stats.by_type || {}).length > 0">
     <div class="c-card-head">
-      <h2 class="text-section">Event distribution</h2>
+      <h2 class="text-section">{{ t("audit.event_distribution") }}</h2>
       <span class="text-meta">bars are stacked event counts since filter</span>
     </div>
     <div id="audit-stats-chart" class="chart-frame" style="height: 200px;"></div>
@@ -178,10 +178,10 @@
       <table class="data-table" data-c="audit-table">
         <thead>
           <tr>
-            <th class="nowrap">Timestamp (UTC)</th>
-            <th>Event</th>
-            <th>Subject</th>
-            <th>Detail</th>
+            <th class="nowrap">{{ t("audit.col.timestamp") }}</th>
+            <th>{{ t("audit.col.event") }}</th>
+            <th>{{ t("audit.col.subject") }}</th>
+            <th>{{ t("audit.col.detail") }}</th>
           </tr>
         </thead>
         <tbody>
@@ -204,7 +204,7 @@
   </div>
 
   <div x-show="loaded && !events.length" class="empty-state">
-    <p>No audit events yet.</p>
+    <p>{{ t("audit.empty") }}</p>
     <p class="text-meta">Once any <code>/api/collect</code> or auth attempt happens,
        a JSONL line will appear here.</p>
   </div>

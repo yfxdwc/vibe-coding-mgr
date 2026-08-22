@@ -239,13 +239,15 @@ describe('/docs/ integration — HTML actually renders (not escaped)', () => {
       expect(r.status, `failed for ${f.relpath}`).toBe(200);
       const body = await r.text();
       // The shared layout template (used by /docs and many other pages)
-      // contains exactly 2 <script> tags: Alpine.js loader and the
+      // contains 4 <script> tags as of v0.14.1: Alpine.js loader,
+      // the i18n JSON bridge (`window.__vcm_i18n__ = {...}`),
+      // the i18n JS bridge (`window.t = function`), and the
       // per-page docsPage() block. .md source must NOT inject more.
       const docScripts = (body.match(/<script/g) || []).length;
       expect(
         docScripts,
-        `extra <script> in ${f.relpath}: ${docScripts} > 2 layout baseline`,
-      ).toBeLessThanOrEqual(2);
+        `extra <script> in ${f.relpath}: ${docScripts} > 4 layout baseline`,
+      ).toBeLessThanOrEqual(4);
     }
   });
 });

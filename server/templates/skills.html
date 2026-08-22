@@ -9,42 +9,42 @@
 {% block page_head %}
 <header class="page-head">
   <div class="crumbs">
-    <a href="/">cockpit</a>
+    <a href="/">{{ t("nav.cockpit") }}</a>
     <span class="sep">/</span>
-    <span class="crumb-current">skill registry</span>
+    <span class="crumb-current">{{ t("skills.crumb") }}</span>
   </div>
   <h1 class="text-display">{{ t("skills.title") }}</h1>
-  <p class="text-meta">All skills used by any project. Sorted by cross-project reach.</p>
+  <p class="text-meta">{{ t("skills.subtitle.meta") }}</p>
 </header>
 {% endblock %}
 
 {% block answers_line %}
 <div class="answers-line">
   <span class="answers-tag">{{ t("answers.tag") }}</span>
-  <p>which skills are reusable across projects, and which are stuck behind a single project?</p>
+  <p>{{ t("skills.lede.answers") }}</p>
 </div>
 {% endblock %}
 
 {% block top_kpi %}
 <section class="kpi-grid">
   <div class="kpi-cell">
-    <span class="kpi-label">Unique skills</span>
+    <span class="kpi-label">{{ t("skills.kpi.unique") }}</span>
     <span class="kpi-value"><span x-text="skills.length"></span></span>
-    <span class="kpi-meta">across <span x-text="uniqueProjects.size"></span> project<span x-show="uniqueProjects.size !== 1">s</span></span>
+    <span class="kpi-meta">{{ t("skills.kpi.unique_meta") }} <span x-text="uniqueProjects.size"></span> <span x-text="uniqueProjects.size !== 1 ? window.t('skills.coverage.col.projects') : window.t('skills.coverage.col.projects')"></span></span>
   </div>
   <div class="kpi-cell">
-    <span class="kpi-label">Shared (≥ 2 projects)</span>
+    <span class="kpi-label">{{ t("skills.kpi.shared") }}</span>
     <span class="kpi-value" :style="topShared.length > 0 ? 'color: var(--accent)' : ''">
       <span x-text="topShared.length"></span>
     </span>
-    <span class="kpi-meta">good candidates for <code>.vcm-skill.json</code></span>
+    <span class="kpi-meta">{{ t("skills.kpi.shared_meta") }} <code>{{ t("skills.kpi.shared_target") }}</code></span>
   </div>
   <div class="kpi-cell">
-    <span class="kpi-label">Most popular</span>
+    <span class="kpi-label">{{ t("skills.kpi.popular") }}</span>
     <span class="kpi-value" style="font-size: var(--fs-section);"
           x-text="topShared[0]?.skill || '—'"></span>
     <span class="kpi-meta">
-      <span x-show="topShared[0]">used by <span x-text="topShared[0]?.project_count"></span> projects</span>
+      <span x-show="topShared[0]">{{ t("skills.kpi.popular_meta") }} <span x-text="topShared[0]?.project_count"></span> {{ t("skills.kpi.popular_unit") }}</span>
     </span>
   </div>
 </section>
@@ -52,9 +52,9 @@
 
 {% block tabs %}
 <nav class="tabs">
-  <button class="tab" :class="{ active: tab === 'matrix' }"     @click="setTab('matrix')">Chart</button>
-  <button class="tab" :class="{ active: tab === 'coverage' }"  @click="setTab('coverage')">Full list</button>
-  <button class="tab" :class="{ active: tab === 'registry' }"  @click="setTab('registry')">Projects</button>
+  <button class="tab" :class="{ active: tab === 'matrix' }"     @click="setTab('matrix')">{{ t("skills.tabs.chart") }}</button>
+  <button class="tab" :class="{ active: tab === 'coverage' }"  @click="setTab('coverage')">{{ t("skills.tabs.full") }}</button>
+  <button class="tab" :class="{ active: tab === 'registry' }"  @click="setTab('registry')">{{ t("skills.tabs.projects") }}</button>
 </nav>
 {% endblock %}
 
@@ -64,8 +64,8 @@
 <section x-show="tab === 'matrix'" class="stack-5" data-c="tab-panel" data-tab="matrix">
   <div class="c-card">
     <div class="c-card-head">
-      <h2 class="text-section">Top 15 shared skills</h2>
-      <span class="text-meta">bars show number of projects using each</span>
+      <h2 class="text-section">{{ t("skills.top_shared") }}</h2>
+      <span class="text-meta">{{ t("skills.matrix.bars_meta") }}</span>
     </div>
     <div id="skill-chart" class="chart-frame" style="height: 360px;"></div>
   </div>
@@ -75,25 +75,25 @@
 <section x-show="tab === 'coverage'" class="stack-5" data-c="tab-panel" data-tab="coverage">
   <div class="c-card">
     <div class="c-card-head">
-      <h2 class="text-section">All skills, sorted by usage</h2>
+      <h2 class="text-section">{{ t("skills.all_by_usage") }}</h2>
       <span class="text-meta">
-        filter: <input type="text" x-model="filter" placeholder="name substring"
+        filter: <input type="text" x-model="filter" placeholder="{{ t('skills.coverage.filter') }}"
                        style="background: var(--surface-alt); border: 1px solid var(--border-subtle);
                               color: var(--text-primary); padding: 4px 8px; border-radius: 6px;
                               font-family: var(--font-mono); font-size: var(--fs-meta);" />
       </span>
     </div>
     <div x-show="!filtered.length" class="empty-state">
-      <p>No skills match <code x-text="filter"></code>.</p>
+      <p>{{ t("skills.coverage.no_match") }} <code x-text="filter"></code>.</p>
     </div>
     <div x-show="filtered.length" style="overflow-x: auto;">
       <table class="data-table">
         <thead>
           <tr>
-            <th>Skill</th>
-            <th class="num">Projects</th>
-            <th>Used in</th>
-            <th>Decision</th>
+            <th>{{ t("skills.coverage.col.skill") }}</th>
+            <th class="num">{{ t("skills.coverage.col.projects") }}</th>
+            <th>{{ t("skills.coverage.col.used_in") }}</th>
+            <th>{{ t("skills.coverage.col.decision") }}</th>
           </tr>
         </thead>
         <tbody>
@@ -105,7 +105,7 @@
               <td>
                 <span class="badge"
                       :class="row.project_count > 1 ? 'badge--ok' : 'badge--idle'"
-                      x-text="row.project_count > 1 ? 'promote to canonical?' : 'single-project'"></span>
+                      x-text="row.project_count > 1 ? window.t('skills.coverage.decision.promote') : window.t('skills.coverage.decision.single')"></span>
               </td>
             </tr>
           </template>
@@ -119,17 +119,17 @@
 <section x-show="tab === 'registry'" class="stack-5" data-c="tab-panel" data-tab="registry">
   <div class="c-card">
     <div class="c-card-head">
-      <h2 class="text-section">Project × skill matrix</h2>
-      <span class="text-meta">rows = projects, columns = skills</span>
+      <h2 class="text-section">{{ t("skills.matrix.title") }}</h2>
+      <span class="text-meta">{{ t("skills.matrix.meta") }}</span>
     </div>
     <div x-show="!matrix.length" class="empty-state">
-      <p>No skills reported yet. Run <code>vcm push</code> in your projects.</p>
+      <p>{{ t("skills.matrix.empty_prefix") }} <code>{{ t("cockpit.empty.projects.cmd") }}</code> {{ t("skills.matrix.empty_suffix") }}</p>
     </div>
     <div x-show="matrix.length" style="overflow-x: auto;">
       <table class="data-table" style="font-size: var(--fs-meta);">
         <thead>
           <tr>
-            <th style="position: sticky; left: 0; background: var(--bg); z-index: 1;">Project</th>
+            <th style="position: sticky; left: 0; background: var(--bg); z-index: 1;">{{ t("skills.coverage.col.projects") }}</th>
             <template x-for="s in skills" :key="s.skill">
               <th class="text-meta" style="writing-mode: vertical-lr; padding: var(--space-3) 4px;" x-text="s.skill"></th>
             </template>

@@ -24,6 +24,21 @@
   <link rel="stylesheet" href="/static/css/dashboard.css">
   <script defer src="/static/js/alpine.min.js"></script>
   {% block extra_head %}{% endblock %}
+
+  {# ADR-0026: Alpine.js bridge. window.__vcm_i18n__ exposes the active
+     language's catalog for JS/Alpine code that runs after the initial
+     render. window.t() does the same lookup with a fallback chain. #}
+  <script>window.__vcm_i18n__ = {{ i18n_js | safe }};</script>
+  <script>
+    (function() {
+      const dict = window.__vcm_i18n__ || {};
+      // zh-missing-fall-through — if the active lang is missing a key,
+      // we already merged in English at the server; this is defensive.
+      window.t = function(key) {
+        return (dict && dict[key]) || key;
+      };
+    })();
+  </script>
 </head>
 <body x-data="page()" x-init="init()" data-page="{{ nav_active or 'cockpit' }}">
 

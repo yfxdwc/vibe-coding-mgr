@@ -12,14 +12,14 @@
   <div class="crumbs">
     <span class="crumb-current">{{ t("nav.cockpit") }}</span>
   </div>
-  <h1 class="text-display">Multi-project cockpit</h1>
-  <p class="text-meta">All projects that have pushed state to this server, ranked by attention needed.</p>
+  <h1 class="text-display">{{ t("cockpit.title") }}</h1>
+  <p class="text-meta">{{ t("cockpit.lede") }}</p>
 </header>
 {% endblock %}
 
 {% block answers_line %}
 <div class="answers-line">
-  <span class="answers-tag">Answers</span>
+  <span class="answers-tag">{{ t("answers.tag") }}</span>
   <p>which projects are unhealthy, what they lack, and what's changed since you last looked.</p>
 </div>
 {% endblock %}
@@ -28,29 +28,29 @@
 <section class="kpi-grid" data-c="kpi-grid" aria-label="Top KPIs">
 
   <div class="kpi-cell" data-c="kpi" data-kpi="projects">
-    <span class="kpi-label">Projects</span>
+    <span class="kpi-label">{{ t("cockpit.kpi.projects") }}</span>
     <span class="kpi-value"><span x-text="summary.total_projects ?? '—'"></span></span>
-    <span class="kpi-meta"><span x-text="summary.healthy ?? 0"></span> fully healthy ·
-      <span x-text="summary.warning ?? 0"></span> with warnings</span>
+    <span class="kpi-meta"><span x-text="summary.healthy ?? 0"></span> {{ t("cockpit.kpi.projects_meta") }} ·
+      <span x-text="summary.warning ?? 0"></span> {{ t("cockpit.kpi.with_warnings") }}</span>
   </div>
 
   <div class="kpi-cell" data-c="kpi" data-kpi="attention">
-    <span class="kpi-label">Needs attention</span>
+    <span class="kpi-label">{{ t("cockpit.attention.title") }}</span>
     <span class="kpi-value" :style="(summary.needs_attention ?? 0) > 0 ? 'color: var(--fail)' : ''">
       <span x-text="summary.needs_attention ?? 0"></span>
     </span>
     <span class="kpi-meta">
-      <span x-show="(summary.needs_attention ?? 0) > 0" style="color: var(--fail);">critical projects</span>
-      <span x-show="(summary.needs_attention ?? 0) === 0" style="color: var(--ok);">all quiet ✓</span>
+      <span x-show="(summary.needs_attention ?? 0) > 0" style="color: var(--fail);">{{ t("cockpit.kpi.critical") }}</span>
+      <span x-show="(summary.needs_attention ?? 0) === 0" style="color: var(--ok);">{{ t("cockpit.kpi.all_quiet") }} ✓</span>
     </span>
   </div>
 
   <div class="kpi-cell" data-c="kpi" data-kpi="registries">
-    <span class="kpi-label">Registry footprint</span>
-    <span class="kpi-value"><span x-text="summary.total_skills ?? 0"></span><span class="unit">skills</span></span>
+    <span class="kpi-label">{{ t("cockpit.kpi.registry") }}</span>
+    <span class="kpi-value"><span x-text="summary.total_skills ?? 0"></span><span class="unit">{{ t("cockpit.kpi.skills") }}</span></span>
     <span class="kpi-meta">
       <span x-text="summary.total_adrs ?? 0"></span> ADRs ·
-      <span x-show="summary.total_post_mortems != null"><span x-text="summary.total_post_mortems"></span> post-mortems</span>
+      <span x-show="summary.total_post_mortems != null"><span x-text="summary.total_post_mortems"></span> {{ t("common.suffix.post_mortems") }}</span>
     </span>
   </div>
 
@@ -60,13 +60,13 @@
 {% block tabs %}
 <nav class="tabs" role="tablist">
   <button class="tab" role="tab" :class="{ active: tab === 'overview' }"
-          @click="setTab('overview')" data-tab="overview">Overview</button>
+          @click="setTab('overview')" data-tab="overview">{{ t("cockpit.tabs.overview") }}</button>
   <button class="tab" role="tab" :class="{ active: tab === 'attention' }"
           @click="setTab('attention')" data-tab="attention">
     Attention <span x-text="`(${attention.length})`" class="text-meta" x-show="attention.length"></span>
   </button>
   <button class="tab" role="tab" :class="{ active: tab === 'activity' }"
-          @click="setTab('activity')" data-tab="activity">Activity</button>
+          @click="setTab('activity')" data-tab="activity">{{ t("cockpit.tabs.activity") }}</button>
 </nav>
 {% endblock %}
 
@@ -76,30 +76,29 @@
 <section x-show="tab === 'overview'" class="stack-5" data-c="tab-panel" data-tab="overview">
   <div class="c-card" data-c="card-projects">
     <div class="c-card-head">
-      <h2 class="text-section">Project health matrix</h2>
+      <h2 class="text-section">{{ t("cockpit.matrix.title") }}</h2>
       <span class="text-meta">
-        <span x-text="overview.length"></span> registered ·
-        click row for detail
+        <span x-text="overview.length"></span> · {{ t("cockpit.matrix.click_row") }}
       </span>
     </div>
 
     <div x-show="!overview.length" class="empty-state">
-      <p>No projects yet — run <code>vcm push</code> from each.</p>
+      <p>{{ t("cockpit.empty.projects") }} <code>vcm {{ t("cockpit.empty.projects.cmd") }}</code> {{ t("cockpit.empty.projects.suffix") }}</p>
     </div>
 
     <div x-show="overview.length" style="overflow-x: auto;">
       <table class="data-table" data-c="projects-table">
         <thead>
           <tr>
-            <th>Project</th>
-            <th>AGENTS</th>
-            <th>CHARTER</th>
-            <th class="num">Skills</th>
-            <th class="num">ADRs</th>
-            <th class="num">TDs</th>
-            <th>Branch</th>
-            <th>Tree</th>
-            <th>Last seen</th>
+            <th>{{ t("cockpit.matrix.col.project") }}</th>
+            <th>{{ t("cockpit.matrix.col.agents") }}</th>
+            <th>{{ t("cockpit.matrix.col.charter") }}</th>
+            <th class="num">{{ t("cockpit.matrix.col.skills") }}</th>
+            <th class="num">{{ t("cockpit.matrix.col.adrs") }}</th>
+            <th class="num">{{ t("cockpit.matrix.col.tds") }}</th>
+            <th>{{ t("cockpit.matrix.col.branch") }}</th>
+            <th>{{ t("cockpit.matrix.col.tree") }}</th>
+            <th>{{ t("cockpit.matrix.col.last_seen") }}</th>
           </tr>
         </thead>
         <tbody>
@@ -133,7 +132,7 @@
               <td><code x-text="p.git_branch || '—'" class="nowrap"></code></td>
               <td>
                 <span class="badge" :class="p.git_dirty ? 'badge--warn' : 'badge--ok'">
-                  <span x-text="p.git_dirty ? '⚠ dirty' : '✓ clean'"></span>
+                  <span x-text="p.git_dirty ? window.t('cockpit.matrix.col.tree_dirty') : window.t('cockpit.matrix.col.tree_clean')"></span>
                 </span>
               </td>
 
@@ -147,11 +146,11 @@
 
   <div class="c-card" data-c="card-skills-xref">
     <div class="c-card-head">
-      <h2 class="text-section">Skill cross-project</h2>
-      <a class="btn btn--sm btn--ghost" href="/skills">view registry →</a>
+      <h2 class="text-section">{{ t("cockpit.skills.title_short") }}</h2>
+      <a class="btn btn--sm btn--ghost" href="/skills">{{ t("cockpit.view_registry") }}</a>
     </div>
     <div x-show="!skillMatrix.length" class="empty-state">
-      <p>No skills yet.</p>
+      <p>{{ t("cockpit.skills.empty") }}</p>
     </div>
     <div class="stack-3" x-show="skillMatrix.length">
       <template x-for="row in skillMatrix.slice(0, 12)" :key="row.skill">
@@ -175,14 +174,14 @@
        data-c="card-attention">
     <div class="c-card-head">
       <h2 class="text-section">
-        <span x-text="attention.length"></span> project<span x-show="attention.length !== 1">s</span> need attention
+        <span x-text="attention.length"></span> {{ t("cockpit.attention.count_unit_plural") }} {{ t("cockpit.attention.count_unit") }} {{ t("cockpit.attention.click_view") }}
       </h2>
       <span class="text-meta">click <em>view</em> to inspect</span>
     </div>
 
     <div x-show="!attention.length" class="empty-state" style="border-style: solid; border-color: var(--ok-dim);">
-      <p style="color: var(--ok); font-family: var(--font-serif); font-size: var(--fs-section);">✓ all projects healthy</p>
-      <p>No outstanding alerts. Last scan: <span class="mono" x-text="now"></span>.</p>
+      <p style="color: var(--ok); font-family: var(--font-serif); font-size: var(--fs-section);">✓ {{ t("cockpit.attention.all_healthy") }}</p>
+      <p>{{ t("cockpit.attention.last_scan") }} <span class="mono" x-text="now"></span></p>
     </div>
 
     <div class="stack-3" x-show="attention.length">
@@ -197,19 +196,19 @@
 <section x-show="tab === 'activity'" class="stack-5" data-c="tab-panel" data-tab="activity">
   <div class="c-card">
     <div class="c-card-head">
-      <h2 class="text-section">Health radar</h2>
-      <span class="text-meta">snapshot at <span class="mono" x-text="now"></span></span>
+      <h2 class="text-section">{{ t("cockpit.activity.health_radar") }}</h2>
+      <span class="text-meta">{{ t("cockpit.activity.snapshot_at") }} <span class="mono" x-text="now"></span></span>
     </div>
     <div id="health-chart" class="chart-frame"></div>
   </div>
 
   <div class="c-card">
     <div class="c-card-head">
-      <h2 class="text-section">Recent pushes</h2>
+      <h2 class="text-section">{{ t("cockpit.activity.title") }}</h2>
       <span class="text-meta"><span x-text="activity.length"></span> events</span>
     </div>
     <div x-show="!activity.length" class="empty-state">
-      <p>Nothing pushed yet — once projects call <code>vcm push</code>, events show here.</p>
+      <p>{{ t("cockpit.activity.empty_prefix") }} <code>/api/collect</code> {{ t("cockpit.activity.empty_suffix") }}</p>
     </div>
     <div class="timeline" x-show="activity.length">
       <template x-for="act in activity.slice(0, 12)" :key="act.id">

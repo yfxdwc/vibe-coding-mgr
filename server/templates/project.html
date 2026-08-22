@@ -10,15 +10,15 @@
 {% block page_head %}
 <header class="page-head">
   <div class="crumbs">
-    <a href="/">cockpit</a>
+    <a href="/">{{ t("nav.cockpit") }}</a>
     <span class="sep">/</span>
     <span class="crumb-current">{{ project_name }}</span>
   </div>
   <h1 class="text-display" x-text="data?.name || '{{ project_name }}'"></h1>
   <p class="text-meta">
     <code x-text="data?.path || 'loading…'"></code>
-    · first seen <span class="mono" x-text="(data?.first_seen_at || '').slice(0, 10) || '—'"></span>
-    · last seen <span class="mono" x-text="(data?.last_seen_at || '').slice(0, 16).replace('T', ' ') || '—'"></span>
+    · {{ t("project.first_seen") }} <span class="mono" x-text="(data?.first_seen_at || '').slice(0, 10) || '—'"></span>
+    · {{ t("project.last_seen") }} <span class="mono" x-text="(data?.last_seen_at || '').slice(0, 16).replace('T', ' ') || '—'"></span>
   </p>
 </header>
 {% endblock %}
@@ -26,7 +26,7 @@
 {% block answers_line %}
 <div class="answers-line">
   <span class="answers-tag">{{ t("answers.tag") }}</span>
-  <p>is this project governable, what state is it in, and what's the last known snapshot?</p>
+  <p>{{ t("project.lede.answers") }}</p>
 </div>
 {% endblock %}
 
@@ -34,7 +34,7 @@
 <section class="kpi-grid" data-c="kpi-grid" x-show="data" x-cloak>
 
   <div class="kpi-cell">
-    <span class="kpi-label">Governance</span>
+    <span class="kpi-label">{{ t("project.kpi.governance") }}</span>
     <span class="kpi-value">
       <span x-text="kpiGovernanceScore() + '%'" :style="governanceTone()"></span>
     </span>
@@ -45,27 +45,27 @@
   </div>
 
   <div class="kpi-cell">
-    <span class="kpi-label">Tech debt</span>
+    <span class="kpi-label">{{ t("project.kpi.tds") }}</span>
     <span class="kpi-value">
       <span x-text="data?.latest_state?.governance?.tds_count ?? 0"
             :style="(data?.latest_state?.governance?.tds_count ?? 0) > 30 ? 'color: var(--fail)' : ''"></span>
-      <span class="unit">TDs</span>
+      <span class="unit">{{ t("project.units.TDs") }}</span>
     </span>
     <span class="kpi-meta">
       <span x-show="(data?.latest_state?.governance?.post_mortems_count ?? 0) > 0">
-        <span x-text="data.latest_state.governance.post_mortems_count"></span> post-mortems
+        <span x-text="data.latest_state.governance.post_mortems_count"></span> {{ t("project.units.post_mortems") }}
       </span>
     </span>
   </div>
 
   <div class="kpi-cell">
-    <span class="kpi-label">Working tree</span>
+    <span class="kpi-label">{{ t("project.kpi.tree") }}</span>
     <span class="kpi-value" :style="data?.latest_state?.git?.dirty ? 'color: var(--warn)' : 'color: var(--ok)'">
-      <span x-text="data?.latest_state?.git?.dirty ? 'dirty' : 'clean'"></span>
+      <span x-text="data?.latest_state?.git?.dirty ? window.t('project.kpi.tree.dirty') : window.t('project.kpi.tree.clean')"></span>
     </span>
     <span class="kpi-meta">
-      branch <code x-text="data?.latest_state?.git?.branch || '—'"></code>
-      · HEAD <code x-text="(data?.latest_state?.git?.head_commit || '').slice(0, 7) || '—'"></code>
+      {{ t("project.git.branch") }} <code x-text="data?.latest_state?.git?.branch || '—'"></code>
+      · {{ t("project.git.head") }} <code x-text="(data?.latest_state?.git?.head_commit || '').slice(0, 7) || '—'"></code>
     </span>
   </div>
 
@@ -74,23 +74,23 @@
 
 {% block tabs %}
 <nav class="tabs" x-show="data" x-cloak>
-  <button class="tab" :class="{ active: tab === 'overview' }" @click="setTab('overview')">Overview</button>
-  <button class="tab" :class="{ active: tab === 'governance' }" @click="setTab('governance')">Governance</button>
-  <button class="tab" :class="{ active: tab === 'health' }" @click="setTab('health')">Health</button>
-  <button class="tab" :class="{ active: tab === 'history' }" @click="setTab('history')">History</button>
+  <button class="tab" :class="{ active: tab === 'overview' }" @click="setTab('overview')">{{ t("project.tabs.overview") }}</button>
+  <button class="tab" :class="{ active: tab === 'governance' }" @click="setTab('governance')">{{ t("project.tabs.governance") }}</button>
+  <button class="tab" :class="{ active: tab === 'health' }" @click="setTab('health')">{{ t("project.tabs.health") }}</button>
+  <button class="tab" :class="{ active: tab === 'history' }" @click="setTab('history')">{{ t("project.tabs.history") }}</button>
 </nav>
 {% endblock %}
 
 {% block content %}
 
 <div x-show="loading" class="empty-state">
-  <p>Loading project state…</p>
+  <p>{{ t("project.loading") }}</p>
 </div>
 
 <div x-show="!loading && !data" class="empty-state" style="border-color: var(--fail-dim);">
-  <p style="color: var(--fail);">Project not found.</p>
-  <p class="text-meta">It may have been removed, or <code>vcm push</code> was never called.</p>
-  <a class="btn btn--ghost" href="/">← back to cockpit</a>
+  <p style="color: var(--fail);">{{ t("project.not_found") }}</p>
+  <p class="text-meta">{{ t("project.not_found.hint") }} <code>{{ t("project.not_found.cmd") }}</code> {{ t("project.not_found.suffix") }}</p>
+  <a class="btn btn--ghost" href="/">{{ t("project.not_found.back") }}</a>
 </div>
 
 <!-- —— overview ———————————————————————————————————————————————— -->
@@ -98,13 +98,13 @@
 
   <div class="c-card">
     <div class="c-card-head">
-      <h2 class="text-section">Skills registered</h2>
+      <h2 class="text-section">{{ t("project.overview.skills") }}</h2>
       <span class="text-meta">
-        <span x-text="(data?.latest_state?.governance?.skills_registered || []).length"></span> skill<span x-show="(data?.latest_state?.governance?.skills_registered || []).length !== 1">s</span>
+        <span x-text="(data?.latest_state?.governance?.skills_registered || []).length"></span> <span x-text="(data?.latest_state?.governance?.skills_registered || []).length !== 1 ? window.t('project.skills_unit_plural') : window.t('project.skills_unit')"></span>
       </span>
     </div>
     <div x-show="!(data?.latest_state?.governance?.skills_registered || []).length" class="empty-state">
-      <p>No skills registered. Run <code>vcm skill add &lt;name&gt;</code> in the project.</p>
+      <p>{{ t("project.overview.skills_empty_prefix") }} <code>{{ t("project.overview.skills_empty_cmd") }}</code> {{ t("project.overview.skills_empty_suffix") }}</p>
     </div>
     <div class="cluster-2" x-show="(data?.latest_state?.governance?.skills_registered || []).length">
       <template x-for="s in (data?.latest_state?.governance?.skills_registered || [])" :key="s">
@@ -115,23 +115,23 @@
 
   <div class="c-card">
     <div class="c-card-head">
-      <h2 class="text-section">Quick facts</h2>
+      <h2 class="text-section">{{ t("project.overview.facts") }}</h2>
     </div>
     <dl class="stack-3">
       <div class="cluster-3">
-        <dt class="text-label" style="width: 120px;">Project name</dt>
+        <dt class="text-label" style="width: 120px;">{{ t("project.overview.facts.name") }}</dt>
         <dd class="mono" x-text="data?.name"></dd>
       </div>
       <div class="cluster-3">
-        <dt class="text-label" style="width: 120px;">Path</dt>
+        <dt class="text-label" style="width: 120px;">{{ t("project.overview.facts.path") }}</dt>
         <dd class="mono" x-text="data?.path"></dd>
       </div>
       <div class="cluster-3">
-        <dt class="text-label" style="width: 120px;">First push</dt>
+        <dt class="text-label" style="width: 120px;">{{ t("project.overview.facts.first") }}</dt>
         <dd class="mono" x-text="(data?.first_seen_at || '').slice(0, 19).replace('T', ' ')"></dd>
       </div>
       <div class="cluster-3">
-        <dt class="text-label" style="width: 120px;">Last push</dt>
+        <dt class="text-label" style="width: 120px;">{{ t("project.overview.facts.last") }}</dt>
         <dd class="mono" x-text="(data?.last_seen_at || '').slice(0, 19).replace('T', ' ')"></dd>
       </div>
     </dl>
@@ -143,39 +143,39 @@
 
   <div class="c-card">
     <div class="c-card-head">
-      <h2 class="text-section">Governance documents</h2>
+      <h2 class="text-section">{{ t("project.governance.docs") }}</h2>
     </div>
     <table class="data-table">
       <thead>
-        <tr><th>Document</th><th>Status</th><th>Required by CHARTER</th></tr>
+        <tr><th>{{ t("project.governance.col.doc") }}</th><th>{{ t("project.governance.col.status") }}</th><th>{{ t("project.governance.col.required") }}</th></tr>
       </thead>
       <tbody>
         <tr>
           <td><code>AGENTS.md</code></td>
           <td>
             <span class="badge" :class="data?.latest_state?.governance?.agents_md_present ? 'badge--ok' : 'badge--fail'">
-              <span x-text="data?.latest_state?.governance?.agents_md_present ? 'present' : 'missing'"></span>
+              <span x-text="data?.latest_state?.governance?.agents_md_present ? window.t('project.badge.present') : window.t('project.badge.missing')"></span>
             </span>
           </td>
-          <td class="text-meta">Yes — project rules</td>
+          <td class="text-meta">{{ t("project.governance.AGENTS_required") }}</td>
         </tr>
         <tr>
           <td><code>CHARTER.md</code></td>
           <td>
             <span class="badge" :class="data?.latest_state?.governance?.charter_md_present ? 'badge--ok' : 'badge--warn'">
-              <span x-text="data?.latest_state?.governance?.charter_md_present ? 'present' : 'missing'"></span>
+              <span x-text="data?.latest_state?.governance?.charter_md_present ? window.t('project.badge.present') : window.t('project.badge.missing')"></span>
             </span>
           </td>
-          <td class="text-meta">Yes — constitutional rules</td>
+          <td class="text-meta">{{ t("project.governance.CHARTER_required") }}</td>
         </tr>
         <tr>
           <td><code>post-mortems/</code></td>
           <td>
             <span class="badge" :class="(data?.latest_state?.governance?.post_mortems_count ?? 0) > 0 ? 'badge--ok' : 'badge--idle'">
-              <span x-text="(data?.latest_state?.governance?.post_mortems_count ?? 0) + ' entries'"></span>
+              <span x-text="(data?.latest_state?.governance?.post_mortems_count ?? 0) + ' ' + window.t('project.badge.entries')"></span>
             </span>
           </td>
-          <td class="text-meta">Encouraged — incident history</td>
+          <td class="text-meta">{{ t("project.governance.postmortems_required") }}</td>
         </tr>
       </tbody>
     </table>
@@ -183,21 +183,21 @@
 
   <div class="kpi-grid">
     <div class="kpi-cell">
-      <span class="kpi-label">ADRs</span>
+      <span class="kpi-label">{{ t("project.kpi.ADRs") }}</span>
       <span class="kpi-value" x-text="data?.latest_state?.governance?.adrs_count ?? 0"></span>
-      <span class="kpi-meta">Architecture Decision Records</span>
+      <span class="kpi-meta">{{ t("project.governance.ADRs_meta") }}</span>
     </div>
     <div class="kpi-cell">
-      <span class="kpi-label">Tech debts</span>
+      <span class="kpi-label">{{ t("project.kpi.tech_debts") }}</span>
       <span class="kpi-value"
             :style="(data?.latest_state?.governance?.tds_count ?? 0) > 30 ? 'color: var(--fail)' : ''"
             x-text="data?.latest_state?.governance?.tds_count ?? 0"></span>
-      <span class="kpi-meta">TD-XXX entries in <code>TECH_DEBT.md</code></span>
+      <span class="kpi-meta">{{ t("project.governance.TDs_meta") }} <code>TECH_DEBT.md</code></span>
     </div>
     <div class="kpi-cell">
-      <span class="kpi-label">Skills</span>
+      <span class="kpi-label">{{ t("project.kpi.skills_label") }}</span>
       <span class="kpi-value" x-text="data?.latest_state?.governance?.skills_count ?? 0"></span>
-      <span class="kpi-meta">across <span x-text="(data?.latest_state?.governance?.skills_registered || []).length"></span> registered</span>
+      <span class="kpi-meta">{{ t("project.kpi.skills_meta") }} <span x-text="(data?.latest_state?.governance?.skills_registered || []).length"></span> {{ t("project.kpi.skills_registered") }}</span>
     </div>
   </div>
 </section>
@@ -206,7 +206,7 @@
 <section x-show="data && tab === 'health'" class="stack-5" data-c="tab-panel" data-tab="health">
   <div class="c-card">
     <div class="c-card-head">
-      <h2 class="text-section">Health snapshot</h2>
+      <h2 class="text-section">{{ t("project.health.snapshot") }}</h2>
     </div>
     <dl class="stack-4">
       <template x-for="(v, k) in (data?.latest_state?.health || {})" :key="k">
@@ -216,7 +216,7 @@
         </div>
       </template>
       <div x-show="!Object.keys(data?.latest_state?.health || {}).length" class="empty-state">
-        <p>No health metrics reported yet. They appear after CI runs <code>vcm validate</code>.</p>
+        <p>{{ t("project.health.empty_prefix") }} <code>vcm validate</code>{{ t("project.health.empty_suffix") }}</p>
       </div>
     </dl>
   </div>
@@ -226,8 +226,8 @@
 <section x-show="data && tab === 'history'" class="stack-5" data-c="tab-panel" data-tab="history">
   <div class="c-card">
     <div class="c-card-head">
-      <h2 class="text-section">Push history</h2>
-      <span class="text-meta"><span x-text="data?.history?.length ?? 0"></span> states retained</span>
+      <h2 class="text-section">{{ t("project.history.title") }}</h2>
+      <span class="text-meta"><span x-text="data?.history?.length ?? 0"></span> {{ t("project.history.meta") }}</span>
     </div>
     <div class="timeline">
       <template x-for="h in (data?.history || [])" :key="h.id">
@@ -244,7 +244,7 @@
         </div>
       </template>
       <div x-show="!data?.history?.length" class="empty-state">
-        <p>No prior states recorded.</p>
+        <p>{{ t("project.history.empty") }}</p>
       </div>
     </div>
   </div>

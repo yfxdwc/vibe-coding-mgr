@@ -10,35 +10,35 @@
 {% block page_head %}
 <header class="page-head">
   <div class="crumbs">
-    <a href="/">cockpit</a>
+    <a href="/">{{ t("nav.cockpit") }}</a>
     <span class="sep">/</span>
-    <span class="crumb-current">leaderboard</span>
+    <span class="crumb-current">{{ t("nav.leaderboard") }}</span>
   </div>
   <h1 class="text-display">{{ t("leaderboard.title") }}</h1>
-  <p class="text-meta">Rank every project by one metric. Click a row to inspect.</p>
+  <p class="text-meta">{{ t("leaderboard.subtitle.meta") }}</p>
 </header>
 {% endblock %}
 
 {% block answers_line %}
 <div class="answers-line">
   <span class="answers-tag">{{ t("answers.tag") }}</span>
-  <p>which project owns the most tech debt / skills / ADRs, and which is most compliant?</p>
+  <p>{{ t("leaderboard.lede.answers") }}</p>
 </div>
 {% endblock %}
 
 {% block content %}
 
 <section x-show="!loaded" class="empty-state">
-  <p>Loading leaderboard…</p>
+  <p>{{ t("leaderboard.loading") }}</p>
 </section>
 
 <section x-show="loaded" class="stack-5" data-c="leaderboard">
 
   <div class="c-card">
     <div class="c-card-head">
-      <h2 class="text-section">Sort by</h2>
+      <h2 class="text-section">{{ t("leaderboard.sort_by") }}</h2>
       <span class="text-meta">
-        order: <span class="mono" x-text="order"></span>
+        {{ t("leaderboard.order_label") }}: <span class="mono" x-text="order"></span>
       </span>
     </div>
     <div class="cluster-3" style="flex-wrap: wrap;">
@@ -55,10 +55,10 @@
   <div class="c-card" x-show="rows.length">
     <div class="c-card-head">
       <h2 class="text-section">
-        Sorted by <span class="mono" x-text="sortLabel"></span>
+        {{ t("leaderboard.sorted_by") }} <span class="mono" x-text="sortLabel"></span>
       </h2>
       <span class="text-meta">
-        <span x-text="rows.length"></span> project<span x-show="rows.length !== 1">s</span>
+        <span x-text="rows.length"></span> <span x-text="rows.length !== 1 ? window.t('leaderboard.projects_unit_plural') : window.t('leaderboard.projects_unit')"></span>
       </span>
     </div>
     <div style="overflow-x: auto;">
@@ -66,14 +66,14 @@
         <thead>
           <tr>
             <th class="num">#</th>
-            <th>Project</th>
-            <th>Branch</th>
-            <th class="num">TDs</th>
-            <th class="num">Skills</th>
-            <th class="num">ADRs</th>
-            <th class="num">Compliance</th>
-            <th class="num">Days idle</th>
-            <th>Tree</th>
+            <th>{{ t("leaderboard.col.project") }}</th>
+            <th>{{ t("leaderboard.col.branch") }}</th>
+            <th class="num">{{ t("leaderboard.col.tds") }}</th>
+            <th class="num">{{ t("leaderboard.col.skills") }}</th>
+            <th class="num">{{ t("leaderboard.col.adrs") }}</th>
+            <th class="num">{{ t("leaderboard.col.compliance") }}</th>
+            <th class="num">{{ t("leaderboard.col.days_idle") }}</th>
+            <th>{{ t("leaderboard.col.dirty") }}</th>
           </tr>
         </thead>
         <tbody>
@@ -104,7 +104,7 @@
               </td>
               <td>
                 <span class="badge" :class="r.dirty ? 'badge--warn' : 'badge--ok'">
-                  <span x-text="r.dirty ? '⚠ dirty' : '✓ clean'"></span>
+                  <span x-text="r.dirty ? window.t('leaderboard.tree_dirty') : window.t('leaderboard.tree_clean')"></span>
                 </span>
               </td>
             </tr>
@@ -115,7 +115,7 @@
   </div>
 
   <div x-show="loaded && !rows.length" class="empty-state">
-    <p>No projects ranked yet — push state from each to see them here.</p>
+    <p>{{ t("leaderboard.empty") }}</p>
   </div>
 
 </section>
@@ -133,12 +133,12 @@ function page() {
     summary: {},
 
     sortOptions: [
-      { value: 'td_count',              label: 'Tech debt' },
-      { value: 'skills',                label: 'Skills' },
-      { value: 'adrs',                  label: 'ADRs' },
-      { value: 'governance_compliance', label: 'Compliance' },
-      { value: 'last_seen_days',        label: 'Recency' },
-      { value: 'dirty_clean',           label: 'Tree status' },
+      { value: 'td_count',              label: window.t('leaderboard.sort.label.td_count') },
+      { value: 'skills',                label: window.t('leaderboard.sort.label.skills') },
+      { value: 'adrs',                  label: window.t('leaderboard.sort.label.adrs') },
+      { value: 'governance_compliance', label: window.t('leaderboard.sort.label.compliance') },
+      { value: 'last_seen_days',        label: window.t('leaderboard.sort.label.last_seen') },
+      { value: 'dirty_clean',           label: window.t('leaderboard.sort.label.dirty') },
     ],
 
     async init() {

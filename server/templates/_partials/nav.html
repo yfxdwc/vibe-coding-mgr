@@ -26,7 +26,7 @@
     <span>·</span>
     <span><b x-text="summary.total_skills || 0"></b> {{ t("nav.skills") }}</span>
     <span>·</span>
-    <span><b x-text="summary.total_adrs || 0"></b> adrs</span>
+    <span><b x-text="summary.total_adrs || 0"></b> {{ t("nav.stats.adrs") }}</span>
     <span>·</span>
     <span class="badge" :class="
       summary.needs_attention > 0 ? 'badge--warn' :

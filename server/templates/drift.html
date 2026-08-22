@@ -10,39 +10,39 @@
 {% block page_head %}
 <header class="page-head">
   <div class="crumbs">
-    <a href="/">cockpit</a>
+    <a href="/">{{ t("nav.cockpit") }}</a>
     <span class="sep">/</span>
-    <span class="crumb-current">drift</span>
+    <span class="crumb-current">{{ t("nav.drift") }}</span>
   </div>
   <h1 class="text-display">{{ t("drift.title_full") }}</h1>
-  <p class="text-meta">Projects sorted by drift score (highest = needs attention first). Score blends missing governance, low ADR count, stale snapshots, dirty trees, and empty skill registries.</p>
+  <p class="text-meta">{{ t("drift.subtitle") }}</p>
 </header>
 {% endblock %}
 
 {% block answers_line %}
 <div class="answers-line">
   <span class="answers-tag">{{ t("answers.tag") }}</span>
-  <p>which project should the vcm operator upgrade next, and what is missing?</p>
+  <p>{{ t("drift.lede") }}</p>
 </div>
 {% endblock %}
 
 {% block content %}
 
 <section x-show="!loaded" class="empty-state">
-  <p>Loading drift…</p>
+  <p>{{ t("drift.loading") }}</p>
 </section>
 
 <section x-show="loaded" class="stack-5" data-c="drift">
 
   <div class="kpi-grid">
     <div class="c-card">
-      <div class="kpi-label">high-drift projects (≥ 50)</div>
+      <div class="kpi-label">{{ t("drift.kpi.high") }}</div>
       <div class="kpi-value" :style="summary.over_50_count > 0 ? 'color: var(--fail)' : ''">
         <span x-text="summary.over_50_count ?? 0"></span>
       </div>
     </div>
     <div class="c-card">
-      <div class="kpi-label">avg score</div>
+      <div class="kpi-label">{{ t("drift.kpi.avg") }}</div>
       <div class="kpi-value"
            :style="summary.avg_score >= 50 ? 'color: var(--fail)' :
                    summary.avg_score >= 30 ? 'color: var(--warn)' :
@@ -51,7 +51,7 @@
       </div>
     </div>
     <div class="c-card">
-      <div class="kpi-label">longest idle</div>
+      <div class="kpi-label">{{ t("drift.kpi.longest_idle") }}</div>
       <div class="kpi-value"
            :style="summary.max_days_idle > 90 ? 'color: var(--fail)' :
                    summary.max_days_idle > 30 ? 'color: var(--warn)' :
@@ -60,7 +60,7 @@
       </div>
     </div>
     <div class="c-card">
-      <div class="kpi-label">total projects</div>
+      <div class="kpi-label">{{ t("drift.kpi.total") }}</div>
       <div class="kpi-value">
         <span x-text="summary.project_count ?? 0"></span>
       </div>
@@ -69,7 +69,7 @@
 
   <div class="c-card" x-show="rows.length">
     <div class="c-card-head">
-      <h2 class="text-section">Projects</h2>
+      <h2 class="text-section">{{ t("drift.projects") }}</h2>
       <span class="text-meta">
         <span x-text="rows.length"></span> project<span x-show="rows.length !== 1">s</span>
       </span>
@@ -79,12 +79,12 @@
         <thead>
           <tr>
             <th class="num">#</th>
-            <th>Project</th>
-            <th class="num">Score</th>
-            <th>Missing</th>
-            <th>Recommendations</th>
-            <th class="num">Days idle</th>
-            <th class="num">ADRs</th>
+            <th>{{ t("drift.col.project") }}</th>
+            <th class="num">{{ t("drift.col.score") }}</th>
+            <th>{{ t("drift.col.missing") }}</th>
+            <th>{{ t("drift.col.recs") }}</th>
+            <th class="num">{{ t("drift.col.days_idle") }}</th>
+            <th class="num">{{ t("drift.col.adrs") }}</th>
           </tr>
         </thead>
         <tbody>
@@ -132,7 +132,7 @@
   </div>
 
   <div x-show="loaded && !rows.length" class="empty-state">
-    <p>No projects registered yet — push a vcm snapshot from at least one project to see drift here.</p>
+    <p>{{ t("drift.empty") }}</p>
   </div>
 
 </section>

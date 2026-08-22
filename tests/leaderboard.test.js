@@ -135,7 +135,7 @@ describe('leaderboard view (HTML)', () => {
   });
 
   it('GET /leaderboard?sort=skills reflects state via Alpine x-text', async () => {
-    const r = await fetch(`http://127.0.0.1:${PORT}/leaderboard?sort=skills&order=desc`);
+    const r = await fetch(`http://127.0.0.1:${PORT}/leaderboard?sort=skills&order=desc&lang=en`);
     const body = await r.text();
     expect(body).toContain('Sorted by');
     // Alpine reactivity: `sort` is initialised from URL ?sort=

@@ -9,19 +9,19 @@
 {% block page_head %}
 <header class="page-head">
   <div class="crumbs">
-    <a href="/">cockpit</a>
+    <a href="/">{{ t("nav.cockpit") }}</a>
     <span class="sep">/</span>
-    <span class="crumb-current">trends</span>
+    <span class="crumb-current">{{ t("nav.trends") }}</span>
   </div>
   <h1 class="text-display">{{ t("trends.title") }}</h1>
-  <p class="text-meta">Weekly buckets · governance signals across registered projects.</p>
+  <p class="text-meta">{{ t("trends.subtitle.meta") }}</p>
 </header>
 {% endblock %}
 
 {% block answers_line %}
 <div class="answers-line">
   <span class="answers-tag">{{ t("answers.tag") }}</span>
-  <p>is the team getting more compliant or less, and which project is drifting?</p>
+  <p>{{ t("trends.lede.answers") }}</p>
 </div>
 {% endblock %}
 
@@ -33,40 +33,40 @@
 
   <div class="c-card">
     <div class="c-card-head">
-      <h2 class="text-section">Filter</h2>
+      <h2 class="text-section">{{ t("common.filter") }}</h2>
       <span class="text-meta">
-        <span class="mono" x-text="buckets.length"></span> week<span x-show="buckets.length !== 1">s</span>
+        <span class="mono" x-text="buckets.length"></span> <span x-text="buckets.length !== 1 ? window.t('trends.weeks_unit_plural') : window.t('trends.weeks_unit')"></span>
       </span>
     </div>
     <div class="cluster-3" style="flex-wrap: wrap; align-items: flex-end;">
       <label class="stack-2">
-        <span class="text-label">Metric</span>
+        <span class="text-label">{{ t("trends.metric") }}</span>
         <select x-model="metric" @change="load()"
                 style="background: var(--surface-alt); border: 1px solid var(--border-subtle);
                        color: var(--text-primary); padding: 6px 8px; border-radius: 6px;
                        font-family: inherit;">
-          <option value="compliance">Compliance (0..1)</option>
-          <option value="td_count">Tech debt count</option>
-          <option value="skills">Skill count</option>
-          <option value="adrs">ADRs</option>
-          <option value="git_dirty">Dirty (0/1)</option>
-          <option value="pushed">Pushes/week</option>
+          <option value="compliance">{{ t("trends.option.compliance") }}</option>
+          <option value="td_count">{{ t("trends.option.td_count") }}</option>
+          <option value="skills">{{ t("trends.option.skills") }}</option>
+          <option value="adrs">{{ t("trends.option.adrs") }}</option>
+          <option value="git_dirty">{{ t("trends.option.dirty") }}</option>
+          <option value="pushed">{{ t("trends.option.pushed") }}</option>
         </select>
       </label>
       <label class="stack-2">
-        <span class="text-label">Project (or all)</span>
+        <span class="text-label">{{ t("trends.filter.project") }}</span>
         <select x-model="project" @change="load()"
                 style="background: var(--surface-alt); border: 1px solid var(--border-subtle);
                        color: var(--text-primary); padding: 6px 8px; border-radius: 6px;
                        font-family: inherit;">
-          <option value="">all projects</option>
+          <option value="">{{ t("trends.filter.all_projects") }}</option>
           <template x-for="p in projects" :key="p.name">
             <option :value="p.name" x-text="p.name"></option>
           </template>
         </select>
       </label>
       <label class="stack-2">
-        <span class="text-label">Days back</span>
+        <span class="text-label">{{ t("trends.filter.days_back") }}</span>
         <select x-model.number="days" @change="load()"
                 style="background: var(--surface-alt); border: 1px solid var(--border-subtle);
                        color: var(--text-primary); padding: 6px 8px; border-radius: 6px;
@@ -83,24 +83,24 @@
 
   <div class="kpi-grid" x-show="loaded">
     <div class="kpi-cell">
-      <span class="kpi-label">Latest value</span>
+      <span class="kpi-label">{{ t("trends.kpi.latest") }}</span>
       <span class="kpi-value" x-text="formatValue(latestValue())"></span>
       <span class="kpi-meta">
-        week of <span class="mono" x-text="latestBucket()"></span>
+        {{ t("trends.kpi.latest_meta") }} <span class="mono" x-text="latestBucket()"></span>
       </span>
     </div>
     <div class="kpi-cell">
-      <span class="kpi-label">Δ vs prior week</span>
+      <span class="kpi-label">{{ t("trends.kpi.delta") }}</span>
       <span class="kpi-value" :class="trendTone()"
             x-text="trendArrow() + ' ' + formatDelta()"></span>
       <span class="kpi-meta">
-        <span class="mono" x-text="metric"></span> rolling
+        <span class="mono" x-text="metric"></span> {{ t("trends.kpi.delta_meta") }}
       </span>
     </div>
     <div class="kpi-cell">
-      <span class="kpi-label">Buckets with data</span>
+      <span class="kpi-label">{{ t("trends.kpi.buckets") }}</span>
       <span class="kpi-value" x-text="buckets.filter(b => b.value !== null).length"></span>
-      <span class="kpi-meta">out of <span class="mono" x-text="buckets.length"></span> total</span>
+      <span class="kpi-meta">{{ t("trends.kpi.buckets_meta") }} <span class="mono" x-text="buckets.length"></span> {{ t("common.total") }}</span>
     </div>
   </div>
 
@@ -118,7 +118,7 @@
   </div>
 
   <div x-show="loaded && !buckets.length" class="empty-state">
-    <p>Not enough data — push state at least once and check back next week.</p>
+    <p>{{ t("trends.empty.hint") }}</p>
   </div>
 
 </section>

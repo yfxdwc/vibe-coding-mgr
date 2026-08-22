@@ -11,9 +11,9 @@
 {% block page_head %}
 <header class="page-head">
   <div class="crumbs">
-    <a href="/settings">settings</a>
+    <a href="/settings">{{ t("nav.settings") }}</a>
     <span class="sep">/</span>
-    <a href="/docs/CHARTER.md">docs</a>
+    <a href="/docs/CHARTER.md">{{ t("nav.docs") }}</a>
     {% if relpath and relpath != 'CHARTER.md' %}
     <span class="sep">/</span>
     <span class="crumb-current">{{ title }}</span>
@@ -28,11 +28,11 @@
 <div class="docs-layout" x-data="docsPage()" x-init="init()">
   <aside class="docs-sidebar c-card" data-c="docs-sidebar">
     <div class="stack-3" style="margin-bottom: var(--space-3);">
-      <input type="search" x-model="query" @input="applyFilter()" placeholder="Search docs…"
+      <input type="search" x-model="query" @input="applyFilter()" placeholder="{{ t('docs.search_input') }}"
              style="background: var(--surface-alt); border: 1px solid var(--border-subtle);
                     color: var(--text-primary); padding: 6px 8px; border-radius: 6px;
                     font-family: var(--font-mono); font-size: var(--fs-meta);" />
-      <div class="text-meta" x-text="files.length + ' files'"></div>
+      <div class="text-meta" x-text="files.length + ' ' + window.t('docs.files_count') + ''"></div>
     </div>
 
     <ul class="docs-file-list" style="list-style: none; padding: 0; margin: 0;
@@ -49,7 +49,7 @@
           </a>
         </li>
       </template>
-      <li x-show="!filtered.length" class="text-meta" style="padding: var(--space-3) 0;">No matches.</li>
+      <li x-show="!filtered.length" class="text-meta" style="padding: var(--space-3) 0;">{{ t("docs.no_matches") }}</li>
     </ul>
   </aside>
 

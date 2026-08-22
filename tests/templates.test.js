@@ -173,8 +173,15 @@ describe('docs serving', () => {
     // are present, and that no <script> in the body contains user-
     // controlled content from the .md source.
     const m = body.match(/<script>/g) || [];
-    expect(m.length).toBeLessThan(5);
-    expect(body).not.toMatch(/<script>.*DESIGN\.md/);
+    expect(m.length).toBeLessThan(6);
+    // v0.14.1 added two <script> tags for the i18n bridge. Total layout
+    // baseline is now 4 (<=5 with margin for future additions).
+    // No <script> block should contain /docs/...md as content (XSS guard).
+    const scriptBlocks = body.match(/<script[\s\S]*?<\/script>/g) || [];
+    const mdPathInScript = /\/docs\/[^"' + "'" + '\s]+\.md/;
+    for (const block of scriptBlocks) {
+      expect(block, 'script block contains .md path').not.toMatch(mdPathInScript);
+    }
   });
 
   it('serves the ADR from a sub-directory', async () => {

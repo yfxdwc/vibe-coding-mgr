@@ -9,43 +9,43 @@
 {% block page_head %}
 <header class="page-head">
   <div class="crumbs">
-    <a href="/">cockpit</a>
+    <a href="/">{{ t("nav.cockpit") }}</a>
     <span class="sep">/</span>
-    <span class="crumb-current">peers</span>
+    <span class="crumb-current">{{ t("nav.peers") }}</span>
   </div>
   <h1 class="text-display">{{ t("peers.title") }}</h1>
-  <p class="text-meta">Public repositories we track for governance patterns.</p>
+  <p class="text-meta">{{ t("peers.subtitle.meta") }}</p>
 </header>
 {% endblock %}
 
 {% block answers_line %}
 <div class="answers-line">
   <span class="answers-tag">{{ t("answers.tag") }}</span>
-  <p>which OSS projects shape our governance decisions, and what's their latest signal?</p>
+  <p>{{ t("peers.lede.answers") }}</p>
 </div>
 {% endblock %}
 
 {% block content %}
 
 <section x-show="!loaded" class="empty-state">
-  <p>Loading peer config…</p>
+  <p>{{ t("peers.loading") }}</p>
 </section>
 
 <section x-show="loaded && !peers.length" class="empty-state" style="border-color: var(--accent);">
-  <p>No peers configured yet.</p>
+  <p>{{ t("peers.empty.config_hint") }}</p>
   <p class="text-meta">
-    On a project, run:
+    {{ t("peers.empty.cmd_prefix") }}
     <code>vcm peers add owner/name</code>
-    to start tracking an OSS repo as a peer.
+    {{ t("peers.empty.cmd_detail") }}
   </p>
 </section>
 
 <section x-show="loaded && peers.length" class="stack-5" data-c="peers-list">
   <div class="c-card">
     <div class="c-card-head">
-      <h2 class="text-section">Watch list</h2>
+      <h2 class="text-section">{{ t("peers.watchlist") }}</h2>
       <span class="text-meta">
-        <span x-text="peers.length"></span> repo<span x-show="peers.length !== 1">s</span> tracked
+        <span x-text="peers.length"></span> <span x-text="peers.length !== 1 ? window.t('peers.repo_unit_plural') : window.t('peers.repo_unit')"></span> {{ t("peers.repos_tracked") }}
       </span>
     </div>
     <div style="overflow-x: auto;">
@@ -53,9 +53,9 @@
         <thead>
           <tr>
             <th>Repo</th>
-            <th class="num">Stars</th>
-            <th>What we learn from it</th>
-            <th>Last fetched</th>
+            <th class="num">{{ t("peers.col.stars") }}</th>
+            <th>{{ t("peers.col.note") }}</th>
+            <th>{{ t("peers.col.fetched_at") }}</th>
           </tr>
         </thead>
         <tbody>
@@ -67,7 +67,7 @@
               </td>
               <td class="num" x-text="p.stars ?? '—'"></td>
               <td class="text-meta" x-text="p.note || '—'"></td>
-              <td class="text-meta mono" x-text="p.fetched_at || 'never'"></td>
+              <td class="text-meta mono" x-text="p.fetched_at || window.t('peers.fetched_never')"></td>
             </tr>
           </template>
         </tbody>
