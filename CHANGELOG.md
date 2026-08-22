@@ -9,6 +9,95 @@ The format is loosely: version, date, summary, list of changes, and a
 
 ---
 
+## v0.18.0 — 2026-08-22
+
+**Sidebar layout + multi-project registry (ADR-0030 + ADR-0031). The
+v0.3.0–v0.17.0 top nav is replaced by a left sidebar across every page.
+Project registration is now exposed via the UI; a separate ADR-0031
+fix hardens DB-path hygiene.**
+
+### Added
+
+- **Left sidebar across every page** — replaces v0.3.0–v0.17.0 top
+  nav. 3 sections + footer: brand / 9 nav links / projects list /
+  language switcher + theme toggle + version. Sticky, 240px wide
+  (200px on 768–1023px). No `<768px` collapse in v0.18 (deferred).
+- **`<dialog>` "Add Project" modal** — native HTML 5.2, ESC closes,
+  focus trap built-in. Submits to `POST /api/projects` and reloads
+  the page so the new project appears in the sidebar.
+- **`POST /api/projects` endpoint** — manual project registration.
+  Body: `{name, path}`. Validates `name` matches `[a-z0-9-]{3,40}`,
+  `path` is absolute + exists + is a directory + under `$HOME`.
+  Returns 201 (JSON, for API clients) or 302 redirect to `/` (for
+  browser form submit); 422 on validation; 409 on duplicate.
+- **i18n keys** — 11 new sidebar / modal strings (zh + en). zh
+  fall-through to en for missing keys (ADR-0026 behaviour).
+- **`scripts/check_db_schema.py`** — 7th hard check. Reads
+  `VCM_SERVER_DB` (default `<repo>/server/vcm.db`) and asserts the
+  4 expected tables are present. Wired into `routine_coverage.sh`.
+- **`check_db_path_grep`** — warn-only grep in `routine_coverage.sh`
+  for stray `sqlite3.connect('vcm.db')` calls outside
+  `server/vcm.db` (catches future path drift).
+- **Playwright e2e suite** — `@playwright/test` as devDep. Uses
+  system `/usr/bin/google-chrome` (no ~120MB binary download).
+  `tests/server/sidebar.spec.js` covers 3 scenarios: sidebar
+  renders on every page with correct `aria-current`; add-project
+  modal persists and refreshes sidebar; modal rejects path outside
+  `$HOME` with 422 + `path_outside_home`.
+- **`docs/adr/0030-sidebar-and-multi-project.md`** — design record.
+- **`docs/adr/0031-db-path-hygiene.md`** — DB path + startup
+  self-check.
+
+### Changed
+
+- **`init_db()` self-check** — appends a post-init PRAGMA
+  `sqlite_master` scan; logs `✓ init_db: <path> OK (4/4 tables
+  present)` to stdout, or `⚠ ... missing expected tables: [...]`
+  to stderr (does NOT raise — backward-compat). Idempotent flag
+  avoids duplicate log lines when init_db() is called multiple
+  times per process.
+- **`server/users.py` `_db_path()` default** — was `./vcm.db`
+  (cwd-relative, which made users_mod silently read the wrong file
+  and accidentally enable auth when the server DB had no users).
+  New default: `__file__.parent / 'vcm.db'` (absolute, matches
+  `server/app.py:40`). Behaviour change: `/api/*` auth now
+  correctly reflects the server DB only.
+- **`server/app.py` `_render()`** — injects `sidebar_projects`
+  (cap 50) into every template context, so the sidebar project
+  list renders without a client-side `/api/projects` fetch
+  (which would 401 on the publicly-readable HTML).
+- **`README.md`** — not changed in this release. (Bumps deferred
+  to v0.18.1 follow-up; UI redesign is the user-visible story
+  worth the changelog slot.)
+
+### Fixed
+
+- **`users.py` cwd-relative `_db_path()`** — see Changed above.
+  Triggered an accidental auth-on when the orphan root `vcm.db`
+  (which holds an `alice` user from earlier testing) was read in
+  place of `server/vcm.db`. Side-effect discovery during B.2
+  wiring; one-line fix shipped in the same PR.
+- **`projects` table `silent-broken` misdiagnosis** in
+  ADR-0030 §8 — corrected in commit `4eb67ad`. The orphan root
+  `vcm.db` was never read by service; `server/vcm.db` is healthy.
+
+### Design notes
+
+- [ADR-0030 sidebar + multi-project registry](docs/adr/0030-sidebar-and-multi-project.md) —
+  full design record (4 owner decisions + 8 implementation sections
+  + 反对意见 + 不做 + 验收). Aligns sidebar with repowise docs
+  pattern (DESIGN.md §5 mirror).
+- [ADR-0031 DB path hygiene](docs/adr/0031-db-path-hygiene.md) —
+  init_db() self-check + 7th hard check + grep warning.
+- [DESIGN.md §4 Sidebar primitive](docs/DESIGN.md) — new component
+  spec. `[data-c="sidebar"]` / `[data-c="sidebar-link"]` /
+  `[data-c="sidebar-project"]` / `[data-c="sidebar-add"]` /
+  `[data-c="add-project-dialog"]` are the test hooks.
+- [DESIGN.md §5 skeleton](docs/DESIGN.md) — replaced top-nav row
+  with `<sidebar>` + `<main>` grid layout.
+
+---
+
 ## v0.17.0 — 2026-08-22
 
 **README modernization + CONTRIBUTING.md (ADR-0029). Docs-only release

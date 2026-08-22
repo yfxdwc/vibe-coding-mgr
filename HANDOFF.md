@@ -29,28 +29,30 @@ layers (`lib/adapters/`), never vendored.
 
 ---
 
-## 2. Current state (v0.17.0)
+## 2. Current state (v0.18.0)
 
 | Item | Value |
 |---|---|
-| Version | `0.17.0` (in `package.json` + `bin/vcm.js` + `server/mcp_server.py`) |
-| Tests | **436/436 passing** (31 test files, 36 new in skills-meta.test.js; 53 in i18n.test.js + 32 in launchd.test.js) |
-| 6 hard checks | 6 OK (`bash scripts/routine_coverage.sh` exit 0; the "6" historical name is preserved per [ADR-0028](docs/adr/0028-skill-rollout.md) §"不做"; v0.16.0 added the 6th real check `check_skills.py`) |
-| ADRs | **28** in `docs/adr/0001-` to `0028-` (latest: skill-rollout) |
-| Routes | **39** `@app.route` decorators in `server/app.py` |
+| Version | `0.18.0` (in `package.json` + `bin/vcm.js` + `server/mcp_server.py`) |
+| Tests | **436 unit + 3 e2e passing** (31 vitest files + 1 Playwright spec, 3 scenarios) |
+| 7 hard checks | 7 OK (`bash scripts/routine_coverage.sh` exit 0; v0.18.0 added `check_db_schema.py` as the 7th, plus a warn-only `check_db_path_grep`) |
+| ADRs | **31** in `docs/adr/0001-` to `0031-` (latest: db-path-hygiene; newest sidebar: 0030) |
+| Routes | **40** `@app.route` decorators in `server/app.py` (added `POST /api/projects`) |
 | Python modules | 10 in `server/` (`app`, `audit`, `dashboard`, `docs_search`, `i18n`, `markdown_render`, `mcp_server`, `peers`, `scopes`, `users`) |
 | CLI commands | 11 (init/snapshot/skill/status/validate/push/peers/user/token/doctor/schema) |
-| Templates | 11 in `server/templates/` (`_layout`, `_docs`, `_partials/nav`, audit/dashboard/drift/leaderboard/peers/project/settings/skills/trends) |
-| Source files | ~140 in git tree |
-| Bilingual UI | zh (default) + en, 380 keys, server-rendered (ADR-0026) |
+| Templates | 12 in `server/templates/` (`_layout`, `_docs`, `_partials/sidebar` + retained `_partials/nav`, audit/dashboard/drift/leaderboard/peers/project/settings/skills/trends) |
+| Source files | ~145 in git tree |
+| Bilingual UI | zh (default) + en, ~391 keys (+11 sidebar), server-rendered (ADR-0026) |
 | Repo | `https://github.com/your-org/vibe-coding-mgr` (URL in README; placeholder) |
 
-**v0.17.0 is the latest release**. It ships ADR-0029 — the README
-modernization (6 edits, accuracy restoration after 3 skipped releases)
-plus the first `CONTRIBUTING.md` (177 lines, contributor workflow).
-The v0.16.0 SKILL.md registry and v0.15.0 launchd LaunchAgent ship
-intact; the minor bump to **0.17.0** reflects the formalized contributor
-contract.
+**v0.18.0 is the latest release**. It ships ADR-0030 (sidebar layout +
+multi-project registry) and ADR-0031 (DB path hygiene + 7th hard check).
+The v0.3.0–v0.17.0 top nav is **replaced** by a left sidebar on every
+page; project registration is now exposed via the UI (native `<dialog>`
+modal → `POST /api/projects`). A side-effect bug in `users.py` was
+discovered during B.2 wiring and shipped in the same release
+(cwd-relative `_db_path()` silently read root `vcm.db` and accidentally
+enabled auth against an orphan user; one-line fix to absolute path).
 
 **Release lineage since v0.9.0** (the version this handoff was originally
 written for):
