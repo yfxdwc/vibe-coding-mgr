@@ -28,13 +28,17 @@ export default defineConfig({
       // Playwright e2e specs — run via `npm run test:e2e`.
       'tests/server/**',
     ],
-    // v0.18.3 fix-up: most vitest suites boot a fresh vcm-server on a
-    // dedicated port in beforeAll(). Default `pool: 'threads'` runs
-    // test files in parallel, so two suites grab the same free port
-    // before either opens the listening socket → ECONNREFUSED in
-    // sibling suites. Forcing a single fork runs test files
-    // sequentially; runtime is ~54s for 436 tests, acceptable for CI.
-    pool: 'forks',
-    poolOptions: { forks: { singleFork: true } },
+    // v0.18.4 fix-up: most vitest suites boot a fresh vcm-server on a
+    // dedicated port in beforeAll(). Default 'threads' pool + the
+    // default --file-parallelism=true runs test files concurrently,
+    // so two suites grab the same free port before either opens the
+    // listening socket → ECONNREFUSED in sibling suites. Disabling
+    // file parallelism makes vitest run each .test.js file
+    // sequentially within a single worker. Runtime ~55s for 436
+    // tests, acceptable for CI.
+    // (Earlier 'pool: forks, singleFork: true' was a Vitest 0.x
+    // shim that does nothing in Vitest 1.x — the right knob in 1.x
+    // is `--fileParallelism=false` / `fileParallelism: false`.)
+    fileParallelism: false,
   },
 });

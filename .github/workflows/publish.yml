@@ -27,6 +27,16 @@ jobs:
       - name: Install Node deps
         run: npm ci || npm install
 
+      - name: Setup Python venv + install server deps
+        # v0.18.4 fix-up: tests/install-launchd.sh, tests/daemon.test.js
+        # and scripts/install-service.sh expect .venv/bin/python3 to
+        # exist. Without this step they fail with '$VENV_PY not found'
+        # on the npm test run.
+        run: |
+          python3 -m venv .venv
+          .venv/bin/python -m pip install --upgrade pip wheel setuptools
+          .venv/bin/python -m pip install -r server/requirements.txt
+
       - name: Run tests
         run: npm test
 
