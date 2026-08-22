@@ -45,3 +45,33 @@
   color: var(--accent);
 }
 .skill-tag.deprecated { background: var(--surface-alt); color: var(--text-muted); text-decoration: line-through; }
+
+/* --- language toggle (ADR-0026) --- */
+.nav-lang {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-right: var(--space-2);
+  font-size: var(--fs-meta);
+}
+.nav-lang-current {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--accent-fg, #fff);
+  font-weight: 600;
+}
+.nav-lang-link {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-muted);
+  text-decoration: none;
+  border: 1px solid var(--border-subtle, transparent);
+}
+.nav-lang-link:hover {
+  color: var(--text-primary);
+  background: var(--surface-alt, rgba(255,255,255,0.05));
+}

@@ -4,7 +4,7 @@
 #}
 {% set nav_active = 'peers' %}
 
-{% block title %}peers{% endblock %}
+{% block title %}{{ t('nav.peers') }}{% endblock %}
 
 {% block page_head %}
 <header class="page-head">
@@ -13,14 +13,14 @@
     <span class="sep">/</span>
     <span class="crumb-current">peers</span>
   </div>
-  <h1 class="text-display">Peers (OSS we follow)</h1>
+  <h1 class="text-display">{{ t("peers.title") }}</h1>
   <p class="text-meta">Public repositories we track for governance patterns.</p>
 </header>
 {% endblock %}
 
 {% block answers_line %}
 <div class="answers-line">
-  <span class="answers-tag">Answers</span>
+  <span class="answers-tag">{{ t("answers.tag") }}</span>
   <p>which OSS projects shape our governance decisions, and what's their latest signal?</p>
 </div>
 {% endblock %}

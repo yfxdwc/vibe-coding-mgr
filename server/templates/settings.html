@@ -4,7 +4,7 @@
 #}
 {% set nav_active = 'settings' %}
 
-{% block title %}settings{% endblock %}
+{% block title %}{{ t('nav.settings') }}{% endblock %}
 
 {% block page_head %}
 <header class="page-head">
@@ -13,14 +13,14 @@
     <span class="sep">/</span>
     <span class="crumb-current">settings</span>
   </div>
-  <h1 class="text-display">Server settings</h1>
+  <h1 class="text-display">{{ t("settings.title_full") }}</h1>
   <p class="text-meta">Runtime configuration &middot; read-only mirror of <code>vcm-server</code> state.</p>
 </header>
 {% endblock %}
 
 {% block answers_line %}
 <div class="answers-line">
-  <span class="answers-tag">Answers</span>
+  <span class="answers-tag">{{ t("answers.tag") }}</span>
   <p>what is this server, where does it store things, and what's the live connection?</p>
 </div>
 {% endblock %}

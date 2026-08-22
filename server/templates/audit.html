@@ -4,7 +4,7 @@
 #}
 {% set nav_active = 'audit' %}
 
-{% block title %}audit{% endblock %}
+{% block title %}{{ t('nav.audit') }}{% endblock %}
 
 {% block page_head %}
 <header class="page-head">
@@ -13,32 +13,32 @@
     <span class="sep">/</span>
     <span class="crumb-current">audit</span>
   </div>
-  <h1 class="text-display">Audit log</h1>
-  <p class="text-meta">Append-only JSONL at <code>$VCM_AUDIT_LOG</code> or <code>~/.vcm/audit.log</code>.</p>
+  <h1 class="text-display">{{ t("audit.title") }}</h1>
+  <p class="text-meta">{{ t("audit.subtitle") | safe }}</p>
 </header>
 {% endblock %}
 
 {% block answers_line %}
 <div class="answers-line">
-  <span class="answers-tag">Answers</span>
-  <p>who tried to do what, when, and was it allowed?</p>
+  <span class="answers-tag">{{ t("answers.tag") }}</span>
+  <p>{{ t("answers.who_tried_to_do") }}</p>
 </div>
 {% endblock %}
 
 {% block content %}
 
-<section x-show="!loaded" class="empty-state"><p>Loading audit log…</p></section>
+<section x-show="!loaded" class="empty-state"><p>{{ t("common.loading_audit") }}</p></section>
 
 <section x-show="loaded" class="stack-5" data-c="audit">
 
   <div class="c-card">
     <div class="c-card-head">
-      <h2 class="text-section">Filter</h2>
+      <h2 class="text-section">{{ t("common.filter") }}</h2>
       <span class="text-meta"><span x-text="filtered.length"></span> events shown</span>
     </div>
     <div class="cluster-3" style="flex-wrap: wrap; align-items: flex-end;">
       <label class="stack-2" style="min-width: 180px;">
-        <span class="text-label">Event type</span>
+        <span class="text-label">{{ t("audit.filter.event_type") }}</span>
         <select x-model="filterType" @change="applyFilter()"
                 style="background: var(--surface-alt); border: 1px solid var(--border-subtle);
                        color: var(--text-primary); padding: 6px 8px; border-radius: 6px;
@@ -52,28 +52,28 @@
         </select>
       </label>
       <label class="stack-2" style="min-width: 200px;">
-        <span class="text-label">Since (ISO date)</span>
+        <span class="text-label">{{ t("audit.filter.since") }}</span>
         <input type="text" x-model="filterSince" @change="applyFilter()" placeholder="2026-08-01"
                style="background: var(--surface-alt); border: 1px solid var(--border-subtle);
                       color: var(--text-primary); padding: 6px 8px; border-radius: 6px;
                       font-family: var(--font-mono); font-size: var(--fs-meta);" />
       </label>
       <label class="stack-2" style="min-width: 120px;">
-        <span class="text-label">Limit</span>
+        <span class="text-label">{{ t("audit.filter.limit") }}</span>
         <input type="number" x-model.number="limit" @change="applyFilter()" min="1" max="5000"
                style="background: var(--surface-alt); border: 1px solid var(--border-subtle);
                       color: var(--text-primary); padding: 6px 8px; border-radius: 6px;
                       font-family: var(--font-mono); font-size: var(--fs-meta);" />
       </label>
       <label class="stack-2" style="min-width: 160px;">
-        <span class="text-label">Project</span>
+        <span class="text-label">{{ t("audit.filter.project") }}</span>
         <input type="text" x-model="filterProject" @change="applyFilter()" placeholder="all"
                style="background: var(--surface-alt); border: 1px solid var(--border-subtle);
                       color: var(--text-primary); padding: 6px 8px; border-radius: 6px;
                       font-family: var(--font-mono); font-size: var(--fs-meta);" />
       </label>
       <label class="stack-2" style="min-width: 160px;">
-        <span class="text-label">Source IP</span>
+        <span class="text-label">{{ t("audit.filter.source_ip") }}</span>
         <input type="text" x-model="filterSourceIp" @change="applyFilter()" placeholder="all"
                style="background: var(--surface-alt); border: 1px solid var(--border-subtle);
                       color: var(--text-primary); padding: 6px 8px; border-radius: 6px;

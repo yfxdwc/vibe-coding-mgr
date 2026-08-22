@@ -10,21 +10,21 @@
   </a>
 
   <div class="nav-links">
-    <a class="nav-link" :class="{ active: active === 'cockpit' }" href="/">cockpit</a>
-    <a class="nav-link" :class="{ active: active === 'leaderboard' }" href="/leaderboard">leaderboard</a>
-    <a class="nav-link" :class="{ active: active === 'drift' }" href="/drift">drift</a>
-    <a class="nav-link" :class="{ active: active === 'skills' }" href="/skills">skills</a>
-    <a class="nav-link" :class="{ active: active === 'trends' }" href="/trends">trends</a>
-    <a class="nav-link" :class="{ active: active === 'peers' }" href="/peers">peers</a>
-    <a class="nav-link" :class="{ active: active === 'audit' }" href="/audit">audit</a>
-    <a class="nav-link" :class="{ active: active === 'docs' }" href="/docs/DESIGN.md">docs</a>
-    <a class="nav-link" :class="{ active: active === 'settings' }" href="/settings">settings</a>
+    <a class="nav-link" :class="{ active: active === 'cockpit' }" href="/">{{ t("nav.cockpit") }}</a>
+    <a class="nav-link" :class="{ active: active === 'leaderboard' }" href="/leaderboard">{{ t("nav.leaderboard") }}</a>
+    <a class="nav-link" :class="{ active: active === 'drift' }" href="/drift">{{ t("nav.drift") }}</a>
+    <a class="nav-link" :class="{ active: active === 'skills' }" href="/skills">{{ t("nav.skills") }}</a>
+    <a class="nav-link" :class="{ active: active === 'trends' }" href="/trends">{{ t("nav.trends") }}</a>
+    <a class="nav-link" :class="{ active: active === 'peers' }" href="/peers">{{ t("nav.peers") }}</a>
+    <a class="nav-link" :class="{ active: active === 'audit' }" href="/audit">{{ t("nav.audit") }}</a>
+    <a class="nav-link" :class="{ active: active === 'docs' }" href="/docs/DESIGN.md">{{ t("nav.docs") }}</a>
+    <a class="nav-link" :class="{ active: active === 'settings' }" href="/settings">{{ t("nav.settings") }}</a>
   </div>
 
   <div class="nav-meta">
-    <span><b x-text="summary.total_projects || 0"></b> projects</span>
+    <span><b x-text="summary.total_projects || 0"></b> {{ t("nav.projects") }}</span>
     <span>·</span>
-    <span><b x-text="summary.total_skills || 0"></b> skills</span>
+    <span><b x-text="summary.total_skills || 0"></b> {{ t("nav.skills") }}</span>
     <span>·</span>
     <span><b x-text="summary.total_adrs || 0"></b> adrs</span>
     <span>·</span>
@@ -36,6 +36,20 @@
       <span x-text="summary.health_label || '—'"></span>
     </span>
     <span class="badge badge--idle" x-show="{{ 'true' if auth_required else 'false' }}" title="API requires HTTP Basic Auth (ADR-0004)">🔒</span>
+    <span class="nav-lang">
+      {% for L in LANGUAGES %}
+        {% if L != lang %}
+          <a class="nav-link nav-lang-link"
+             href="{{ lang_url(L) }}"
+             title="switch to {{ L }}">
+            {{ LANGUAGE_LABELS[L] }}
+          </a>
+        {% else %}
+          <span class="nav-lang-current"
+                title="current language">{{ LANGUAGE_LABELS[L] }}</span>
+        {% endif %}
+      {% endfor %}
+    </span>
     <button class="btn btn--sm btn--ghost" @click="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">☀/☾</button>
   </div>
 </nav>

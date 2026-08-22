@@ -4,7 +4,7 @@
 #}
 {% set nav_active = 'trends' %}
 
-{% block title %}trends{% endblock %}
+{% block title %}{{ t('nav.trends') }}{% endblock %}
 
 {% block page_head %}
 <header class="page-head">
@@ -13,21 +13,21 @@
     <span class="sep">/</span>
     <span class="crumb-current">trends</span>
   </div>
-  <h1 class="text-display">Governance trend</h1>
+  <h1 class="text-display">{{ t("trends.title") }}</h1>
   <p class="text-meta">Weekly buckets · governance signals across registered projects.</p>
 </header>
 {% endblock %}
 
 {% block answers_line %}
 <div class="answers-line">
-  <span class="answers-tag">Answers</span>
+  <span class="answers-tag">{{ t("answers.tag") }}</span>
   <p>is the team getting more compliant or less, and which project is drifting?</p>
 </div>
 {% endblock %}
 
 {% block content %}
 
-<section x-show="!loaded" class="empty-state"><p>Loading trend…</p></section>
+<section x-show="!loaded" class="empty-state"><p>{{ t("common.loading_trend") }}</p></section>
 
 <section x-show="loaded" class="stack-5" data-c="trends">
 

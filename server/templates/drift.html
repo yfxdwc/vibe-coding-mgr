@@ -5,7 +5,7 @@
 #}
 {% set nav_active = 'drift' %}
 
-{% block title %}drift{% endblock %}
+{% block title %}{{ t('nav.drift') }}{% endblock %}
 
 {% block page_head %}
 <header class="page-head">
@@ -14,14 +14,14 @@
     <span class="sep">/</span>
     <span class="crumb-current">drift</span>
   </div>
-  <h1 class="text-display">Cross-project drift</h1>
+  <h1 class="text-display">{{ t("drift.title_full") }}</h1>
   <p class="text-meta">Projects sorted by drift score (highest = needs attention first). Score blends missing governance, low ADR count, stale snapshots, dirty trees, and empty skill registries.</p>
 </header>
 {% endblock %}
 
 {% block answers_line %}
 <div class="answers-line">
-  <span class="answers-tag">Answers</span>
+  <span class="answers-tag">{{ t("answers.tag") }}</span>
   <p>which project should the vcm operator upgrade next, and what is missing?</p>
 </div>
 {% endblock %}

@@ -5,7 +5,7 @@
 #}
 {% set nav_active = 'leaderboard' %}
 
-{% block title %}leaderboard{% endblock %}
+{% block title %}{{ t('nav.leaderboard') }}{% endblock %}
 
 {% block page_head %}
 <header class="page-head">
@@ -14,14 +14,14 @@
     <span class="sep">/</span>
     <span class="crumb-current">leaderboard</span>
   </div>
-  <h1 class="text-display">Project leaderboard</h1>
+  <h1 class="text-display">{{ t("leaderboard.title") }}</h1>
   <p class="text-meta">Rank every project by one metric. Click a row to inspect.</p>
 </header>
 {% endblock %}
 
 {% block answers_line %}
 <div class="answers-line">
-  <span class="answers-tag">Answers</span>
+  <span class="answers-tag">{{ t("answers.tag") }}</span>
   <p>which project owns the most tech debt / skills / ADRs, and which is most compliant?</p>
 </div>
 {% endblock %}

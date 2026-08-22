@@ -4,7 +4,7 @@
 #}
 {% set nav_active = 'skills' %}
 
-{% block title %}skill registry{% endblock %}
+{% block title %}{{ t('nav.skills') }}{% endblock %}
 
 {% block page_head %}
 <header class="page-head">
@@ -13,14 +13,14 @@
     <span class="sep">/</span>
     <span class="crumb-current">skill registry</span>
   </div>
-  <h1 class="text-display">Skill registry</h1>
+  <h1 class="text-display">{{ t("skills.title") }}</h1>
   <p class="text-meta">All skills used by any project. Sorted by cross-project reach.</p>
 </header>
 {% endblock %}
 
 {% block answers_line %}
 <div class="answers-line">
-  <span class="answers-tag">Answers</span>
+  <span class="answers-tag">{{ t("answers.tag") }}</span>
   <p>which skills are reusable across projects, and which are stuck behind a single project?</p>
 </div>
 {% endblock %}
