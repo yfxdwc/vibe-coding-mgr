@@ -55,6 +55,83 @@
   vector-effect: non-scaling-stroke;
 }
 .nav-link { display: inline-flex; align-items: center; }
+
+/* —— Language switcher (icon button + dropdown) ————————————
+   The button collapses the bilingual switcher to a single icon
+   (matches the repowise minimal-nav convention). Clicking it
+   opens a popover with all supported languages; the current
+   language is highlighted. Alpine handles the open/close state
+   and click-outside dismissal. */
+.nav-lang { position: relative; }
+.nav-lang-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 10px;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-button);
+  font-family: var(--font-mono);
+  font-size: var(--fs-meta);
+  cursor: pointer;
+  transition: color var(--t-base) var(--ease),
+              background var(--t-base) var(--ease),
+              border-color var(--t-base) var(--ease);
+}
+.nav-lang-btn:hover,
+.nav-lang-btn--active {
+  color: var(--accent);
+  background: var(--accent-dim);
+  border-color: var(--accent-border);
+}
+.nav-lang-btn .nav-icon {
+  margin-right: 0;
+  width: 14px; height: 14px;
+}
+.nav-lang-current {
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+.nav-lang-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 160px;
+  margin: 0; padding: 4px;
+  list-style: none;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-elevated);
+  z-index: 100;
+}
+.nav-lang-dropdown li { margin: 0; padding: 0; }
+.nav-lang-option {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--space-3);
+  padding: 8px 12px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  border-radius: var(--radius-button);
+  font-size: var(--fs-meta);
+  transition: background var(--t-base) var(--ease),
+              color var(--t-base) var(--ease);
+}
+.nav-lang-option:hover {
+  color: var(--text-primary);
+  background: var(--surface-alt);
+}
+.nav-lang-option--current {
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+.nav-lang-option-label { font-family: var(--font-sans); }
+.nav-lang-option-code {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+}
 .nav-meta {
   display: flex; gap: var(--space-3); align-items: center;
   font-family: var(--font-mono);

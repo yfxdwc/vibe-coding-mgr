@@ -159,26 +159,45 @@ describe('i18n / per-page translation', () => {
   }
 });
 
-describe('i18n / nav language toggle', () => {
-  it('zh page exposes EN as a link with ?lang=en in href', async () => {
+describe('i18n / nav language toggle (icon + dropdown)', () => {
+  it('zh page renders the language icon button with 切换语言 label', async () => {
     const r = await get('/');
     const body = await r.text();
-    // The toggle is a link titled "switch to en".
-    expect(body).toMatch(/href="[^"]*lang=en[^"]*"[^>]*title="switch to en"/);
+    // Icon button: globe sprite + zh switch label.
+    expect(body).toMatch(/nav-lang-btn/);
+    expect(body).toMatch(/sprite\.svg#language/);
+    expect(body).toMatch(/aria-label="切换语言"/);
   });
 
-  it('en page exposes 中文 as a link with ?lang=zh in href', async () => {
+  it('en page renders the language icon button with Switch language label', async () => {
     const r = await get('/?lang=en');
     const body = await r.text();
-    expect(body).toMatch(/href="[^"]*lang=zh[^"]*"[^>]*title="switch to zh"/);
+    expect(body).toMatch(/aria-label="Switch language"/);
   });
 
-  it('current language is shown without a link (no toggle out)', async () => {
+  it('zh page exposes EN as a dropdown option linking to ?lang=en', async () => {
+    const r = await get('/');
+    const body = await r.text();
+    expect(body).toMatch(/<a[^>]*nav-lang-option[^>]*href="[^"]*lang=en[^"]*"/);
+  });
+
+  it('en page exposes 中文 as a dropdown option linking to ?lang=zh', async () => {
     const r = await get('/?lang=en');
     const body = await r.text();
-    // The English label "English" should appear as the current
-    // indicator (no anchor tag around it).
-    expect(body).toMatch(/<span class="nav-lang-current"[^>]*>\s*English\s*<\/span>/);
+    expect(body).toMatch(/<a[^>]*nav-lang-option[^>]*href="[^"]*lang=zh[^"]*"/);
+  });
+
+  it('current language appears as a non-link <span> (no toggle out)', async () => {
+    const r = await get('/?lang=en');
+    const body = await r.text();
+    // The English label "English" appears inside the button (not a link).
+    expect(body).toMatch(/<span class="nav-lang-current">\s*English\s*<\/span>/);
+  });
+
+  it('dropdown is hidden by default (x-show="open")', async () => {
+    const r = await get('/');
+    const body = await r.text();
+    expect(body).toMatch(/class="nav-lang-dropdown"[^>]*x-show="open"/);
   });
 });
 

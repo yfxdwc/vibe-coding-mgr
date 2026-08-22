@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- language: globe + "A文" hint (bilingual UI toggle). -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+     stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
+     stroke-linejoin="round" width="24" height="24">
+  <!-- Globe sphere -->
+  <circle cx="12" cy="12" r="9"/>
+  <!-- Equator -->
+  <path d="M 3 12 L 21 12"/>
+  <!-- Meridian (curved to look 3D) -->
+  <ellipse cx="12" cy="12" rx="4" ry="9"/>
+  <!-- Polar axis hint -->
+  <path d="M 12 3 L 12 21"/>
+</svg>

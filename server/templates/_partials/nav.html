@@ -52,20 +52,32 @@
       <span x-text="summary.health_label || '—'"></span>
     </span>
     <span class="badge badge--idle" x-show="{{ 'true' if auth_required else 'false' }}" title="API requires HTTP Basic Auth (ADR-0004)">🔒</span>
-    <span class="nav-lang">
-      {% for L in LANGUAGES %}
-        {% if L != lang %}
-          <a class="nav-link nav-lang-link"
-             href="{{ lang_url(L) }}"
-             title="switch to {{ L }}">
-            {{ LANGUAGE_LABELS[L] }}
-          </a>
-        {% else %}
-          <span class="nav-lang-current"
-                title="current language">{{ LANGUAGE_LABELS[L] }}</span>
-        {% endif %}
-      {% endfor %}
-    </span>
+    <div class="nav-lang" x-data="{ open: false }" @click.outside="open = false">
+      <button class="nav-lang-btn"
+              :class="{ 'nav-lang-btn--active': open }"
+              @click="open = !open"
+              title="{{ t('nav.lang.switch') }}"
+              aria-label="{{ t('nav.lang.switch') }}"
+              :aria-expanded="open">
+        <svg class="nav-icon" aria-hidden="true" focusable="false">
+          <use href="/static/icons/sprite.svg#language"></use>
+        </svg>
+        <span class="nav-lang-current">{{ LANGUAGE_LABELS[lang] }}</span>
+      </button>
+      <ul class="nav-lang-dropdown" x-show="open" x-transition.opacity.duration.120ms>
+        {% for L in LANGUAGES %}
+          <li>
+            <a class="nav-lang-option"
+               :class="{ 'nav-lang-option--current': '{{ L }}' === '{{ lang }}' }"
+               href="{{ lang_url(L) }}"
+               @click="open = false">
+              <span class="nav-lang-option-label">{{ LANGUAGE_LABELS[L] }}</span>
+              <span class="nav-lang-option-code">{{ L }}</span>
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
     <button class="btn btn--sm btn--ghost" @click="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">☀/☾</button>
   </div>
 </nav>
