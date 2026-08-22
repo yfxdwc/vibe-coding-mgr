@@ -701,13 +701,13 @@ Approximate sizes (growing fast — refresh yourself before quoting):
 
 ## 16. TL;DR for the next agent
 
-1. The project is **v0.13.0, healthy, 312/312 tests passing**.
+1. The project is **v0.14.0, healthy, 341/341 tests passing**.
 2. **Read `AGENTS.md` and `CHARTER.md` first** — they define the rules.
-3. **Read the most recent ADRs** (0024–0025) — they describe the
+3. **Read the most recent ADRs** (0025–0026) — they describe the
    "what we just decided" trajectory. ADR-0025 is the
-   persistent-server one.
+   persistent-server one, ADR-0026 is the i18n one.
 4. **Don't refactor without an ADR.** If you find yourself wanting
-   to, write ADR-0026 first.
+   to, write ADR-0027 first.
 5. **Tests use unique ports** (7480+) to avoid parallel conflicts;
    audit-facets claims **7494** (next free above 7493).
 6. **The 6 hard checks** must pass before any commit
@@ -734,7 +734,10 @@ Approximate sizes (growing fast — refresh yourself before quoting):
      install-script /api/health probe is now retry-based
      (10 × 0.5s = ~5s budget) to survive the systemd-active/
      in-process-bind race.
-   - **315/315 tests passing, 28 files, all 6 hard checks green**
+   - v0.14.0: **bilingual UI** (ADR-0026). 12 templates translated,
+     `?lang=` + cookie + Accept-Language resolution, server-rendered
+     nav toggle, default zh. +26 i18n tests.
+   - **341/341 tests passing, 29 files, all 6 hard checks green**
    - vcm-server is **live on http://127.0.0.1:7339/** (was 7340
      mid-session; uninstall+reinstall auto-picked 7339 because
      repowise had 7338 again). Process: systemd user-1 service

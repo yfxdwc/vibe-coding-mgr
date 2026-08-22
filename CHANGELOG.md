@@ -9,6 +9,65 @@ The format is loosely: version, date, summary, list of changes, and a
 
 ---
 
+## v0.14.0 — 2026-08-22
+
+**Bilingual UI release. Every template now renders in zh (default) or en;
+URL `?lang=`, cookie persistence, and Accept-Language resolution;
+zero new runtime deps (ADR-0026).**
+
+### Added
+
+- **`server/i18n.py`** — single-file bilingual i18n module.
+  84 flat-dict keys per language, `_lookup` falls through zh→en
+  on missing keys. `t(key)` reads the active request's lang via
+  Flask's `@template_global`. `detect_language(request)` resolves
+  URL `?lang=` > cookie `vcm_lang` > Accept-Language > default.
+  `lang_url(target_lang)` returns a URL preserving the current
+  path + query, with `?lang=X` swapped in. `set_lang_cookie`
+  persists the choice for 1 year (SameSite=Lax).
+- **Jinja2 integration** — `i18n.register_jinja(app)` exposes
+  `t` and `lang_url` as `template_global`s and `lang` as a
+  context variable. Every template can now `{{ t('audit.title') }}`
+  and `<html lang="{{ lang }}">`.
+- **Nav language toggle** (`_partials/nav.html`) — one `<a>` per
+  non-active language with href=`{{ lang_url(L) }}`. Active
+  language shows as `<span class="nav-lang-current">` (no link).
+  Pills styled in `static/css/dashboard.css`.
+- **`VCM_DEFAULT_LANGUAGE`** env var (default `zh`): switch the
+  whole server to English with `VCM_DEFAULT_LANGUAGE=en` in
+  `~/.vcm/server.env`.
+
+### Translated
+
+12 templates now use `{{ t('key') }}` for every user-visible
+string: `_layout.html`, `_partials/nav.html`, `audit.html`,
+`dashboard.html`, `drift.html`, `leaderboard.html`, `peers.html`,
+`project.html`, `settings.html`, `skills.html`, `trends.html`,
+`_docs.html` (the last is nav-linked only).
+
+### Tests
+
+- 341/341 (was 315 → +26 in `tests/i18n.test.js`)
+- 26 ADRs (was 25 → +1: 0026)
+- 29 test files
+
+### Design notes
+
+- **Server-side, not client-side.** Jinja env globals can't see
+  per-request state, so `t` is registered as `@template_global`
+  instead of a plain `jinja_env.globals['t']`. This is the
+  difference between "first render shows zh" and "first render
+  flashes English then flips to zh."
+- **Default language is zh.** Matches the project's actual
+  primary user. One env var flips it (`VCM_DEFAULT_LANGUAGE=en`).
+- **Cookie persistence is incidental.** Users click the toggle
+  once and stick with their choice.
+- **7 pre-existing English-text tests** updated to append
+  `?lang=en` (tests/audit-facets, drift, trends). API-level
+  tests don't care about UI language.
+
+---
+
 ## v0.13.0 — 2026-08-21
 
 **First persistent-runtime release. vcm-server now installs as a
