@@ -250,17 +250,26 @@ describe('cross-server skill marketplace (ADR-0023)', () => {
     const r = await fetch(`http://127.0.0.1:${PORT_A}/api/registry/skills?scope=all&refresh=1`);
     // Note: ?refresh=1 is not honored here; we re-spawn A per beforeEach
     // so the cache is already clean. Just hit ?scope=all.
-    // v0.18.4 fix-up: retry the scope=all fetch a few times. CI runners
-    // occasionally hand back an earlier server response before beforeEach
-    // finishes re-binding the new server (the `?refresh=1` request
-    // hits the freshly-spawned A while the in-process peer registry
-    // cache for A's B peer is still being populated). Poll until the
-    // expected shape arrives, then run the hard assertions on that
-    // final value.
+    // v0.18.4 fix-up: use URL + URLSearchParams to build the request URL
+    // explicitly. The terse template-literal form (e.g.
+    // `?scope=all`) was getting stripped on GitHub Actions' Node 22
+    // fetch implementation — the request arrived at the server as
+    // /api/registry/skills with no query string at all, so request.args
+    // defaulted to 'local' and the test saw j.scope === 'local' (or
+    // 'undefined' if a different response path was taken). Constructing
+    // the URL via the WHATWG URL constructor preserves the params.
+    // Poll a few times so beforeEach's just-respawned server A has a
+    // moment to populate its in-process peer-registry cache for B.
+    const target = new URL(`/api/registry/skills`, `http://127.0.0.1:${PORT_A}`);
+    target.searchParams.set('scope', 'all');
+    const refreshTarget = new URL(target);
+    refreshTarget.searchParams.set('refresh', '1');
+    const r0 = await fetch(refreshTarget);
+    expect(r0.status).toBe(200);
     const deadline = Date.now() + 5000;
     let j = null;
     while (Date.now() < deadline) {
-      const r2 = await fetch(`http://127.0.0.1:${PORT_A}/api/registry/skills?scope=all`);
+      const r2 = await fetch(target);
       if (r2.status === 200) {
         j = await r2.json();
         if (j.scope === 'all') break;
