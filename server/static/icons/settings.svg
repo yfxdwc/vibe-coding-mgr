@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- settings: classic gear (cog). -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+     stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
+     stroke-linejoin="round" width="24" height="24">
+  <circle cx="12" cy="12" r="3"/>
+  <path d="M 12 2 L 12 5 M 12 19 L 12 22 M 2 12 L 5 12 M 19 12 L 22 12
+           M 4.93 4.93 L 6.93 6.93 M 17.07 17.07 L 19.07 19.07
+           M 4.93 19.07 L 6.93 17.07 M 17.07 6.93 L 19.07 4.93"/>
+</svg>

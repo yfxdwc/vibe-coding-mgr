@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  logo.svg — primary horizontal logo for vibe-coding-mgr.
+
+  Lockup: [icon] vcm   vibe-coding-mgr
+
+  Dark-mode-first (matches project default theme, see DESIGN.md).
+  For light contexts, swap the rect fill to "#f5f5f4" and the
+  text fill to "#0a0a0a".
+
+  Use in:
+    - README.md header
+    - docs/ONBOARDING.md header
+    - GitHub repo social preview
+    - npm package page (when published)
+    - Slide decks / blog posts
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 110" role="img"
+     aria-label="vcm — vibe-coding-mgr">
+  <title>vcm</title>
+
+  <!-- Full-canvas dark backdrop (matches —bg). Brand assets are
+       dark-mode-first by project convention (DESIGN.md §1). -->
+  <rect width="360" height="110" rx="14" fill="#0a0a0a"/>
+
+  <!-- Icon block (left), 80x80 inset within 110-row canvas -->
+  <g transform="translate(15, 15)">
+    <path d="M 40 16 A 25 25 0 1 0 62.5 52"
+          fill="none" stroke="#f59520" stroke-width="3.5"
+          stroke-linecap="round"/>
+    <circle cx="40" cy="40" r="3" fill="#f59520"/>
+    <path d="M 30 48 L 40 60 L 50 48"
+          fill="none" stroke="#f59520" stroke-width="3.5"
+          stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <!-- Wordmark: monospace "vcm", —text-primary tone -->
+  <text x="115" y="68"
+        font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace"
+        font-size="46"
+        font-weight="600"
+        letter-spacing="-1.5"
+        fill="#f5f5f4">vcm</text>
+
+  <!-- Subtitle: human name, —text-secondary tone -->
+  <text x="115" y="92"
+        font-family="-apple-system, BlinkMacSystemFont, system-ui, sans-serif"
+        font-size="13"
+        font-weight="400"
+        letter-spacing="0.5"
+        fill="#a8a29e">vibe-coding-mgr</text>
+</svg>

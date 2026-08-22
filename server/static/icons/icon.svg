@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  icon.svg — primary square mark for vibe-coding-mgr (vcm).
+
+  Concept: a stylized "V" formed by a radar arc scanning across a
+  centered dot. The arc = cross-project attention; the dot = the
+  project being watched; the downward chevron = the "v" in vcm.
+
+  Sized at 64×64 viewBox to match favicon-native aspect (downsizes
+  cleanly to 16, 32, 180, 512 px without re-balancing strokes).
+
+  Color: —accent (#f59520). On dark bg the arc reads as a clean
+  warm-orange signal; on light bg the same SVG works if you add a
+  dark surface underneath (or set currentColor and let CSS theme it).
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img"
+     aria-label="vcm — vibe-coding-mgr">
+  <title>vcm</title>
+  <!-- Background: matches —bg for embedded dark previews. Transparent
+       when the consuming context provides its own surface. -->
+  <rect width="64" height="64" rx="14" fill="#0a0a0a"/>
+
+  <!-- Outer arc: 270° radar sweep, opens downward (where the chevron sits). -->
+  <path d="M 32 12
+           A 20 20 0 1 0 50.142 41.5"
+        fill="none"
+        stroke="#f59520"
+        stroke-width="3"
+        stroke-linecap="round"/>
+
+  <!-- Center dot: the project being watched. Slightly inset to feel
+       "scanned" rather than "centered". -->
+  <circle cx="32" cy="32" r="2.5" fill="#f59520"/>
+
+  <!-- Downward chevron: the "v" in vcm. Anchors the arc visually. -->
+  <path d="M 24 38 L 32 48 L 40 38"
+        fill="none"
+        stroke="#f59520"
+        stroke-width="3"
+        stroke-linecap="round"
+        stroke-linejoin="round"/>
+</svg>

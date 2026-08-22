@@ -43,6 +43,18 @@
   color: var(--accent);
   background: var(--accent-dim);
 }
+
+/* vcm dashboard icons — see docs/assets/README.md */
+.nav-icon {
+  width: 14px; height: 14px;
+  margin-right: 6px;
+  vertical-align: -2px;
+  color: currentColor;
+  flex-shrink: 0;
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+.nav-link { display: inline-flex; align-items: center; }
 .nav-meta {
   display: flex; gap: var(--space-3); align-items: center;
   font-family: var(--font-mono);

@@ -2,23 +2,39 @@
    - 来自 _layout.html 自动 include
    - 高亮由 page.nav_active 决定，可被各 page 覆写
    - auth_required 由 app.py 注入
+   - 10 SVG icons from /static/icons/ — see docs/assets/README.md
 #}
+{% macro nav_icon(name) -%}
+  <svg class="nav-icon" aria-hidden="true" focusable="false">
+    <use href="/static/icons/sprite.svg#{{ name }}"></use>
+  </svg>
+{%- endmacro %}
+
 <nav class="nav" x-data="{ active: '{{ nav_active or 'cockpit' }}' }">
   <a class="nav-brand" href="/">
-    <span class="nav-mark">vcm</span>
+    <img class="nav-mark" src="/static/icons/icon.svg" alt="" width="28" height="28">
     <span>vibe coding mgr</span>
   </a>
 
   <div class="nav-links">
-    <a class="nav-link" :class="{ active: active === 'cockpit' }" href="/">{{ t("nav.cockpit") }}</a>
-    <a class="nav-link" :class="{ active: active === 'leaderboard' }" href="/leaderboard">{{ t("nav.leaderboard") }}</a>
-    <a class="nav-link" :class="{ active: active === 'drift' }" href="/drift">{{ t("nav.drift") }}</a>
-    <a class="nav-link" :class="{ active: active === 'skills' }" href="/skills">{{ t("nav.skills") }}</a>
-    <a class="nav-link" :class="{ active: active === 'trends' }" href="/trends">{{ t("nav.trends") }}</a>
-    <a class="nav-link" :class="{ active: active === 'peers' }" href="/peers">{{ t("nav.peers") }}</a>
-    <a class="nav-link" :class="{ active: active === 'audit' }" href="/audit">{{ t("nav.audit") }}</a>
-    <a class="nav-link" :class="{ active: active === 'docs' }" href="/docs/DESIGN.md">{{ t("nav.docs") }}</a>
-    <a class="nav-link" :class="{ active: active === 'settings' }" href="/settings">{{ t("nav.settings") }}</a>
+    <a class="nav-link" :class="{ active: active === 'cockpit' }" href="/">
+      {{ nav_icon('cockpit') }}{{ t("nav.cockpit") }}</a>
+    <a class="nav-link" :class="{ active: active === 'leaderboard' }" href="/leaderboard">
+      {{ nav_icon('leaderboard') }}{{ t("nav.leaderboard") }}</a>
+    <a class="nav-link" :class="{ active: active === 'drift' }" href="/drift">
+      {{ nav_icon('drift') }}{{ t("nav.drift") }}</a>
+    <a class="nav-link" :class="{ active: active === 'skills' }" href="/skills">
+      {{ nav_icon('skills') }}{{ t("nav.skills") }}</a>
+    <a class="nav-link" :class="{ active: active === 'trends' }" href="/trends">
+      {{ nav_icon('trends') }}{{ t("nav.trends") }}</a>
+    <a class="nav-link" :class="{ active: active === 'peers' }" href="/peers">
+      {{ nav_icon('peers') }}{{ t("nav.peers") }}</a>
+    <a class="nav-link" :class="{ active: active === 'audit' }" href="/audit">
+      {{ nav_icon('audit') }}{{ t("nav.audit") }}</a>
+    <a class="nav-link" :class="{ active: active === 'docs' }" href="/docs/DESIGN.md">
+      {{ nav_icon('docs') }}{{ t("nav.docs") }}</a>
+    <a class="nav-link" :class="{ active: active === 'settings' }" href="/settings">
+      {{ nav_icon('settings') }}{{ t("nav.settings") }}</a>
   </div>
 
   <div class="nav-meta">

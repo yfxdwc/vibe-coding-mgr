@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- trends: rising line chart with 4 data points. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+     stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
+     stroke-linejoin="round" width="24" height="24">
+  <path d="M 3 3 L 3 21 L 21 21"/>
+  <path d="M 6 17 L 10 12 L 14 14 L 19 7"/>
+  <circle cx="6" cy="17" r="1" fill="currentColor" stroke="none"/>
+  <circle cx="10" cy="12" r="1" fill="currentColor" stroke="none"/>
+  <circle cx="14" cy="14" r="1" fill="currentColor" stroke="none"/>
+  <circle cx="19" cy="7" r="1" fill="currentColor" stroke="none"/>
+</svg>
