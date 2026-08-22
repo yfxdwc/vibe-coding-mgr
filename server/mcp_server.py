@@ -36,7 +36,7 @@ from mcp.types import TextContent, Tool  # noqa: E402
 
 # --- Tool registry (transport-neutral) ----------------------------------
 
-SERVER_INFO = {"name": "vcm-server", "version": "0.16.0"}
+SERVER_INFO = {"name": "vcm-server", "version": "0.17.0"}
 PROTOCOL_VERSION = "2024-11-05"
 
 

@@ -29,13 +29,13 @@ layers (`lib/adapters/`), never vendored.
 
 ---
 
-## 2. Current state (v0.16.0)
+## 2. Current state (v0.17.0)
 
 | Item | Value |
 |---|---|
-| Version | `0.16.0` (in `package.json` + `bin/vcm.js` + `server/mcp_server.py`) |
+| Version | `0.17.0` (in `package.json` + `bin/vcm.js` + `server/mcp_server.py`) |
 | Tests | **436/436 passing** (31 test files, 36 new in skills-meta.test.js; 53 in i18n.test.js + 32 in launchd.test.js) |
-| 7 hard checks | 7 OK (`bash scripts/routine_coverage.sh` exit 0; 6 + skills registry) |
+| 6 hard checks | 6 OK (`bash scripts/routine_coverage.sh` exit 0; the "6" historical name is preserved per [ADR-0028](docs/adr/0028-skill-rollout.md) §"不做"; v0.16.0 added the 6th real check `check_skills.py`) |
 | ADRs | **28** in `docs/adr/0001-` to `0028-` (latest: skill-rollout) |
 | Routes | **39** `@app.route` decorators in `server/app.py` |
 | Python modules | 10 in `server/` (`app`, `audit`, `dashboard`, `docs_search`, `i18n`, `markdown_render`, `mcp_server`, `peers`, `scopes`, `users`) |
@@ -45,12 +45,12 @@ layers (`lib/adapters/`), never vendored.
 | Bilingual UI | zh (default) + en, 380 keys, server-rendered (ADR-0026) |
 | Repo | `https://github.com/your-org/vibe-coding-mgr` (URL in README; placeholder) |
 
-**v0.16.0 is the latest release**. It ships ADR-0028 — the SKILL.md
-rollout that closes CHARTER §10 "三项全满足" — plus the new 7th hard
-check `scripts/check_skills.py` and 36 new assertions in
-`tests/skills-meta.test.js`. v0.15.0's launchd LaunchAgent and
-v0.14.1's bilingual UI ship intact; the minor-version bump to
-**0.16.0** reflects the new SKILL.md registry.
+**v0.17.0 is the latest release**. It ships ADR-0029 — the README
+modernization (6 edits, accuracy restoration after 3 skipped releases)
+plus the first `CONTRIBUTING.md` (177 lines, contributor workflow).
+The v0.16.0 SKILL.md registry and v0.15.0 launchd LaunchAgent ship
+intact; the minor bump to **0.17.0** reflects the formalized contributor
+contract.
 
 **Release lineage since v0.9.0** (the version this handoff was originally
 written for):
@@ -76,6 +76,22 @@ written for):
   platforms. 32 new tests in `tests/launchd.test.js` (file shape +
   install/uninstall --dry-run + cross-platform contract). 400/400
   total tests.
+- v0.16.0: **SKILL.md rollout for governance constraints** (ADR-0028).
+  Closes CHARTER §10 "三项全满足". `docs/SKILLS.md` index +
+  `docs/skills/<name>/SKILL.md` for 6 skills (1 meta
+  `skill-authoring` + 5 governance: `persistent-runtime`,
+  `i18n-authoring`, `drift-detection`, `mcp-transport`,
+  `docs-search`) + the new 6th hard check `scripts/check_skills.py`
+  wired into `scripts/routine_coverage.sh`. 36 new assertions in
+  `tests/skills-meta.test.js`. The "6 hard checks" historical name
+  is preserved (ADR-0028 §"不做"). 436/436 total tests.
+- v0.17.0: **README modernization + CONTRIBUTING.md** (ADR-0029).
+  Six README edits (banner version, ADR/test counts, port
+  references, project structure, release cadence) — accuracy
+  restoration after 3 skipped releases. First-ever `CONTRIBUTING.md`
+  (177 lines, 9 sections: ADR discipline, hard checks, commit style,
+  release process). Docs-only release. 436/436 tests pass (no
+  change from v0.16.0).
 
 ---
 
@@ -511,15 +527,30 @@ file, an ADR, and a CI check.
    assertions) mirrors the check at the unit-test layer. AGENTS.md
    §1's reference to `docs/SKILLS.md` now resolves.
 
-3. **README modernization — minor polish** — the v0.14.1 README pass
-   fixed version numbers + bilingual mention. Remaining: install
-   commands on non-Ubuntu, npm-published versions, contributor
-   workflow (no CONTRIBUTING.md yet).
+3. ✅ **README modernization** — **DONE in v0.17.0** (ADR-0029).
+   6 edits: banner version (0.14.1 → 0.16.0), `vcm doctor` example
+   output (26 → 28 ADRs, 7 → 6 hard checks per historical name),
+   project structure block (`add_pi_skill.py` → `check_skills.py`
+   + `routine_coverage.sh`, test count 368 → 436, added
+   `docs/SKILLS.md` + `docs/skills/` blocks), design discipline
+   section, release cadence table (prepended v0.14.1 / v0.15.0 /
+   v0.16.0), new "Contributing" section pointing at CONTRIBUTING.md.
+   No structural rewrite — just accuracy restoration.
 
-4. **v0.17.0 candidates**: pick one of (a) backfill SKILL.md for
-   older ADRs (out of scope per ADR-0028 §"不做"), (b) WebSocket
-   MCP transport, (c) cross-language server messaging protocol.
-   None has a written ADR yet — write the ADR first.
+4. ✅ **CONTRIBUTING.md** — **DONE in v0.17.0** (ADR-0029). First-ever
+   contributor doc: 9 sections covering ADR discipline, hard checks,
+   commit style (Conventional Commits), release process (5-surface
+   version bump + tag + changelog). Points at CHARTER.md / AGENTS.md
+   / HANDOFF.md as the upstream rule set.
+
+5. **v0.18.0 candidates** (none has a written ADR yet — pick one
+   and write the ADR first):
+   - (a) Backfill SKILL.md for older ADRs (per ADR-0028 §"不做",
+     currently out of scope; a v0.18.0 ADR could revisit).
+   - (b) WebSocket MCP transport (deferred since v0.10.0; only
+     pick up with explicit ask).
+   - (c) Cross-language server messaging protocol.
+   - (d) Skill marketplace cross-server (LAN registry; low priority).
 
 ### 11.3 Future-only items (do not pick up without explicit ask)
 
@@ -750,7 +781,8 @@ Approximate sizes (growing fast — refresh yourself before quoting):
 
 ## 16. TL;DR for the next agent
 
-1. The project is **v0.16.0, healthy, 436/436 tests passing**.
+1. The project is **v0.17.0, healthy, 436/436 tests passing**, 6 hard
+   checks OK, 29 ADRs unique.
 2. **Read `AGENTS.md` and `CHARTER.md` first** — they define the rules.
 3. **Read the most recent ADRs** (0025–0026) — they describe the
    "what we just decided" trajectory. ADR-0025 is the
@@ -819,10 +851,11 @@ Approximate sizes (growing fast — refresh yourself before quoting):
      - Uninstall preserved ~/.vcm/server.env (md5 5d06f168… unchanged).
      - Port auto-pick fell to 7339 because repowise held 7338 again.
 8. **Next milestones** (from `docs/ROADMAP.md`):
-   - v0.17.0: pick one of (a) backfill SKILL.md for older ADRs
-     (per ADR-0028 §"不做", currently out of scope), (b) WebSocket
-     MCP transport (deferred since v0.10.0), or (c) cross-language
-     server messaging protocol. None has a written ADR yet.
+   - v0.18.0 candidates: (a) backfill SKILL.md for older ADRs (a
+     v0.18.0 ADR could revisit ADR-0028 §"不做"), (b) WebSocket
+     MCP transport (deferred since v0.10.0; explicit-ask only),
+     (c) cross-language server messaging protocol, (d) skill
+     marketplace cross-server. None has a written ADR yet.
    - README modernization for v0.12.0+ reality (still has v0.11
      claims in some places).
 

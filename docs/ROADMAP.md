@@ -1,6 +1,6 @@
 # ROADMAP
 
-## v0.16.0 (current — 2026-08-22)
+## v0.17.0 (current — 2026-08-22)
 
 Latest release. All v0.8.0 – v0.14.1 items below are DONE.
 v0.15.0 candidates at the bottom — pick one and write the ADR first.
@@ -200,7 +200,23 @@ v0.15.0 candidates at the bottom — pick one and write the ADR first.
 - [x] **Updated HANDOFF §11.2, README, ONBOARDING** to reflect
       launchd availability.
 
-## v0.17.0 (next, ~2 months)
+## v0.17.0 ✅ DONE (2026-08-22)
+
+- [x] **README modernization** (ADR-0029) — 6 edits restoring accuracy
+      after 3 skipped releases (v0.14.1, v0.15.0, v0.16.0): banner
+      version, `vcm doctor` example output, project structure block,
+      design discipline section, release cadence table, port
+      references. No structural rewrite.
+- [x] **CONTRIBUTING.md** (ADR-0029) — first-ever contributor
+      workflow doc. 9 sections: TL;DR, code of conduct, before-you-code
+      (3 questions), ADR discipline, the 6 hard checks, Conventional
+      Commits, release process, local sanity check, where to ask.
+- [x] **Release process codified** — 5-surface version bump pattern
+      (`package.json` / `bin/vcm.js` / `server/mcp_server.py` /
+      `tests/cli.test.js` / `tests/server.test.js`) + annotated tag
+      (`git tag -a v<X>.<Y>.<Z>` triggers `.github/workflows/publish.yml`).
+
+## v0.18.0 (next, ~2 months)
 
 Candidates (no ADR written yet — pick one and write the ADR first):
 

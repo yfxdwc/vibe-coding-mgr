@@ -9,6 +9,70 @@ The format is loosely: version, date, summary, list of changes, and a
 
 ---
 
+## v0.17.0 — 2026-08-22
+
+**README modernization + CONTRIBUTING.md (ADR-0029). Docs-only release
+that closes HANDOFF §11.2 #3 and #4 — the "README polish" + "first
+CONTRIBUTING.md" deferred items.**
+
+### Added
+
+- **`CONTRIBUTING.md`** — first-ever contributor workflow doc.
+  9 sections: TL;DR; code of conduct (→ CHARTER.md); before-you-code
+  (3 questions); ADR discipline (mirror of skill-authoring §2);
+  the 6 hard checks; Conventional Commits; release process
+  (5-surface version bump + tag + CHANGELOG); local sanity check;
+  where to ask; license. No new tests — this is docs-only.
+- **`README.md` "Contributing" section** — short pointer at
+  CONTRIBUTING.md with the 4-step TL;DR.
+
+### Changed
+
+- **`README.md`** — 6 edits to restore accuracy after 3 skipped
+  releases (v0.14.1, v0.15.0, v0.16.0):
+  - Banner version: `0.14.1` → `0.16.0` (further updated to `0.17.0`
+    by this release commit)
+  - `vcm doctor` example output: ADR count `26` → `28`,
+    hard check count `7` → `6` (historical project name)
+  - Project structure block: replaced `scripts/add_pi_skill.py`
+    (does not exist in vcm) with the actual 6 hard check scripts +
+    `routine_coverage.sh`; test count `368` → `436`; added
+    `docs/SKILLS.md` + `docs/skills/` blocks
+  - Design discipline section: test count `368 tests` →
+    `436 tests`, ADR count `26` → `28`
+  - Release cadence table: prepended v0.16.0, v0.15.0, v0.14.1
+    rows (HEAD moves from v0.14.1 to v0.17.0)
+  - "Quick start" port reference: clarified auto-pick range
+    (7338-7399)
+- **`HANDOFF.md`** — §2 retitled to v0.17.0, release lineage
+  extended with v0.16.0 + v0.17.0 bullets, §11.2 #3 and #4
+  marked DONE (README polish + CONTRIBUTING.md), §16 milestones
+  refreshed to v0.18.0 candidates.
+
+### Design notes
+
+- **Why a docs-only release**: README drift accumulates silently
+  and CONTRIBUTING.md is a contributor contract. Together they
+  form a one-cycle "hygiene pass" that has been deferred since
+  v0.14.1 (3 releases). Per ADR-0029 §"不做", no structural
+  rewrite was attempted — only accuracy restoration.
+- **Why minor bump (not patch)**: CONTRIBUTING.md formalizes
+  the contributor workflow as a hard convention. The minor bump
+  signals to readers "the contributor contract has changed",
+  even though the change is additive docs only.
+- **No new tests**: docs-only release. `tests/436` count is
+  unchanged from v0.16.0.
+
+### v0.17.0 metrics
+
+- 436/436 unit tests pass (unchanged from v0.16.0)
+- 6/6 hard checks pass (unchanged from v0.16.0)
+- 29 ADRs (was 28; +1 ADR-0029)
+- 6 SKILL.md files (unchanged)
+- New: CONTRIBUTING.md (177 lines)
+
+---
+
 ## v0.16.0 — 2026-08-22
 
 **SKILL.md rollout for governance constraints (ADR-0028). CHARTER §10
@@ -77,7 +141,7 @@ The format is loosely: version, date, summary, list of changes, and a
 ### v0.16.0 metrics
 
 - 436/436 unit tests pass (was 400 in v0.15.0 → +36 skills meta)
-- 7/7 hard checks pass
+- 6/6 hard checks pass (was 5 in v0.15.0; +1 `check_skills.py`)
 - 28 ADRs (0001–0028, +1: 0028-skill-rollout)
 - 6 SKILL.md files (1 meta + 5 governance)
 
