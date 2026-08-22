@@ -1041,6 +1041,9 @@ def api_peers():
 @app.route("/api/registry/skills")
 @scopes_mod.require_scope("read")
 def api_registry_skills():
+    # v0.18.4 debug: log scope arg so we can see what CI runners
+    # actually pass (Flask access log strips query string).
+    print(f"[api_registry_skills] scope={request.args.get('scope', 'local')!r} url={request.url!r}", file=__import__('sys').stderr)
     """List skills in the local registry (ADR-0008).
 
     Reads from ~/.vcm/registry/skills/*.json (or $VCM_REGISTRY_DIR).
