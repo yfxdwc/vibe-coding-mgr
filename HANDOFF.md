@@ -735,11 +735,25 @@ Approximate sizes (growing fast — refresh yourself before quoting):
      (10 × 0.5s = ~5s budget) to survive the systemd-active/
      in-process-bind race.
    - **315/315 tests passing, 28 files, all 6 hard checks green**
-   - vcm-server is **live on http://127.0.0.1:7340/** (was
-     7339 at first install; repowise's 7338 listener was
-     released between runs, so install auto-picked 7340).
-     Process: systemd PID=user-1002.slice/app.slice/vcm-server
-     .service (see `systemctl --user status vcm-server`).
+   - vcm-server is **live on http://127.0.0.1:7339/** (was 7340
+     mid-session; uninstall+reinstall auto-picked 7339 because
+     repowise had 7338 again). Process: systemd user-1 service
+     under `/user.slice/user-1002.slice/.../vcm-server.service`.
+
+   - **Live-verified against ADR-0025 §验收 (Aug 22 09:22)**:
+     | item                                          | result |
+     |-----------------------------------------------|--------|
+     | 1. `systemd-analyze verify`                   | ok (placeholder warning expected) |
+     | 2. install end-to-end + /api/health          | ok — health body `status:"healthy"` |
+     | 3. crash recovery (`kill -9`)                 | ok — new PID within ~6s (`RestartSec=5s`) |
+     | 4. uninstall removes unit, keeps env          | ok — ENV md5 unchanged across uninstall |
+     | 5. `npm test -- tests/daemon.test.js`         | 26 passed |
+     | 6. `bash scripts/routine_coverage.sh`         | exit 0 |
+
+     Empirical traces from this session:
+     - Old PID 1114191 killed → new PID 1121885 in 09:22:05→09:22:11.
+     - Uninstall preserved ~/.vcm/server.env (md5 5d06f168… unchanged).
+     - Port auto-pick fell to 7339 because repowise held 7338 again.
 8. **Next milestones** (from `docs/ROADMAP.md`):
    - SKILL.md files per CHARTER §10 for peer protocol,
      MCP HTTP transport, drift detection, docs search.
