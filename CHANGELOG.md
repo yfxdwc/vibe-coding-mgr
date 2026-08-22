@@ -66,6 +66,28 @@ no root required, zero new deps.**
   out of scope (see ADR-0025 §"不做"). macOS users fall back
   to `tmux`; Windows users fall back to WSL or manual.
 
+### Fixed (post-release)
+
+- **`StartLimit*` directives moved `[Service]` → `[Unit]`**. Per
+  `man systemd.service` they belong in `[Unit]`; systemd 255
+  silently ignores them in `[Service]`, which would have
+  defeated the no-zombie-flap guarantee on a real crash loop.
+  Caught on first live install via the journal warning
+  `Unknown key name 'StartLimitIntervalSec' in section
+  'Service'`. Locked in via a positional regex test in
+  `tests/daemon.test.js` (a plain `indexOf('[Service]')` was
+  wrong because the .service comment block also mentions
+  that literal text).
+- **`install-service.sh` retry-based health probe**. Replaced
+  the single `sleep 1; curl --max-time 3` with a 10-iteration
+  retry loop (~5s budget) so the install survives systemd's
+  `active` marker landing BEFORE the in-process Flask bind +
+  schema bootstrap + audit directory creation. Accepts both
+  `status: ok` (≤ v0.12) and `status: healthy` (v0.13+) shapes.
+  On final exhaust, looks up `systemctl --user is-active` and
+  only exits 1 if the unit is in `failed` state — idempotent
+  installs must not regress a slow first boot.
+
 ---
 
 ## v0.12.0 — 2026-08-21

@@ -729,7 +729,17 @@ Approximate sizes (growing fast — refresh yourself before quoting):
      `uninstall-service.sh` + `~/.vcm/server.env` template. ADR-0025
      reconciles with ADR-0022's "no in-process daemon complexity"
      by making the daemon *around* the process, not *inside* it.
-   - **312/312 tests passing, 28 files, all 6 hard checks green**
+     **Post-release bugfixes (commit 4770d0b)**: (a) StartLimit*
+     directives moved [Service] → [Unit] per man page; (b)
+     install-script /api/health probe is now retry-based
+     (10 × 0.5s = ~5s budget) to survive the systemd-active/
+     in-process-bind race.
+   - **315/315 tests passing, 28 files, all 6 hard checks green**
+   - vcm-server is **live on http://127.0.0.1:7340/** (was
+     7339 at first install; repowise's 7338 listener was
+     released between runs, so install auto-picked 7340).
+     Process: systemd PID=user-1002.slice/app.slice/vcm-server
+     .service (see `systemctl --user status vcm-server`).
 8. **Next milestones** (from `docs/ROADMAP.md`):
    - SKILL.md files per CHARTER §10 for peer protocol,
      MCP HTTP transport, drift detection, docs search.
