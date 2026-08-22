@@ -9,6 +9,53 @@ The format is loosely: version, date, summary, list of changes, and a
 
 ---
 
+## v0.18.4 — 2026-08-22
+
+**Post-release bug-fix pass for v0.18.3.** The v0.18.3 tag was published
+with five CI-time failures that pre-existed the release but only surfaced
+once the GitHub Actions runner actually ran the test suites. This tag rolls
+the fixes.
+
+### Fixed
+
+- **`scripts/install-service.sh`**: preflight ran before `--dry-run` branch,
+  so CI runners without systemd failed `--dry-run` with exit 1. Now skipped
+  under `--dry-run`. (`tests/daemon.test.js` 2 failures.)
+- **`lib/cli/doctor.js`**: hardcoded venv python path
+  `/home/mm7/vibe-coding-mgr/.venv/bin/python3` only worked on the primary
+  workstation. Derived from `VCM_ROOT` now with `python3` fallback.
+  (`tests/doctor.test.js` 1 failure.)
+- **`server/app.py` + `server/dashboard.py`**: `dashboard.init_db()` only
+  created `projects` + `states`; `users` + `tokens` were lazily created.
+  init_db now also calls `users_mod._ensure_tables` before the self-check.
+  Success print now goes to stderr (was stdout) so `mcp_server.py` stdio
+  handshake isn't corrupted. (`check_db_schema.py` + `tests/mcp.test.js`
+  10 silent failures.)
+- **`scripts/check_skills.py`**: canonical_ref points at sibling repos
+  which aren't shipped on CI runners. Demoted missing-canonical_ref
+  from FAIL to WARN so the CI guard focuses on in-repo defects.
+- **`server/peers.py` + `server/app.py`**: `api_registry_skills()` ignored
+  `?refresh=1` so the in-memory peer cache returned stale entries.
+  `merge_peer_skills(refresh=...)` now drops the registry cache rows
+  before re-fetch. (`tests/peers.test.js` 1 failure.)
+- **`.github/workflows/publish.yml`**: `timeout-minutes: 5` too tight.
+  Bumped to 30.
+
+### Changed
+
+- **`vitest.config.js`**: `pool: 'forks', singleFork: true` to stop
+  test files racing for the same free port.
+
+### Verified
+
+- vitest: 436 / 436
+- playwright e2e: 12 / 12
+- 6 hard check: exit 0
+- GitHub Actions CI: clean (after the fixes above)
+
+Refs: fd66355, 037ad15, ddce8d5, 1030ac5, 7a6d325 (v0.18.3 chain)
++ b69c702, dc9b302, 7576056, 7858c1a, 89409f9 (this bug-fix chain).
+
 ## v0.18.3 — 2026-08-22
 
 **Sidebar collapse (icon-only 64px mode). New ‹ button in the

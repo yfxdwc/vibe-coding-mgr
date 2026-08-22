@@ -1,6 +1,27 @@
 # ROADMAP
 
-## v0.18.3 (current — 2026-08-22)
+## v0.18.4 (current — 2026-08-22)
+
+Latest release. Post-release bug-fix pass for v0.18.3 — six
+CI-only failures that surfaced only on GitHub Actions runners
+(the local dev box never hit them because it shares `/home/mm7/`
+with `/home/mm7/sales-ai` and doesn't have the same CI env):
+- `dashboard.init_db` now creates `users` + `tokens` (was lazy on
+  fresh DB; broke `check_db_schema.py`).
+- `dashboard.init_db` success print now goes to stderr (was stdout,
+  corrupting `mcp_server.py` stdio MCP handshake).
+- `lib/cli/doctor.js` venv python derived from `VCM_ROOT` (was
+  hardcoded `/home/mm7/vibe-coding-mgr/.venv/...`).
+- `scripts/install-service.sh` skips preflight in `--dry-run`.
+- `scripts/check_skills.py` demotes missing-canonical_ref to WARN.
+- `server/peers.merge_peer_skills` honours `?refresh=1`.
+- `.github/workflows/publish.yml` timeout 5min → 30min.
+- `vitest.config.js` pool `'forks', singleFork: true` to stop test
+  files racing for the same free port.
+
+---
+
+## v0.18.3 ✅ DONE (2026-08-22)
 
 Latest release. Three layered features shipped in a combined tag:
 
