@@ -10,6 +10,7 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "playwright test",
     "validate": "node ./bin/vcm.js validate",
     "status": "node ./bin/vcm.js status"
   },
@@ -36,6 +37,7 @@
     "js-yaml": "^5.3.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "vitest": "^1.6.0"
   },
   "files": [

@@ -497,7 +497,12 @@ def create_project():
     409 on duplicate name.
     """
     import re
-    body = request.get_json(force=True, silent=True) or {}
+    # ADR-0030: accept both JSON (API clients) and form-encoded
+    # (browser form submit from the sidebar <dialog>).
+    if request.is_json:
+        body = request.get_json(silent=True) or {}
+    else:
+        body = request.form.to_dict() or {}
     name = (body.get("name") or "").strip()
     path_str = (body.get("path") or "").strip()
 
@@ -550,12 +555,21 @@ def create_project():
     conn.commit()
     conn.close()
 
-    return jsonify({
+    # ADR-0030: success path defaults to 302 redirect so the browser
+    # reloads the page (sidebar re-renders with the new project).
+    # API clients that want JSON should send Accept: application/json.
+    payload = {
         "name": name,
         "path": str(p),
         "first_seen_at": now,
         "last_seen_at": now,
-    }), 201
+    }
+    if request.accept_mimetypes.best == "application/json" and \
+       not request.accept_mimetypes.accept_html:
+        return jsonify(payload), 201
+    # Browser form submit: redirect back to where the user came from.
+    from flask import redirect
+    return redirect(request.referrer or "/", code=302)
 
 
 @app.route("/api/projects")

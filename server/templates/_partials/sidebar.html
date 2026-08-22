@@ -31,8 +31,9 @@
   </a>
 
   <nav class="sidebar-section" aria-label="Navigation" data-c="sidebar-nav">
-    <a class="sidebar-link" :class="active" href="/" data-c="sidebar-link"
-       data-link="cockpit" :aria-current="active === 'cockpit' ? 'page' : null">
+    <a class="sidebar-link {{ 'active' if request.path == '/' else '' }}" href="/" data-c="sidebar-link"
+       data-link="cockpit"
+       {% if request.path == '/' %}aria-current="page"{% endif %}>
       {{ nav_icon('cockpit') }}{{ t("nav.cockpit") }}</a>
     <a class="sidebar-link {{ is_active('/leaderboard') }}" href="/leaderboard"
        data-c="sidebar-link" data-link="leaderboard"
