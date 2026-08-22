@@ -156,15 +156,23 @@ bash scripts/uninstall-service.sh    # stops the unit, removes it,
                                     # and any DB files
 ```
 
-macOS / Windows users fall back to the manual launch path (above):
+Both platforms ship a one-shot installer that mirrors the systemd flow:
 
 ```bash
-python3 server/app.py &              # or inside tmux for survival
+# Linux (systemd user unit, ADR-0025)
+bash scripts/install-service.sh
+# → vcm-server installed: http://127.0.0.1:<picked>/
+
+# macOS (launchd LaunchAgent, ADR-0027)
+bash scripts/install-launchd.sh
+# → vcm-server installed: http://127.0.0.1:<picked>/
 ```
 
-A `vcm-server.plist` for launchd is **not yet implemented** (ADR-0025 §"不做" —
-out of scope for v0.13.0/v0.14.1; consider it for v0.15.0+). For now,
-Linux + `systemd --user` is the supported long-runtime path.
+Both installers share `~/.vcm/server.env` as the single source of truth
+for runtime configuration; you only edit env vars in one place.
+
+Windows users fall back to the manual launch path (above) or run inside
+WSL where the Linux instructions work.
 
 ## Install
 

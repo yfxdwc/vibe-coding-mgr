@@ -9,7 +9,96 @@ The format is loosely: version, date, summary, list of changes, and a
 
 ---
 
-## v0.14.1 — 2026-08-22
+## v0.15.0 — 2026-08-22
+
+**macOS launchd LaunchAgent (ADR-0027). Closes the v0.13.0 "out of scope"
+deferral. One canonical installer per platform; one env file across both.**
+
+### Added
+
+- **`scripts/vcm-server.plist`** — `launchd` LaunchAgent template
+  that mirrors `scripts/vcm-server.service`. Runs `vcm-server` from
+  the repo's `.venv`, reads env from `~/.vcm/server.env` (snapshot
+  rendered into the plist's `EnvironmentVariables` dict at install
+  time, since launchd has no `EnvironmentFile=` directive), restarts
+  on crash via `KeepAlive`, logs to `~/Library/Logs/vcm-server/`.
+- **`scripts/install-launchd.sh`** — one-shot macOS installer.
+  Picks a free port (lsof), renders the plist template + env file,
+  `launchctl load -w`, and verifies `/api/health` via curl with a
+  retry loop. Supports `--dry-run` for Linux CI validation. Same
+  idempotent contract as `install-service.sh`.
+- **`scripts/uninstall-launchd.sh`** — counterpart that
+  `launchctl unload -w` + `launchctl bootout` + removes the plist.
+  Preserves `~/.vcm/server.env` + DB files.
+- **`tests/launchd.test.js`** (32 tests) — mirrors
+  `tests/daemon.test.js`. Asserts the plist contains the required
+  launchd keys (`Label`, `ProgramArguments`, `RunAtLoad`,
+  `KeepAlive`, `StandardOutPath`, `StandardErrorPath`,
+  `WorkingDirectory`, `EnvironmentVariables`), that the install
+  script supports `--dry-run`, that the uninstall script preserves
+  the env file, and that the systemd + launchd installers share the
+  `scripts/vcm-server.env.example` contract.
+- **`docs/adr/0027-launchd-vcm-server.md`** — full ADR with
+  background, decision, alternatives (tmux / nohup / Docker /
+  screen — all rejected), plist structure, restart policy, log
+  rotation deferral, port auto-select, hardening notes, 反对意见,
+  verification steps, and §不做 list.
+- **`docs/adr/0025-persistent-vcm-server.md`** — updated §"不做"
+  bullet to mark the launchd deferral as **DONE in v0.15.0 via
+  ADR-0027**, with a cross-reference link.
+
+### Changed
+
+- **`README.md`** — "macOS / Windows users fall back to the manual
+  launch path" paragraph replaced with "Both platforms ship a
+  one-shot installer that mirrors the systemd flow" listing both
+  `install-service.sh` and `install-launchd.sh` side by side, with
+  the `~/.vcm/server.env` shared-contract callout.
+- **`docs/ONBOARDING.md`** — Step 7b "Linux + systemd" notes
+  paragraph now explicitly mentions the macOS launchd installer
+  with a one-line example.
+- **`HANDOFF.md`** — §2 "Current state (v0.14.1)" → "(v0.15.0)";
+  release lineage now includes the v0.15.0 launchd bullet;
+  §11.2 "v0.15.0 candidates" now shows the launchd item as DONE
+  and rolls v0.16.0 forward; §16 TL;DR says v0.15.0 + 400/400.
+- **`docs/ROADMAP.md`** — v0.15.0 → ✅ DONE; new v0.16.0 section
+  with the remaining candidates (SKILL.md rollout, README polish).
+
+### Tests
+
+- 400/400 (was 368 → +32 in `tests/launchd.test.js`)
+- 27 ADRs (was 26 → +1: 0027-launchd-vcm-server)
+- 30 test files (was 29 → +1: launchd)
+
+### Design notes
+
+- **One env file, two supervisors.** `~/.vcm/server.env` is the
+  single source of truth on both platforms. The systemd unit
+  references it via `EnvironmentFile=`; the launchd plist embeds
+  a snapshot of its `key=value` pairs at install time. Operators
+  edit env vars in one place.
+- **Why a separate script pair, not a unified `bootstrap.sh`.**
+  The OS-detection branch on every step (`[[ "$OSTYPE" ==
+  "darwin"* ]]`) would obscure what is fundamentally a one-line
+  `launchctl load` vs `systemctl --user enable --now` divergence.
+  Two scripts that share helpers are easier to read, audit, and
+  test.
+- **`--dry-run` skips the uname / launchctl / lsof preflight.**
+  Linux CI smoke tests must be able to validate the plist shape
+  + the install-script substitution without needing macOS. The
+  preflight is wrapped in `if [[ $DRY_RUN -eq 0 ]]` so the dry-run
+  path stays cross-platform.
+- **Environment snapshot, not file reference.** launchd has no
+  `EnvironmentFile=` analog, so we inline the values at install
+  time and document "edit `server.env` then re-run install" as
+  the refresh path. Same env file, two representations.
+- **No newsyslog auto-rotation.** macOS provides `newsyslog` but
+  wiring it requires `sudo` and is platform-specific. We document
+  the directory and leave rotation to the operator's choice.
+
+---
+
+
 
 **Comprehensive bilingual coverage. Every user-visible string on every
 template now flows through `t()`. Alpine.js components reach the same

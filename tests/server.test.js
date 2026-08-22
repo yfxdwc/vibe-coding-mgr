@@ -71,7 +71,7 @@ describe('vcm-server health', () => {
     const r = await getJSON('/api/health');
     expect(r.status).toBe(200);
     expect(r.data.status).toBe('healthy');
-    expect(r.data.version).toBe('0.14.1');
+    expect(r.data.version).toBe('0.15.0');
   });
 });
 

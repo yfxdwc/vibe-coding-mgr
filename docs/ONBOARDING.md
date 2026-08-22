@@ -127,11 +127,17 @@ Notes:
   `~/.vcm/server.env` so `/api/health` reflects it on first call.
 - `loginctl enable-linger $USER` is enabled so the unit survives SSH
   logout.
-- macOS / Windows: use `tmux` to keep `python3 server/app.py` alive
+- **macOS** has its own one-shot installer (ADR-0027):
+  ```bash
+  bash scripts/install-launchd.sh   # writes ~/Library/LaunchAgents/...
+  # → vcm-server installed: http://127.0.0.1:<picked>/
+  ```
+  The launchd LaunchAgent uses the same `~/.vcm/server.env` as the
+  Linux systemd unit; one env file across both platforms.
+
+- **Windows**: use `tmux` to keep `python3 server/app.py` alive
   across logout, OR run inside WSL where the Linux path applies.
-  A `vcm-server.plist` for launchd is **not yet implemented** (ADR-0025
-  §"不做" — out of scope for v0.13.0/v0.14.1). Linux + `systemd --user`
-  is the supported long-runtime path.
+  A native Windows service is out of scope (would need NSSM / WinSW).
 
 ## Daily workflow
 

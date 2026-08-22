@@ -33,8 +33,8 @@ layers (`lib/adapters/`), never vendored.
 
 | Item | Value |
 |---|---|
-| Version | `0.14.1` (in `package.json` + `bin/vcm.js` + `server/mcp_server.py`) |
-| Tests | **368/368 passing** (29 test files, 53 in i18n.test.js alone) |
+| Version | `0.15.0` (in `package.json` + `bin/vcm.js` + `server/mcp_server.py`) |
+| Tests | **400/400 passing** (30 test files, 53 in i18n.test.js + 32 in launchd.test.js) |
 | 6 hard checks | 6 OK (`bash scripts/routine_coverage.sh` exit 0) |
 | ADRs | **26** in `docs/adr/0001-` to `0026-` (latest: bilingual UI) |
 | Routes | **39** `@app.route` decorators in `server/app.py` |
@@ -45,10 +45,11 @@ layers (`lib/adapters/`), never vendored.
 | Bilingual UI | zh (default) + en, 380 keys, server-rendered (ADR-0026) |
 | Repo | `https://github.com/your-org/vibe-coding-mgr` (URL in README; placeholder) |
 
-**v0.14.1 is the latest release** (commits `92f5d8d` + `3ad52a8`). It is a
-patch on v0.14.0 that expands the bilingual coverage from 220 → 380 keys
-per language, adds the Alpine JS bridge (`window.__vcm_i18n__` +
-`window.t`), and translates every user-visible string on all 11 templates.
+**v0.15.0 is the latest release**. It ships ADR-0027 — the macOS
+launchd LaunchAgent counterpart to ADR-0025's Linux systemd user unit —
+plus 32 new smoke tests in `tests/launchd.test.js`. v0.14.1's bilingual
+UI (380 keys, Alpine JS bridge) ships intact; the patch-level bump
+to **0.15.0** reflects the new platform-supported install path.
 
 **Release lineage since v0.9.0** (the version this handoff was originally
 written for):
@@ -67,6 +68,13 @@ written for):
 - v0.14.1: **comprehensive translation rollout**. 220 → 380 keys, Alpine
   JS bridge, all 11 templates end-to-end translated, 341 → 368 tests
   (+ 27 i18n tests)
+- v0.15.0: **macOS launchd LaunchAgent** (ADR-0027). Closes the
+  v0.13.0 "out of scope" deferral. `scripts/vcm-server.plist` template
+  + `scripts/install-launchd.sh` / `uninstall-launchd.sh` mirror the
+  systemd flow exactly. Same `~/.vcm/server.env` contract on both
+  platforms. 32 new tests in `tests/launchd.test.js` (file shape +
+  install/uninstall --dry-run + cross-platform contract). 400/400
+  total tests.
 
 ---
 
@@ -480,12 +488,15 @@ plus more added since). What remains is genuinely future-looking.
 ### 11.2 v0.15.0 candidates (post v0.14.1)
 
 The user's most recent push-back ("翻译得不够彻底") closed v0.14.1 with
-the bilingual UI fully covered. Natural next steps:
+the bilingual UI fully covered.
 
-1. **macOS launchd `vcm-server.plist`** — ADR-0025 explicitly defers
-   this; needed for Mac users who want the same "survives logout"
-   guarantee that Linux gets from `systemd --user`. Estimate: 1 PR +
-   ~10 lines of install/uninstall scripts mirroring the systemd flow.
+**Status as of v0.15.0:**
+
+1. ✅ **macOS launchd `vcm-server.plist`** — **DONE in v0.15.0** (ADR-0027).
+   Mirrors the systemd path exactly: `scripts/vcm-server.plist`
+   template + `scripts/install-launchd.sh` + `scripts/uninstall-launchd.sh`
+   + `tests/launchd.test.js` (32 tests). Operators on Linux CI can
+   validate plist rendering via `--dry-run`.
 
 2. **SKILL.md files per CHARTER §10** — `docs/SKILLS.md` is referenced
    in AGENTS.md but the per-skill `SKILL.md` files for "peer protocol",
@@ -498,9 +509,9 @@ the bilingual UI fully covered. Natural next steps:
    commands on non-Ubuntu, npm-published versions, contributor
    workflow (no CONTRIBUTING.md yet).
 
-4. **v0.15.0 scoped feature**: pick one of (a) launchd plist,
-   (b) `SKILL.md` rollout, (c) cross-language server messaging
-   protocol. None has a written ADR yet — write the ADR first.
+4. **v0.16.0 scoped feature**: pick one of (a) `SKILL.md` rollout,
+   (b) cross-language server messaging protocol. Neither has a
+   written ADR yet — write the ADR first.
 
 ### 11.3 Future-only items (do not pick up without explicit ask)
 
@@ -731,7 +742,7 @@ Approximate sizes (growing fast — refresh yourself before quoting):
 
 ## 16. TL;DR for the next agent
 
-1. The project is **v0.14.1, healthy, 368/368 tests passing**.
+1. The project is **v0.15.0, healthy, 400/400 tests passing**.
 2. **Read `AGENTS.md` and `CHARTER.md` first** — they define the rules.
 3. **Read the most recent ADRs** (0025–0026) — they describe the
    "what we just decided" trajectory. ADR-0025 is the
