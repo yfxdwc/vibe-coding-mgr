@@ -45,43 +45,28 @@ sidebar-project
 **7 项二级菜单**（ADR-0032 §决策.5 同构；本 ADR 不删 overview 而是保留
 作为"回项目首页"的入口）。
 
-### 2. 默认折叠 + 当前项目自动展开
+### 2. Accordion + 默认首个展开 (v0.18.3 final)
 
-- **未访问**过的项目：`collapsed`，只显示项目名（一行）。节省 sidebar
-  垂直空间。
-- **当前项目**：含 `/projects/<name>` 任何路径（含 `/projects/<name>/drift`
-  等子页面）→ 项目**自动展开** 7 个子菜单。
-- **手动控制**：每个项目名前面有一个 chevron 按钮（`▸` / `▾`），
-  点击强制展开/收起——用户想同时展开多个项目对比时可以手动展开。
-- **状态持久化**：展开/收起状态存 `localStorage['vcm-sidebar-expanded']`
-  （JSON 数组，记录展开的项目名）。刷新后保留。
-
-实现：Alpine.js `x-data` 持 `expanded: Set<string>`，初始化时
-hydrate from localStorage；切换时同步写入。HTMX `htmx:afterSwap` 后
-不需重 hydrate（sidebar 在 `<main>` 之外，跨页保持挂载）。
-
-#### 2.1 Accordion + 默认首个展开 (v0.18.3 补充)
-
-v0.18.2 初版采用“默认全部折叠 + 仅当前项目展开”策略。v0.18.3 主人
-反馈两个问题：
+**v0.18.2 初版**采用 “默认全部折叠 + 仅当前项目展开” 策略。主人反馈
+两个问题：
 
 1. **同时只能展开一个**——多项目对比场景下手动展开多个会冲突 →
-   accordion (单选) 已在 v0.18.2 fix-up 实施，本决策正式记载。
+   accordion (单选) 已在 v0.18.2 fix-up 实施。
 2. **默认项目全折叠，首页过于“静默”**——主人打开 cockpit 页面
    (`/`) 时所有项目子菜单都是隐藏的，需要手动点 chevron 才能看到
    子页面入口。
 
-**决策**：在 `syncToCurrent()` 上加一个 fallback：
+**最终决策**（v0.18.3）：syncToCurrent() 用 4 级 fallback 链：
 
 ```
 current (from URL) 非空？
   → expanded = [current]                   （项目页：当前项目展开）
   ↓
 localStorage['vcm-sidebar-expanded'] 非空？
-  → expanded = localStorage                 （保留手动预览）
+  → expanded = stored                       （保留手动预览）
   ↓
 sidebar 第一个项目 (按 last_seen_at DESC)？
-  → expanded = [firstProject]              （新：非项目页默认展开首个）
+  → expanded = [firstProject]              （非项目页：默认展开首个）
   ↓
 expanded = []                              （无项目：折叠）
 ```
@@ -93,6 +78,16 @@ expanded = []                              （无项目：折叠）
   = “最近活跃的” = 用户最可能想看的 = 默认展开是合理的。
 - 不需要额外代码——该顺序由 `_render()` 侧端决定。
 
+**与主人原文 spec 的调和**：
+
+主人原始 spec：“点 sales-ai 标签时展开 sales-ai 的二级目录 (其他
+项目的目录全部折叠)。如果点其他项目的标签，则在展开新项目的二级
+目录的同时折叠原项目目录。”
+
+§2 决策严格落实了 accordion 核心（同一时间最多展开一个项目），同时
+通过 fallback 解决“首页静默”问题。手动点击 chevron 在任一 fallback
+阶段都可覆盖，自动以最后一次点击为准。
+
 **手动覆盖**：
 
 - 用户点击 chevron 收起默认展开的首个项目 → `expanded = []` →
@@ -100,54 +95,17 @@ expanded = []                              （无项目：折叠）
 - 下次 syncToCurrent：stored = `[]`，长度 == 0 → 回落 “默认首个”。
   ⚠ **此时 user 的手动收起只生效一次**——下个 sync 又会展开首个。
   这是设计选择：手动操作是“临时覆盖”，不是“锁定偏好”。如需
-  “锁定某个项目为始终展开”，应走 §决策.2 默认折叠项的 localStorage
-  存项目名（在 `toggle()` 里，已包含手动选择非当前项目的路径）。
-  v0.19+ 可考虑加 “右键菜单 → 锁定项目为默认展开”。
+  “锁定某个项目为始终展开”，可以走 v0.19+ 加一个 “pin default”
+  菜单项（需额外 UI）。
 
-**为什么同步到当前路径（而非手动看默认）**：
+**跨页保持**：
 
-当前实现的 fallback 顺序同时考虑 manual preview 和 default first，
-确保：
-
-- 用户主动在 `/projects/X` 上手动展开 `Y` 后跳到 `/` → `Y` 仍展开
-  （manual preview 优先于默认）。
-- 用户首次访问 `/`，无任何交互 → 默认首个展开（不走空）。
-
-#### 2.2 Accordion 严格化 (v0.18.3 fix-up)
-
-**v0.18.3 §2.1 与主人原始要求冲突**——主人对项目的硬要求是
-“**仅展开当前选中的二级目录，并且收起其他项目的二级目录**”
-（“点 sales-ai 标签时展开 sales-ai 的二级目录 (其他项目的目录全部折叠)。
-如果点其他项目的标签，则在展开新项目的二级目录的同时折叠原项目目录”）。
-v0.18.3 §2.1 的 fallback “非项目页默认展开首个”实质上与该要求矛盾：
-在 `/`、`/settings` 等非项目页上，没有“当前选中的项目”，按严格
-accordion 解释应为 “其他项目的目录全部折叠”。
-
-**决策**（v0.18.3 fix-up）：恢复严格 accordion：
-
-```
-current (from URL) 非空？
-  → expanded = [current]                   （项目页：仅当前项目展开）
-  ↓
-expanded = []                              （非项目页：什么都不展开）
-```
-
-**后果**：
-- `localStorage['vcm-sidebar-expanded']` 的 manual preview 不再在
-  `/` 上恢复。chevron 预览仍然是 “点开看随时生效” 的 peek，但
-  跳到 `/` 后这个 peek 就释放了。
-- 这与 v0.18.2 初版（“默认全折叠”）一致，但与 v0.18.3 §2.1 的
-  “非项目页默认首个展开” 不同。
-- `toggle()` 仍然写 localStorage——是为了防止意外丢失 user
-  上次的手动选择（页面刷新后仍记得）。如果 v0.19+ 需要“锁定某项目
-  为始终默认展开”，可以加一个专门的 “pin default” 菜单项，不受本节
-  accordion 约束。
-- `getFirstProjectName()` / `readSet()` / `writeSet()` 等在
-  `syncToCurrent()` 中不再被调用，但仍保留作 utility（例如
-  `toggle()` 用 `writeSet()` 持久化手动选择）。
+实现：Alpine.js `x-data` 持 `expanded: Set<string>`，初始化时
+hydrate from localStorage；切换时同步写入。HTMX `htmx:afterSwap` 后
+不需重 hydrate（sidebar 在 `<main>` 之外，跨页保持挂载）。
 
 **测试覆盖**：`tests/server/subnav.spec.js` 包含 7 个 scenario
-覆盖本节accordion 行为（点击标签、点击 chevron、浏览器后退/前进、
+覆盖本节 accordion 行为（点击标签、点击 chevron、浏览器后退/前进、
 非项目页 、深链接初始化、 htmx config 必须真生效等）。
 
 ### 3. sidebar 宽度保持 240px
