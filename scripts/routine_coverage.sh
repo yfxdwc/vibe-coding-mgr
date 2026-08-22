@@ -25,7 +25,12 @@ EXIT=0
 for script in "${CHECKS[@]}"; do
   echo "--- $script ---"
   if ! out=$($PY scripts/$script --no-fail 2>&1); then
-    echo "  ✗ FAIL: $script"
+    echo "  ✗ FAIL: $script (exit=$?)"
+    # v0.18.4 fix: print the captured output so the CI failure log
+    # surfaces the actual error message instead of just 'FAIL'.
+    # Without this, check_skills.py and similar non-print-on-failure
+    # checks had no actionable diagnostic in CI logs.
+    [ -n "$out" ] && echo "$out" | sed 's/^/    | /'
     EXIT=1
   else
     echo "$out"
