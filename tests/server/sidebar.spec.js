@@ -89,4 +89,28 @@ test.describe('Sidebar (ADR-0030)', () => {
     // The bad project should NOT appear in the sidebar
     await expect(page.locator(`a[data-c="sidebar-project"][data-project="${name}"]`)).toHaveCount(0);
   });
+
+  test('scenario 4: theme toggle works on every page + persists', async ({ page }) => {
+    const pages = ['/', '/leaderboard', '/drift', '/skills', '/trends',
+                   '/peers', '/audit', '/settings'];
+    for (const p of pages) {
+      await page.goto(p);
+      // Initially dark (default per tokens.css + _layout.html)
+      await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+
+      // Click toggle in sidebar (it lives in the sidebar footer, title attr is 'Toggle theme')
+      await page.locator('button[title="Toggle theme"]').click();
+
+      // Now light
+      await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+
+      // Reload; theme persists via localStorage (hydration in _layout.html)
+      await page.reload();
+      await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+
+      // Toggle back so the next iteration starts clean
+      await page.locator('button[title="Toggle theme"]').click();
+      await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    }
+  });
 });

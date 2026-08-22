@@ -330,12 +330,6 @@ function page() {
       return 'row-ok';
     },
 
-    toggleTheme() {
-      const h = document.documentElement;
-      h.dataset.theme = h.dataset.theme === 'light' ? 'dark' : 'light';
-      localStorage.setItem('vcm-theme', h.dataset.theme);
-    },
-
     renderChart() {
       const el = document.getElementById('health-chart');
       if (!el || !window.echarts) return;

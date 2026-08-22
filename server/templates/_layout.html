@@ -43,6 +43,25 @@
         return (dict && dict[key]) || key;
       };
     })();
+
+    // Theme switcher — ADR-0030 v0.18.0: was dashboard.html only, so
+    // @click="toggleTheme()" silently no-op'd on every other page.
+    // Now declared globally so the sidebar footer button works on
+    // every page, and we hydrate from localStorage so a refresh keeps
+    // the user's choice (default = dark per tokens.css).
+    (function() {
+      const stored = localStorage.getItem('vcm-theme');
+      const initial = stored === 'light' || stored === 'dark'
+        ? stored : 'dark';
+      document.documentElement.dataset.theme = initial;
+
+      window.vcmToggleTheme = function() {
+        const h = document.documentElement;
+        const next = h.dataset.theme === 'light' ? 'dark' : 'light';
+        h.dataset.theme = next;
+        localStorage.setItem('vcm-theme', next);
+      };
+    })();
   </script>
 </head>
 <body x-data="page()" x-init="init()" data-page="{{ nav_active or 'cockpit' }}">
