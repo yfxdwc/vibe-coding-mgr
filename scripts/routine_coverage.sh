@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# routine_coverage.sh — driver for vcm's 6 hard checks
+# routine_coverage.sh — driver for vcm's 7 hard checks (6 + skill registry).
 # Local-friendly version (no biweekly report generation).
 
 set -euo pipefail
@@ -16,6 +16,7 @@ CHECKS=(
   "check_constraint_governance.py"
   "check_adr_index.py"
   "check_data_layout.py"
+  "check_skills.py"
 )
 
 EXIT=0
@@ -28,15 +29,6 @@ for script in "${CHECKS[@]}"; do
     echo "$out"
   fi
 done
-
-# Skill registry check (always present in vcm)
-if [ -d ".pi/skills" ] || [ -d "docs/skills" ]; then
-  echo "--- skill registry ---"
-  echo "  ✓ skill directory present"
-else
-  echo "--- skill registry ---"
-  echo "  ⚠ WARN: no .pi/skills or docs/skills directory"
-fi
 
 echo ""
 echo "[routine_coverage] done, exit=$EXIT"
