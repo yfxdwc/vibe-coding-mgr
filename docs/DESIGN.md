@@ -130,18 +130,76 @@ URL state：`?focus=...&drawer=1`。
 - `btn-ghost`：透明 + `--text-secondary`，hover `--accent`
 - 最小触控高度 44px (`min-h-11`)
 
+### Sidebar (`sidebar`) — v0.18.0+ (ADR-0030)
+
+**全站常驻左侧栏**，取代 v0.3.0–v0.17.0 的顶部横向 nav。3 段 + 1 footer：
+
+```
+┌─────────────────────────────┐
+│ [brand]     vibe coding mgr │   ← brand：复用现 nav-brand
+├─────────────────────────────┤
+│ 导航                        │   ← section: NAVIGATION
+│  • Cockpit                  │
+│  • Leaderboard              │
+│  • …（9 个 nav link）       │
+├─────────────────────────────┤
+│ 项目             [ + Add ]  │   ← section: PROJECTS（来自 /api/projects）
+│  ● vibe-coding-mgr          │
+│  ● sales-ai                 │
+├─────────────────────────────┤
+│ 🌐 zh  ☀/☾  v0.18.0         │   ← footer：lang + theme + version
+└─────────────────────────────┘
+```
+
+| 行为 | token / class |
+|---|---|
+| 容器宽度 | `--sidebar-width: 240px`（< 1024px 缩 200px） |
+| 边框 | `border-right: 1px solid var(--border-subtle)` |
+| 当前项高亮 | `background: var(--accent-dim)` + 左 2px `var(--accent)` stripe |
+| 项目 status 点 | `--ok` / `--warn` / `--fail` / `--idle` |
+| hover | `background: var(--surface-alt)` |
+| `+ Add` 按钮 | `btn--ghost`（小），modal 用原生 `<dialog>`（HTML 5.2） |
+
+可达性：
+- 顶层 `<aside class="sidebar" aria-label="Primary">`。
+- 3 段各自 `<nav aria-label="Navigation|Projects|Settings">`。
+- 当前 nav 项：`aria-current="page"`。
+- 项目 status 点：`aria-label="health: warning"` 等。
+- `+ Add`：`aria-haspopup="dialog"`。
+
+响应式（v0.18.0 范围，仅两档）：
+- ≥ 1024px：sidebar 常驻。
+- 768–1023px：sidebar 缩 200px；footer 折叠为图标按钮。
+- < 768px：**不做**——vcm 主用户是 PC；移动端仅应急。v0.19+
+  视情况再立 ADR。
+
+主容器从 `max-width: 1280px; margin: 0 auto` 改成
+`grid-template-columns: var(--sidebar-width) 1fr`，**1280 上限保持**。
+
+**不做**：嵌套项目 / 拖拽重排 / file tree / 持久化激活项目
+（见 ADR-0030 §决策）。
+
 ## 5. 视图（page）模式
 
-### 通用骨架
+### 通用骨架 (v0.18.0+)
 
 ```
-<navigation>     ← 来自 _partials/nav.html
-<subtitle>       ← 当前视图主题描述
-<answers>        ← "Answers: what is this and what should I look at first?"
-<KPI grid>       ← 3 个等宽柱子
-<tab bar>        ← tabs (URL state)
-<content>        ← 当前 tab 的主体内容
+<sidebar>        ← 来自 _partials/sidebar.html (ADR-0030)
+  <brand>
+  <section nav>    ← 9 个 nav link（cockpit / leaderboard / …）
+  <section projects>  ← 来自 /api/projects + [ + Add ] 按钮
+  <footer>          ← lang + theme + version
+<main>           ← 主体（grid 占位 1fr）
+  <subtitle>       ← 当前视图主题描述
+  <answers>        ← "Answers: what is this and what should I look at first?"
+  <KPI grid>       ← 3 个等宽柱子
+  <tab bar>        ← tabs (URL state)
+  <content>        ← 当前 tab 的主体内容
 ```
+
+> v0.3.0–v0.17.0 用顶部横向 nav；v0.18.0 改全站 sidebar。
+> **所有 nav URL 不变**——sidebar 只是把同样的 9 个 link
+> 换到左侧容器里。`_partials/nav.html` 保留作为 fallback / 测试 fixture。
 
 ### "Answers" 行（每页必备）
 
