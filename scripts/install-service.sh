@@ -60,14 +60,20 @@ USER_UNIT_FILE="$USER_UNIT_DIR/vcm-server.service"
 ENV_FILE="${HOME}/.vcm/server.env"
 
 # --- preflight ------------------------------------------------------------
-if ! command -v systemctl >/dev/null 2>&1; then
-  echo "ERROR: systemctl not found. This installer requires systemd." >&2
-  echo "On macOS / Windows, see ONBOARDING.md for the manual launch path." >&2
-  exit 1
-fi
-if [[ ! -d "$HOME/.config/systemd" ]]; then
-  echo "ERROR: $HOME/.config/systemd does not exist. Are you running with a real systemd user instance?" >&2
-  exit 1
+# v0.18.4 fix: skip preflight in --dry-run mode so tests can dry-run on
+# CI runners / containers without systemd (tests/daemon.test.js needs
+# the placeholder substitution to be exercised even when systemctl is
+# absent). Real installs still hit the preflight; only dry runs skip.
+if [[ $DRY_RUN -ne 1 ]]; then
+  if ! command -v systemctl >/dev/null 2>&1; then
+    echo "ERROR: systemctl not found. This installer requires systemd." >&2
+    echo "On macOS / Windows, see ONBOARDING.md for the manual launch path." >&2
+    exit 1
+  fi
+  if [[ ! -d "$HOME/.config/systemd" ]]; then
+    echo "ERROR: $HOME/.config/systemd does not exist. Are you running with a real systemd user instance?" >&2
+    exit 1
+  fi
 fi
 
 # --- choose free port ----------------------------------------------------
