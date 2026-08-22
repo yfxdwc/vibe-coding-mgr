@@ -9,7 +9,92 @@ The format is loosely: version, date, summary, list of changes, and a
 
 ---
 
-## v0.14.0 — 2026-08-22
+## v0.14.1 — 2026-08-22
+
+**Comprehensive bilingual coverage. Every user-visible string on every
+template now flows through `t()`. Alpine.js components reach the same
+catalog via `window.t(key)`. Same ADR-0026, no new ADR needed.**
+
+### Added
+
+- **+160 i18n keys** in `server/i18n.py`. Catalogue is now **380
+  keys per language, balanced en↔zh** (was 220 in v0.14.0).
+  New sections: `cockpit.kpi.*`, `cockpit.matrix.col.*`,
+  `cockpit.activity.*`, `cockpit.attention.*`, `cockpit.skills.*`,
+  `trends.option.*`, `trends.kpi.*`, `leaderboard.col.*`,
+  `leaderboard.sort.label.*`, `peers.col.*`, `skills.kpi.*`,
+  `skills.tabs.*`, `skills.matrix.*`, `skills.coverage.*`,
+  `project.kpi.*`, `project.overview.*`, `project.governance.*`,
+  `project.health.*`, `project.history.*`, `settings.tokens.*`,
+  `settings.docs.*`, `docs.search_input`, `audit.facet.*`,
+  `nav.stats.*`.
+- **Alpine JS bridge** in `server/templates/_layout.html`. After
+  every page renders, two new `<script>` blocks inject:
+    - `window.__vcm_i18n__ = { ... }` — the active language's
+      merged catalog (zh-missing falls through to en at server side).
+    - `window.t = function(key) { return (dict && dict[key]) || key; }`
+      — Alpine components can call `window.t('cockpit.kpi.projects')`
+      directly inside `x-text="..."` expressions, including
+      pluralization via ternary on counts.
+- **`cockpit.matrix.col.tree_dirty` / `tree_clean`** keys for
+  the "⚠ dirty" / "✓ clean" badge text inside dashboard rows
+  (was hard-coded English before).
+- **`settings.tokens.*` keys** for the design-tokens blurb on
+  `/settings` — three-sentence block with CSS class names
+  intentionally kept literal, only the prose is translated.
+
+### Changed
+
+- **Per-page translation tests grew from 14 to 26 → +27 new
+  assertions** in `tests/i18n.test.js`. New section
+  "i18n / v0.14.1 comprehensive coverage" asserts each translated
+  string is present in both languages for 9 pages (zh + en pair),
+  plus 6 "no English leakage" assertions on the most-visited pages,
+  plus 3 JS-bridge assertions (catalog embedded, `window.t` wired,
+  catalogue size ≥ 350).
+- **`tests/templates.test.js`** — the `<script>` count baseline
+  for `/docs/DESIGN.md` bumped 2 → 4 (matches the new bridge tags).
+  The XSS guard now iterates `<script>...</script>` blocks and
+  asserts no block contains a `/docs/...md` path (the prior regex
+  was positionally fragile).
+- **`tests/markdown-render.test.js`** — same script-count baseline
+  bump 2 → 4 across the docs sweep.
+- **`tests/leaderboard.test.js`** — the "Sorted by" assertion now
+  fetches with `?lang=en` (was incidentally passing in zh because
+  "Sorted by" used to be the en literal; the test wasn't
+  intentionally language-aware).
+- **Templates translated end-to-end**: `dashboard.html`,
+  `trends.html`, `leaderboard.html`, `peers.html`, `skills.html`,
+  `project.html`, `settings.html`, `_docs.html`, `_partials/nav.html`.
+  Only file paths (`/api/health`, `docs/DESIGN.md`, `TECH_DEBT.md`,
+  `AGENTS.md`, etc.) and CSS class names remain untranslated — by
+  design (they're identifiers, not prose).
+
+### Tests
+
+- 368/368 (was 341 → +27 in `tests/i18n.test.js`; 3 pre-existing
+  test files touched for i18n compatibility)
+- 26 ADRs (unchanged — same scope as 0026)
+- 29 test files (unchanged)
+
+### Design notes
+
+- **Two-script bridge, not one.** Splitting `__vcm_i18n__` and
+  `window.t` into two `<script>` tags keeps the data (which is
+  big — ~12 KB inline JSON) separable from the runtime function,
+  so we can swap implementations later (e.g. dynamic fetch for
+  unbuilt keys) without rewriting templates.
+- **Alpine's `x-text` is the only JS-side touchpoint.** We did
+  not introduce a `t-attr` plugin or string-substitution library.
+  Pluralization is done with `x-text="n !== 1 ? window.t('X_plural') : window.t('X_singular')"`
+  — three extra characters per spot; nothing else.
+- **zh-default retention.** Per ADR-0026 §设计决定, the user's
+  locale default stays `zh`. The English toggle remains a single
+  click away.
+
+---
+
+
 
 **Bilingual UI release. Every template now renders in zh (default) or en;
 URL `?lang=`, cookie persistence, and Accept-Language resolution;

@@ -701,11 +701,13 @@ Approximate sizes (growing fast — refresh yourself before quoting):
 
 ## 16. TL;DR for the next agent
 
-1. The project is **v0.14.0, healthy, 341/341 tests passing**.
+1. The project is **v0.14.1, healthy, 368/368 tests passing**.
 2. **Read `AGENTS.md` and `CHARTER.md` first** — they define the rules.
 3. **Read the most recent ADRs** (0025–0026) — they describe the
    "what we just decided" trajectory. ADR-0025 is the
-   persistent-server one, ADR-0026 is the i18n one.
+   persistent-server one, ADR-0026 is the i18n one. v0.14.1
+   does not introduce a new ADR — it extends the same i18n
+   scope (catalog growth + Alpine JS bridge).
 4. **Don't refactor without an ADR.** If you find yourself wanting
    to, write ADR-0027 first.
 5. **Tests use unique ports** (7480+) to avoid parallel conflicts;
@@ -737,7 +739,17 @@ Approximate sizes (growing fast — refresh yourself before quoting):
    - v0.14.0: **bilingual UI** (ADR-0026). 12 templates translated,
      `?lang=` + cookie + Accept-Language resolution, server-rendered
      nav toggle, default zh. +26 i18n tests.
-   - **341/341 tests passing, 29 files, all 6 hard checks green**
+   - v0.14.1: **comprehensive translation coverage**. +160 i18n
+     keys (220 → 380, balanced en↔zh), Alpine JS bridge
+     (`window.__vcm_i18n__` + `window.t`) so Alpine components
+     can translate dynamic strings (sort buttons, KPI labels,
+     badge text), all 9 templates now end-to-end translated.
+     +27 i18n test assertions across 9 pages × 2 langs +
+     6 "no English leakage" + 3 JS-bridge. 3 pre-existing
+     test files updated for i18n compatibility
+     (`templates.test.js`, `markdown-render.test.js`,
+     `leaderboard.test.js`).
+   - **368/368 tests passing, 29 files, all 6 hard checks green**
    - vcm-server is **live on http://127.0.0.1:7339/** (was 7340
      mid-session; uninstall+reinstall auto-picked 7339 because
      repowise had 7338 again). Process: systemd user-1 service
