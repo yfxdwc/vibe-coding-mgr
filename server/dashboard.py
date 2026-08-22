@@ -584,6 +584,20 @@ def init_db():
         conn.execute("ALTER TABLE projects ADD COLUMN icon_color TEXT")
     conn.commit()
 
+    # v0.18.4 fix: ensure users + tokens tables exist at boot too, so
+    # the ADR-0031 self-check below (and CI's check_db_schema.py)
+    # passes on a FRESH database. Previously these two tables were
+    # created lazily by users_mod._ensure_tables() on first add_user /
+    # authenticate — a clean checkout failed the 4-table check until a
+    # user was added. Importing here avoids a circular dependency
+    # (users.py does not import dashboard).
+    try:
+        import users as users_mod
+        users_mod._ensure_tables(conn)
+        conn.commit()
+    except Exception as e:
+        print(f"  ⚠ init_db: users/tokens table creation skipped: {e}")
+
     # ADR-0031: post-init self-check.
     # Uses print (not logging) so the line shows up at import time when
     # app.py calls init_db() before basicConfig is set. Format mirrors
@@ -603,6 +617,14 @@ def init_db():
                 file=__import__("sys").stderr,
             )
         else:
-            print(f"  ✓ init_db: {DB_PATH} OK (4/4 tables present)")
+            # Success print goes to stderr (not stdout) — mcp_server.py
+            # runs dashboard.init_db() over stdio MCP transport, and the
+            # MCP protocol requires stdout to carry ONLY JSON-RPC frames.
+            # A stray ✓ line on stdout would corrupt the handshake
+            # (tests/mcp.test.js's drain() JSON.parses every line).
+            print(
+                f"  ✓ init_db: {DB_PATH} OK (4/4 tables present)",
+                file=__import__("sys").stderr,
+            )
         _SELF_CHECKED = True
     conn.close()

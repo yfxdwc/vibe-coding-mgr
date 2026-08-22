@@ -231,7 +231,13 @@ def get_db():
 
 def init_db():
     """Create tables if they don't exist. Delegates to dashboard.init_db
-    so MCP stdio transport and the Flask HTTP server share one bootstrap."""
+    so MCP stdio transport and the Flask HTTP server share one bootstrap.
+
+    v0.18.4 fix: dashboard.init_db now also creates the users + tokens
+    tables (previously lazy-created by users_mod._ensure_tables on
+    first add_user / authenticate), so check_db_schema.py passes on a
+    fresh database.
+    """
     from dashboard import init_db as _init_db
     _init_db()
 
