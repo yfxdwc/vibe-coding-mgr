@@ -148,7 +148,11 @@ function page() {
     loaded: false,
 
     async init() {
-      const r = await this.fetchJSON('/api/dashboard/drift');
+      const qs = new URLSearchParams(location.search);
+      const pf = '{{ project_filter or "" }}';
+      const proj = qs.get('project') || pf;
+      const url = proj ? '/api/dashboard/drift?project=' + encodeURIComponent(proj) : '/api/dashboard/drift';
+      const r = await this.fetchJSON(url);
       this.rows = (r && r.projects) || [];
       this.summary = (r && r.summary) || {};
       this.loaded = true;

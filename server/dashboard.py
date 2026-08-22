@@ -76,9 +76,13 @@ def get_overview():
     return result
 
 
-def get_skill_matrix():
-    """Skill × project matrix: which skills are used by which projects."""
+def get_skill_matrix(project=None):
+    """Skill × project matrix: which skills are used by which projects.
+    ADR-0032: when project is given, only that project's skills are
+    returned (the matrix collapses to 1 row)."""
     overview = get_overview()
+    if project:
+        overview = [p for p in overview if p.get("name") == project]
     matrix = {}
     for p in overview:
         for skill in p.get("skills_registered", []) or []:
@@ -478,15 +482,21 @@ def _drift_score(project, now=None):
     return score, missing, recs, days_idle
 
 
-def get_drift(now=None):
+def get_drift(project=None, now=None):
     """Cross-project drift view (ADR-0019).
 
     Returns:
         projects: list of {name, score, days_idle, missing, recommendations, severity}
                  sorted by score desc (most drift first).
         summary: {over_50_count, avg_score, max_days_idle, project_count}
+
+    ADR-0032: when `project` is given, filters to that single project's
+    row (used by /projects/<name>/drift). Empty list if the project has
+    no overview row yet.
     """
     projects = get_overview()
+    if project:
+        projects = [p for p in projects if p.get("name") == project]
     rows = []
     over_50 = 0
     total_score = 0

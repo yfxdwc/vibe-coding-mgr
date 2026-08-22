@@ -39,30 +39,6 @@
        data-c="sidebar-link" data-link="leaderboard"
        {% if request.path.startswith('/leaderboard') %}aria-current="page"{% endif %}>
       {{ nav_icon('leaderboard') }}{{ t("nav.leaderboard") }}</a>
-    <a class="sidebar-link {{ is_active('/drift') }}" href="/drift"
-       data-c="sidebar-link" data-link="drift"
-       {% if request.path.startswith('/drift') %}aria-current="page"{% endif %}>
-      {{ nav_icon('drift') }}{{ t("nav.drift") }}</a>
-    <a class="sidebar-link {{ is_active('/skills') }}" href="/skills"
-       data-c="sidebar-link" data-link="skills"
-       {% if request.path.startswith('/skills') %}aria-current="page"{% endif %}>
-      {{ nav_icon('skills') }}{{ t("nav.skills") }}</a>
-    <a class="sidebar-link {{ is_active('/trends') }}" href="/trends"
-       data-c="sidebar-link" data-link="trends"
-       {% if request.path.startswith('/trends') %}aria-current="page"{% endif %}>
-      {{ nav_icon('trends') }}{{ t("nav.trends") }}</a>
-    <a class="sidebar-link {{ is_active('/peers') }}" href="/peers"
-       data-c="sidebar-link" data-link="peers"
-       {% if request.path.startswith('/peers') %}aria-current="page"{% endif %}>
-      {{ nav_icon('peers') }}{{ t("nav.peers") }}</a>
-    <a class="sidebar-link {{ is_active('/audit') }}" href="/audit"
-       data-c="sidebar-link" data-link="audit"
-       {% if request.path.startswith('/audit') %}aria-current="page"{% endif %}>
-      {{ nav_icon('audit') }}{{ t("nav.audit") }}</a>
-    <a class="sidebar-link {{ is_active('/docs') }}" href="/docs/DESIGN.md"
-       data-c="sidebar-link" data-link="docs"
-       {% if request.path.startswith('/docs') %}aria-current="page"{% endif %}>
-      {{ nav_icon('docs') }}{{ t("nav.docs") }}</a>
     <a class="sidebar-link {{ is_active('/settings') }}" href="/settings"
        data-c="sidebar-link" data-link="settings"
        {% if request.path.startswith('/settings') %}aria-current="page"{% endif %}>

@@ -221,7 +221,7 @@ function page() {
     loaded: false,
     filterType: new URLSearchParams(location.search).get('event') || '',
     filterSince: new URLSearchParams(location.search).get('since') || '',
-    filterProject: new URLSearchParams(location.search).get('project') || '',
+    filterProject: new URLSearchParams(location.search).get('project') || '{{ project_filter or "" }}',
     filterSourceIp: new URLSearchParams(location.search).get('source_ip') || '',
     limit: parseInt(new URLSearchParams(location.search).get('limit') || '100', 10),
     summary: {},

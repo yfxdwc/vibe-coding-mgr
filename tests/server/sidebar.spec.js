@@ -4,16 +4,18 @@
 // at start of every run, so the visual tests are self-contained.
 import { test, expect } from '@playwright/test';
 
+// ADR-0032: top-level sidebar is now 3 items only (cockpit / leaderboard
+// / settings). The other 6 features moved into /projects/<name>/<feature>
+// and are tested as project-internal routes separately.
 const PAGES = [
-  ['/',            'cockpit'],
-  ['/leaderboard', 'leaderboard'],
-  ['/drift',       'drift'],
-  ['/skills',      'skills'],
-  ['/trends',      'trends'],
-  ['/peers',       'peers'],
-  ['/audit',       'audit'],
-  ['/settings',    'settings'],
-  ['/projects/vcm-smoke', null], // a project page; no nav link match
+  ['/',                       'cockpit'],
+  ['/leaderboard',            'leaderboard'],
+  ['/settings',               'settings'],
+  ['/projects/vcm-smoke',     null], // no top-level nav link match
+  ['/projects/vcm-smoke/drift',  null],
+  ['/projects/vcm-smoke/skills', null],
+  ['/projects/vcm-smoke/trends', null],
+  ['/projects/vcm-smoke/audit',  null],
 ];
 
 test.describe('Sidebar (ADR-0030)', () => {
@@ -24,9 +26,9 @@ test.describe('Sidebar (ADR-0030)', () => {
       await expect(page.locator('aside[data-c="sidebar"]')).toBeVisible();
       // brand visible
       await expect(page.locator('[data-c="sidebar-brand"]')).toBeVisible();
-      // 9 nav links present
+      // ADR-0032: 3 nav links (was 9 in v0.18.0)
       const navLinks = page.locator('a[data-c="sidebar-link"]');
-      await expect(navLinks).toHaveCount(9);
+      await expect(navLinks).toHaveCount(3);
 
       if (link) {
         // active link has aria-current="page"

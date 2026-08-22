@@ -134,7 +134,7 @@
 function page() {
   return {
     metric: new URLSearchParams(location.search).get('metric') || 'compliance',
-    project: new URLSearchParams(location.search).get('project') || '',
+    project: new URLSearchParams(location.search).get('project') || '{{ project_filter or "" }}',
     days: parseInt(new URLSearchParams(location.search).get('days') || '30', 10),
     buckets: [],
     projects: [],

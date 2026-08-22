@@ -174,7 +174,11 @@ function page() {
       const sum = await this.fetchJSON('/api/dashboard/summary');
       this.summary = { ...sum };
 
-      this.skills = await this.fetchJSON('/api/dashboard/skill-matrix');
+      const qs2 = new URLSearchParams(location.search);
+      const pf2 = '{{ project_filter or "" }}';
+      const proj2 = qs2.get('project') || pf2;
+      const url2 = proj2 ? '/api/dashboard/skill-matrix?project=' + encodeURIComponent(proj2) : '/api/dashboard/skill-matrix';
+      this.skills = await this.fetchJSON(url2);
       // Build the project × skill matrix from overview
       const overview = await this.fetchJSON('/api/dashboard/overview');
       this.matrix = overview.map(p => ({

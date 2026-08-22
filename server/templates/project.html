@@ -73,11 +73,48 @@
 {% endblock %}
 
 {% block tabs %}
-<nav class="tabs" x-show="data" x-cloak>
-  <button class="tab" :class="{ active: tab === 'overview' }" @click="setTab('overview')">{{ t("project.tabs.overview") }}</button>
-  <button class="tab" :class="{ active: tab === 'governance' }" @click="setTab('governance')">{{ t("project.tabs.governance") }}</button>
-  <button class="tab" :class="{ active: tab === 'health' }" @click="setTab('health')">{{ t("project.tabs.health") }}</button>
-  <button class="tab" :class="{ active: tab === 'history' }" @click="setTab('history')">{{ t("project.tabs.history") }}</button>
+{# ADR-0032: project-internal feature nav. Replaces v0.17.0's 4 in-page
+   tabs (overview/governance/health/history) with 7 cross-page links
+   that drill into the project's drift / skills / trends / peers / audit
+   / docs. Governance + health + history content stays reachable from
+   /projects/<name>?tab=overview (where they were folded into Overview
+   sections below). #}
+<nav class="tabs" data-c="project-section-nav" x-show="data" x-cloak>
+  <a class="tab {% if request.path == '/projects/' ~ project_name %}active{% endif %}"
+     href="/projects/{{ project_name }}"
+     data-tab="overview"
+     {% if request.path == '/projects/' ~ project_name %}aria-current="page"{% endif %}>
+     {{ t("project.tabs.overview") }}</a>
+  <a class="tab {% if request.path.startswith('/projects/' ~ project_name ~ '/drift') %}active{% endif %}"
+     href="/projects/{{ project_name }}/drift"
+     data-tab="drift"
+     {% if request.path.startswith('/projects/' ~ project_name ~ '/drift') %}aria-current="page"{% endif %}>
+     {{ t("nav.drift") }}</a>
+  <a class="tab {% if request.path.startswith('/projects/' ~ project_name ~ '/skills') %}active{% endif %}"
+     href="/projects/{{ project_name }}/skills"
+     data-tab="skills"
+     {% if request.path.startswith('/projects/' ~ project_name ~ '/skills') %}aria-current="page"{% endif %}>
+     {{ t("nav.skills") }}</a>
+  <a class="tab {% if request.path.startswith('/projects/' ~ project_name ~ '/trends') %}active{% endif %}"
+     href="/projects/{{ project_name }}/trends"
+     data-tab="trends"
+     {% if request.path.startswith('/projects/' ~ project_name ~ '/trends') %}aria-current="page"{% endif %}>
+     {{ t("nav.trends") }}</a>
+  <a class="tab {% if request.path.startswith('/projects/' ~ project_name ~ '/peers') %}active{% endif %}"
+     href="/projects/{{ project_name }}/peers"
+     data-tab="peers"
+     {% if request.path.startswith('/projects/' ~ project_name ~ '/peers') %}aria-current="page"{% endif %}>
+     {{ t("nav.peers") }}</a>
+  <a class="tab {% if request.path.startswith('/projects/' ~ project_name ~ '/audit') %}active{% endif %}"
+     href="/projects/{{ project_name }}/audit"
+     data-tab="audit"
+     {% if request.path.startswith('/projects/' ~ project_name ~ '/audit') %}aria-current="page"{% endif %}>
+     {{ t("nav.audit") }}</a>
+  <a class="tab {% if request.path.startswith('/projects/' ~ project_name ~ '/docs') %}active{% endif %}"
+     href="/projects/{{ project_name }}/docs"
+     data-tab="docs"
+     {% if request.path.startswith('/projects/' ~ project_name ~ '/docs') %}aria-current="page"{% endif %}>
+     {{ t("nav.docs") }}</a>
 </nav>
 {% endblock %}
 

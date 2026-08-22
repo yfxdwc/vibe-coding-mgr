@@ -415,8 +415,10 @@ def api_audit_stats():
 
 @app.route("/audit")
 def audit_view():
-    """ADR-0009: dashboard-side audit log viewer."""
-    return _render("audit.html")
+    """ADR-0032: audit moved to /projects/<name>/audit. Redirect to
+    cockpit for back-compat (bookmarks / external links)."""
+    from flask import redirect
+    return redirect("/", code=302)
 
 
 @app.route("/api/audit/purge", methods=["POST"])
@@ -481,8 +483,9 @@ def api_audit_purge():
 
 @app.route("/trends")
 def trends_view():
-    """ADR-0010 placeholder — full trends UI ships in step 3."""
-    return _render("trends.html")
+    """ADR-0032: trends moved to /projects/<name>/trends. Redirect."""
+    from flask import redirect
+    return redirect("/", code=302)
 
 
 @app.route("/api/projects", methods=["POST"])
@@ -644,7 +647,9 @@ def api_dashboard_overview():
 @app.route("/api/dashboard/skill-matrix")
 @scopes_mod.require_scope("read")
 def api_dashboard_skill_matrix():
-    return jsonify(get_skill_matrix())
+    """ADR-0032: optional ?project=<name>."""
+    project = request.args.get("project") or None
+    return jsonify(get_skill_matrix(project=project))
 
 
 @app.route("/api/dashboard/attention")
@@ -739,14 +744,17 @@ def api_dashboard_leaderboard_with_peers():
 @app.route("/api/dashboard/drift")
 @scopes_mod.require_scope("read")
 def api_dashboard_drift():
-    """ADR-0019: cross-project drift score, sorted desc."""
-    return jsonify(get_drift())
+    """ADR-0019 + ADR-0032: cross-project drift score, sorted desc.
+    Optional ?project=<name> filter (used by /projects/<name>/drift)."""
+    project = request.args.get("project") or None
+    return jsonify(get_drift(project=project))
 
 
 @app.route("/drift")
 def drift_view():
-    """ADR-0019: HTML view of drift per project."""
-    return _render("drift.html")
+    """ADR-0032: drift moved to /projects/<name>/drift. Redirect."""
+    from flask import redirect
+    return redirect("/", code=302)
 
 
 @app.route("/api/dashboard/skill-aging")
@@ -893,16 +901,66 @@ def project_view(name):
     return _render("project.html", project_name=name)
 
 
+# ADR-0032: project-internal feature routes. Reuse the existing
+# cross-project templates but inject the project filter via the
+# sidebar / API consumer; the templates themselves already read
+# ?project= from request.args (trends / audit / skill-matrix) or get
+# it via Jinja context (drift / peers / docs).
+def _project_internal(name, template, **extra):
+    ctx = {"project_name": name}
+    ctx.update(extra)
+    return _render(template, **ctx)
+
+
+@app.route("/projects/<name>/drift")
+def project_drift(name):
+    return _project_internal(name, "drift.html", project_filter=name)
+
+
+@app.route("/projects/<name>/skills")
+def project_skills(name):
+    return _project_internal(name, "skills.html", project_filter=name)
+
+
+@app.route("/projects/<name>/trends")
+def project_trends(name):
+    return _project_internal(name, "trends.html", project_filter=name)
+
+
+@app.route("/projects/<name>/peers")
+def project_peers(name):
+    # ADR-0032: peers semantics not yet migrated to per-project
+    # references. v0.18.1 renders the placeholder template that
+    # shows a "v0.19+ will reference per-project" notice.
+    return _project_internal(name, "project_peers_placeholder.html")
+
+
+@app.route("/projects/<name>/audit")
+def project_audit(name):
+    return _project_internal(name, "audit.html", project_filter=name)
+
+
+@app.route("/projects/<name>/docs")
+def project_docs(name):
+    # ADR-0032: project-internal docs view (per-project docs/ scan
+    # lands in v0.19). v0.18.1 reuses the existing _docs.html but
+    # passes a project-scoped base path so deep links stay sane.
+    return _project_internal(name, "_docs.html", relpath="DESIGN.md",
+                             title="docs", project_filter=name)
+
+
 @app.route("/skills")
 def skills_view():
-    """Cross-project skill registry index."""
-    return _render("skills.html")
+    """ADR-0032: skills moved to /projects/<name>/skills. Redirect."""
+    from flask import redirect
+    return redirect("/", code=302)
 
 
 @app.route("/peers")
 def peers_view():
-    """Cross-project OSS attention (peer-config driven)."""
-    return _render("peers.html")
+    """ADR-0032: peers moved to /projects/<name>/peers. Redirect."""
+    from flask import redirect
+    return redirect("/", code=302)
 
 
 @app.route("/settings")

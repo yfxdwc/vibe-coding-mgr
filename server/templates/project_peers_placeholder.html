@@ -1,0 +1,54 @@
+{% extends "_layout.html" %}
+{# server/templates/project_peers_placeholder.html — ADR-0032
+   /projects/<name>/peers placeholder.
+
+   Why a placeholder: v0.18.0 peers concept is "OSS watchlist
+   configured in ~/.vcm/peers.yaml" (system-level, used by ADR-0022
+   leaderboard gossip). ADR-0032 reframes peers as a per-project
+   concept ("which OSS repos does this project reference for
+   governance patterns?") but the per-project schema hasn't landed
+   yet. This placeholder closes the route so the secondary nav
+   doesn't 404, and points the operator at v0.19.
+
+   When v0.19 lands per-project peers (likely: peers table with
+   project_id FK), this template is replaced by a real per-project
+   view; the route name stays the same. #}
+{% set project_name = project_name %}
+
+{% block title %}peers · {{ project_name }}{% endblock %}
+
+{% block page_head %}
+<header class="page-head">
+  <div class="crumbs">
+    <a href="/">{{ t("nav.cockpit") }}</a>
+    <span class="sep">/</span>
+    <a href="/projects/{{ project_name }}">{{ project_name }}</a>
+    <span class="sep">/</span>
+    <span class="crumb-current">{{ t("nav.peers") }}</span>
+  </div>
+  <h1 class="text-display">{{ t("nav.peers") }} · <span class="mono">{{ project_name }}</span></h1>
+  <p class="text-meta">{{ t("peers.lede") }}</p>
+</header>
+{% endblock %}
+
+{% block answers_line %}
+<div class="answers-line">
+  <span class="answers-tag">{{ t("answers.tag") }}</span>
+  <p>{{ t("peers.lede.answers") }}</p>
+</div>
+{% endblock %}
+
+{% block content %}
+<section class="stack-5" data-c="project-peers-placeholder">
+  <div class="empty-state" style="border-style: dashed;">
+    <p class="text-section">v0.19+</p>
+    <p>Per-project peers (which OSS repositories does this project
+       reference for governance inspiration?) ship in the next
+       release. v0.18.1 lands the route + secondary nav now so the
+       sidebar architecture is in place; the data layer follows.</p>
+    <p class="text-meta">Until then, the system-level <a href="/peers">{{ t("nav.peers") }}</a>
+       view (now redirects to cockpit per ADR-0032) still applies —
+       it reads <code>~/.vcm/peers.yaml</code>.</p>
+  </div>
+</section>
+{% endblock %}
