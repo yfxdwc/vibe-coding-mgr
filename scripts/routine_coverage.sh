@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# routine_coverage.sh — driver for vcm's 7 hard checks (6 + skill registry).
-# Local-friendly version (no biweekly report generation).
+# routine_coverage.sh — driver for vcm's 7 hard checks.
+# ADR-0031 added check_db_schema.py (7th). Local-friendly version
+# (no biweekly report generation).
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -16,6 +17,7 @@ CHECKS=(
   "check_constraint_governance.py"
   "check_adr_index.py"
   "check_data_layout.py"
+  "check_db_schema.py"
   "check_skills.py"
 )
 
@@ -29,6 +31,19 @@ for script in "${CHECKS[@]}"; do
     echo "$out"
   fi
 done
+
+# ADR-0031 §4: forbid accidental root-db creation. Warn-only.
+echo "--- check_db_path_grep ---"
+hits=$(grep -rnE "sqlite3\.connect\(['\"]vcm\.db" \
+       --include='*.py' --include='*.js' "$ROOT/bin" "$ROOT/lib" "$ROOT/server" 2>/dev/null \
+       | grep -v "server/vcm.db" || true)
+if [ -n "$hits" ]; then
+  echo "  ⚠ Found relative-path sqlite3.connect('vcm.db') calls:"
+  echo "$hits" | sed 's/^/    /'
+  echo "  → Use VCM_SERVER_DB or absolute path to server/vcm.db"
+else
+  echo "  ✓ No stray 'vcm.db' sqlite3.connect calls"
+fi
 
 echo ""
 echo "[routine_coverage] done, exit=$EXIT"

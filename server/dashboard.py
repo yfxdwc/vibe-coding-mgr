@@ -11,6 +11,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 DB_PATH = Path(os.environ.get("VCM_SERVER_DB", str(ROOT / "server" / "vcm.db")))
 
+# ADR-0031: idempotent flag for the self-check print. init_db() may be
+# called multiple times in one process (app.py:1118 import-time +
+# main() + mcp_server import-time); only log the self-check once.
+_SELF_CHECKED = False
+
 
 def get_db():
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -527,6 +532,10 @@ def init_db():
     Called by both the Flask app and the stdio MCP server. Idempotent.
     Kept here (not in app.py) so MCP can call it without a circular import
     on Flask.
+
+    ADR-0031: appends a post-init self-check. If expected tables are
+    missing, log ERROR with the db path + missing list (do NOT raise —
+    backward-compatible with services that started before this ADR).
     """
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(str(DB_PATH))
@@ -553,4 +562,26 @@ def init_db():
             ON states(project_id, received_at DESC);
     """)
     conn.commit()
+
+    # ADR-0031: post-init self-check.
+    # Uses print (not logging) so the line shows up at import time when
+    # app.py calls init_db() before basicConfig is set. Format mirrors
+    # app.py main()'s startup lines. Idempotent flag avoids duplicate
+    # output when init_db() is called multiple times in one process.
+    global _SELF_CHECKED
+    EXPECTED = {"projects", "states", "users", "tokens"}
+    present = {row["name"] for row in conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table'")}
+    missing = EXPECTED - present
+    if not _SELF_CHECKED:
+        if missing:
+            print(
+                f"  ⚠ init_db: db at {DB_PATH} is missing expected tables: "
+                f"{sorted(missing)}. Service will start but writes may fail. "
+                f"Run scripts/check_db_schema.py to diagnose.",
+                file=__import__("sys").stderr,
+            )
+        else:
+            print(f"  ✓ init_db: {DB_PATH} OK (4/4 tables present)")
+        _SELF_CHECKED = True
     conn.close()
