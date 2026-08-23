@@ -1050,8 +1050,13 @@ def api_registry_skills():
     registry_dir = os.environ.get("VCM_REGISTRY_DIR") or \
         str(Path.home() / ".vcm" / "registry" / "skills")
     if not os.path.isdir(registry_dir):
-        return jsonify({"skills": [], "note": "no registry dir"})
-    results = []
+        # v0.18.4 compat: no local registry dir is fine for the
+        # marketplace endpoint (scope=all merges peer skills anyway).
+        # Continue with an empty local list rather than returning early
+        # so peers.merge_peer_skills() still runs below.
+        results = []
+    else:
+        results = []
     for path in glob.glob(os.path.join(registry_dir, "*.json")):
         try:
             with open(path, "r", encoding="utf-8") as f:
