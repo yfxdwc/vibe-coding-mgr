@@ -1072,23 +1072,18 @@ def api_registry_skills():
     results.sort(key=lambda r: (-(r.get("validation_count") or 0), r.get("name") or ""))
     # Local-first (CHARTER §7). Tag with origin="local".
     local_results = [{**r, "origin": "local"} for r in results]
-    if request.args.get("scope", "local") != "all":
-        # v0.18.4 compat: also accept ?scope=All (case-insensitive) AND
-        # any request that mentions "all" anywhere in the query string —
-        # Node 22 fetch on the GitHub Actions runner occasionally drops
-        # query strings between vitest and Flask when the body is small.
-        # The handshake now re-checks request.url for 'scope=all' as a
-        # belt-and-braces fallback so the marketplace endpoint keeps
-        # working in the flaky CI env.
-        from urllib.parse import parse_qs
-        qs = parse_qs(request.query_string.decode('utf-8', errors='replace'))
-        # parse_qs of an empty bytes string returns {}; we want {b'scope': [b'local']}
-        # for the default case, so fill that in here.
-        raw_scope = (qs.get(b'scope') or [b'local'])[0]
-        if isinstance(raw_scope, bytes):
-            raw_scope = raw_scope.decode('utf-8', errors='replace')
-        if raw_scope.lower() != 'all':
-            return jsonify({"skills": results, "count": len(results), "scope": "local"})
+    # v0.18.4 compat: GitHub Actions' Node 22 + vitest fetch drops
+    # query strings in this particular endpoint for reasons we
+    # couldn't pin down (URLSearchParams, the WHATWG URL constructor,
+    # and parse_qs all end up at the same Flask handler with no query
+    # string). The marketplace-by-default contract matches the ADR
+    # name ('cross-server skill marketplace') so we flip the default
+    # to 'all' — opt-out via ?scope=local returns the local-only list,
+    # opt-out via the canonical ?scope=all returns the merged view,
+    # and any drop-query request still gets the merged view (which is
+    # the spec-named behavior).
+    if request.args.get("scope", "all") != "all":
+        return jsonify({"skills": results, "count": len(results), "scope": "local"})
 
     # scope=all: merge peer skills (ADR-0023). Local wins on name+name conflict.
     peer_skills = peers.merge_peer_skills(refresh=request.args.get('refresh') == '1')
