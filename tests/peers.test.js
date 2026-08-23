@@ -14,8 +14,18 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const VCM_ROOT = join(import.meta.dirname, '..');
-const PORT_A = 7398;
-const PORT_B = 7399;
+// v0.18.4: bumped from 7398/7399 to 7301/7302. Earlier ports sat
+// just below the 7400-7490 pool that other tests reserve, but
+// CI runners occasionally had stragglers from a previous test's
+// afterAll teardown that hadn't released the port yet — a 5s
+// test-timeout-then-waitReady race then sent a fetch to whichever
+// straggler still answered, returning a server response from a
+// different test entirely (j.scope undefined → fail). The 7300s
+// are below every other test's allocation and the install-service.sh
+// pick_free_port() scan (7338..7399), so they should be reliably
+// free at the moment peers.test.js spawns.
+const PORT_A = 7301;
+const PORT_B = 7302;
 let serverA, serverB, tmpDir, peersPath;
 
 async function waitReady(port) {
