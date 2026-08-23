@@ -29,14 +29,17 @@ layers (`lib/adapters/`), never vendored.
 
 ---
 
-## 2. Current state (v0.18.1)
+## 2. Current state (v0.18.4)
 
 | Item | Value |
 |---|---|
-| Version | `0.18.1` (in `package.json` + `bin/vcm.js` + `server/mcp_server.py`) |
-| Tests | **436 unit + 4 e2e passing** (31 vitest files + 1 Playwright spec, 4 scenarios incl. theme toggle persistence + 3-nav regression) |
+| Version | `0.18.4` (in `package.json` + `bin/vcm.js` + `tests/cli.test.js` + `tests/server.test.js`) |
+| Tests | **436 unit + 12 e2e passing** (31 vitest files + 2 Playwright specs, 7 sidebar sub-nav scenarios + 5 sidebar scenarios) |
 | 7 hard checks | 7 OK (`bash scripts/routine_coverage.sh` exit 0; check_db_schema.py + check_db_path_grep both pass) |
-| ADRs | **32** in `docs/adr/0001-` to `0032-` (latest: project-internal-features) |
+| ADRs | **34** in `docs/adr/0001-` to `0034-` (latest: ADR-0034 sidebar sub-nav, ADR-0032 §v0.18.2 update leaderboard demoted) |
+| GitHub repo | `yfxdwc/vibe-coding-mgr` (created 2026-08-22) |
+| Last git tag | **`v0.18.4`** (pushed, see § Release pipeline below) |
+| Last CI run | **436 / 436 passed** on `6a30b38` (v0.18.4 tag). `npm publish` step requires `NPM_TOKEN` repo secret — see § Release pipeline. |
 | Routes | **46** `@app.route` decorators in `server/app.py` (added 6 `/projects/<name>/<feature>`; removed direct view of 5 top-level routes that 302-redirect to /) |
 | Python modules | 10 in `server/` (`app`, `audit`, `dashboard`, `docs_search`, `i18n`, `markdown_render`, `mcp_server`, `peers`, `scopes`, `users`) |
 | CLI commands | 11 (init/snapshot/skill/status/validate/push/peers/user/token/doctor/schema) |
@@ -639,16 +642,29 @@ second one fails to bind. The current allocation:
 
 | Test file | Port |
 |---|---|
+| `tests/peers.test.js` (ADR-0022) | **7301, 7302** (v0.18.4 — bumped from 7398/7399 to dodge a CI straggler-server race; see `tests/peers.test.js` comment) |
+| `tests/leaderboard.test.js` | 7380 |
+| `tests/sse.test.js` | 7402 |
+| `tests/audit.test.js` | 7420 |
+| `tests/trends.test.js` | 7430 |
+| `tests/users.test.js` | 7460 |
+| `tests/auth.test.js` | 7373 |
 | `tests/scopes.test.js` | 7480 |
-| `tests/users.test.js` | 7481 |
-| `tests/registry-publish.test.js` | 7488 |
-| `tests/audit.test.js` | 7338 (default, conflict-prone — see §13) |
-| `tests/audit-purge.test.js` | 7485 |
 | `tests/audit-stats-view.test.js` | 7482 |
+| `tests/audit-purge.test.js` | 7485 |
 | `tests/docs-viewer.test.js` | 7487 |
-| others | 7338 (default) |
+| `tests/registry-publish.test.js` | 7488 |
+| `tests/markdown-render.test.js` | 7489 |
+| `tests/drift.test.js` | 7490 |
+| `tests/docs-search.test.js` | 7491 |
+| `tests/mcp-http.test.js` | 7492 |
+| `tests/audit-facets.test.js` | 7494 |
+| `tests/i18n.test.js` | 7495 |
 
-**Always pick a unique port (7480–7490) for new test files.**
+**Always pick a unique port (7300–7499) for new test files.**
+Prefer the 7300–7337 range (below the install-service.sh scan
+7338–7399) to minimise conflicts with previous tests' stragglers
+on the CI runner.
 
 ---
 
@@ -753,6 +769,96 @@ v0.14.1 entry for the full audit.
 2. Add a `<nav class="tabs">` block.
 3. Add Alpine.js `setTab(name)` and `<button @click="setTab('x')">`.
 4. Update nav link in `_partials/nav.html` if a top-level nav entry.
+
+### "I want to cut a new release (v0.18.x → v0.18.y, v0.19.0, ...)"
+
+The release process has 7 steps. The 'tests' step (CI's `Run tests`)
+catches all functional regressions; the 'publish' step needs a
+repo-level secret the bot can't set on its own (see the
+`NPM_TOKEN` block at the end).
+
+1. **Bump the 5 surface version**:
+   - `package.json`  → `"version": "0.X.Y"`
+   - `bin/vcm.js`    → `const VERSION = "0.X.Y";`
+   - `tests/cli.test.js`      → `it('vcm --version shows 0.X.Y', ...)`
+   - `tests/server.test.js`    → `expect(r.data.version).toBe('0.X.Y')`
+   - **Don't** edit `CHANGELOG.md` by hand here — step 3 adds the
+     section.
+
+2. **Run the 7 hard checks locally**:
+   ```bash
+   bash scripts/routine_coverage.sh  # must exit 0
+   ```
+
+3. **Write the CHANGELOG entry** in `CHANGELOG.md` immediately
+   after the `---` separator on line ~11. Use the established
+   sections (`### Added` / `### Fixed` / `### Changed` / `### Verified`)
+   and reference the driving ADR. The commit body for the
+   version-bump commit should list every fix that landed in this
+   cycle (not just the version-bump diff).
+
+4. **Update `docs/ROADMAP.md`**: move the just-shipped entry from
+   "current" to "✅ DONE" with a date; promote the next "next" entry
+   to "current"; remove any resolved items from the next entry's
+   candidate list.
+
+5. **Commit + push**:
+   ```bash
+   git add package.json bin/vcm.js tests/cli.test.js tests/server.test.js \
+            CHANGELOG.md docs/ROADMAP.md
+   git commit -m "chore(release): v0.X.Y — version bump + CHANGELOG + ROADMAP"
+   git push origin master
+   ```
+
+6. **Tag and re-tag until CI is green**:
+   ```bash
+   git tag -d v0.X.Y && git push origin :refs/tags/v0.X.Y
+   git tag -a v0.X.Y -m "v0.X.Y — one-line summary + driving ADR"
+   git push origin v0.X.Y
+   ```
+   Watch `https://github.com/yfxdwc/vibe-coding-mgr/actions` —
+   `npm-publish` workflow runs `npm test` first; if the test step
+   is red, fix forward, `git push origin :refs/tags/v0.X.Y` to delete
+   the tag, commit the fix, re-tag. Repeat until CI is fully green
+   through the `Publish to npm` step.
+
+7. **Verify the npm publish landed**:
+   - Check the workflow run on GitHub — `Publish to npm (with provenance)`
+     must end with `completed` + `success`.
+   - `https://www.npmjs.com/package/vibe-coding-mgr` should show the
+     new version published within the last few minutes.
+
+### NPM_TOKEN (GitHub repo secret) — the one thing the bot can't set
+
+`npm-publish` workflow's `Publish to npm (with provenance)` step
+needs an npm automation token in the `NPM_TOKEN` env (consumed via
+`NODE_AUTH_TOKEN` inside the runner). The bot has GitHub write
+access but **no npm registry credentials** — only the human owner
+(`yfxdwc`) can run `npm token create --type=automation` once on
+their laptop and paste the result into
+`https://github.com/yfxdwc/vibe-coding-mgr/settings/secrets/actions/new`
+as `NPM_TOKEN` (the bot can verify it's set via the GH API, but
+cannot read its value).
+
+If the publish step fails with `ENEEDAUTH` and the GH workflow log
+shows `NODE_AUTH_TOKEN: ` (empty), that's the missing secret.
+
+**Set NPM_TOKEN** (one-time per repo):
+1. `npm login` once on the owner machine.
+2. `npm token create --type=automation --cidr=0.0.0.0/0` (or scope
+   the CIDR to the GH Actions runner IP ranges).
+3. Copy the printed `npm_...` token.
+4. Go to `https://github.com/yfxdwc/vibe-coding-mgr/settings/secrets/actions/new`
+5. Name: `NPM_TOKEN`, Secret: `<paste the npm_... token>`, click
+   "Add secret".
+6. Re-trigger the workflow: re-push the tag, or
+   `Actions → npm-publish → Run workflow → ref: v0.X.Y` (manual).
+
+The CI runs `npm ci || npm install`, sets up a Python venv with
+`server/requirements.txt` deps, and runs the full `npm test`
+(436 unit + 12 e2e as of v0.18.4) — that step is independent of
+`NPM_TOKEN` and should pass regardless. Only the `npm publish`
+step needs the secret.
 
 ---
 
