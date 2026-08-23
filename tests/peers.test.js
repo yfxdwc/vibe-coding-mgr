@@ -257,7 +257,12 @@ describe('cross-server skill marketplace (ADR-0023)', () => {
     const r = await fetch(target);
     expect(r.status).toBe(200);
     const j = await r.json();
-    expect(j.scope).toBe('all');
+    if (j.scope !== 'all') {
+      throw new Error(
+        `expected scope='all' but got ${JSON.stringify(j).slice(0, 500)}; ` +
+        `url=${target} status=${r.status} headers=${JSON.stringify([...r.headers])}`
+      );
+    }
     expect(j.peer_count).toBeGreaterThanOrEqual(1);
     const foo = j.skills.find(s => s.name === 'foo-skill');
     expect(foo).toBeDefined();
