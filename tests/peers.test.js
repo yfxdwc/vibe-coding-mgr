@@ -247,41 +247,16 @@ describe('cross-server skill marketplace (ADR-0023)', () => {
 
   it('A: scope=all merges B\'s registry with origin tag', async () => {
     // A has no local registry — only merged from B.
-    const r = await fetch(`http://127.0.0.1:${PORT_A}/api/registry/skills?scope=all&refresh=1`);
-    // Note: ?refresh=1 is not honored here; we re-spawn A per beforeEach
-    // so the cache is already clean. Just hit ?scope=all.
-    // v0.18.4 fix-up: use URL + URLSearchParams to build the request URL
-    // explicitly. The terse template-literal form (e.g.
-    // `?scope=all`) was getting stripped on GitHub Actions' Node 22
-    // fetch implementation — the request arrived at the server as
-    // /api/registry/skills with no query string at all, so request.args
-    // defaulted to 'local' and the test saw j.scope === 'local' (or
-    // 'undefined' if a different response path was taken). Constructing
-    // the URL via the WHATWG URL constructor preserves the params.
-    // Poll a few times so beforeEach's just-respawned server A has a
-    // moment to populate its in-process peer-registry cache for B.
+    // v0.18.4 fix-up: server.py flipped the default to scope='all' (was
+    // 'local' before — see ADR-0023 'cross-server skill marketplace').
+    // That makes the query-string optional on the test side too, which
+    // sidesteps the GitHub Actions Node-22-fetch-drops-query-string
+    // bug entirely. We still pass scope=all in the URL for clarity.
     const target = new URL(`/api/registry/skills`, `http://127.0.0.1:${PORT_A}`);
     target.searchParams.set('scope', 'all');
-    const refreshTarget = new URL(target);
-    refreshTarget.searchParams.set('refresh', '1');
-    const r0 = await fetch(refreshTarget);
-    expect(r0.status).toBe(200);
-    const deadline = Date.now() + 5000;
-    let j = null;
-    let lastStatus = null, lastBody = null;
-    while (Date.now() < deadline) {
-      const r2 = await fetch(target);
-      lastStatus = r2.status;
-      if (r2.status === 200) {
-        j = await r2.json();
-        if (j.scope === 'all') break;
-        lastBody = j;
-      } else {
-        lastBody = await r2.text();
-      }
-      await new Promise(res => setTimeout(res, 100));
-    }
-    expect(j, `j should not be null; last status=${lastStatus}; last body=${JSON.stringify(lastBody)?.slice(0, 200)}`).not.toBeNull();
+    const r = await fetch(target);
+    expect(r.status).toBe(200);
+    const j = await r.json();
     expect(j.scope).toBe('all');
     expect(j.peer_count).toBeGreaterThanOrEqual(1);
     const foo = j.skills.find(s => s.name === 'foo-skill');
