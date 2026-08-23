@@ -268,15 +268,20 @@ describe('cross-server skill marketplace (ADR-0023)', () => {
     expect(r0.status).toBe(200);
     const deadline = Date.now() + 5000;
     let j = null;
+    let lastStatus = null, lastBody = null;
     while (Date.now() < deadline) {
       const r2 = await fetch(target);
+      lastStatus = r2.status;
       if (r2.status === 200) {
         j = await r2.json();
         if (j.scope === 'all') break;
+        lastBody = j;
+      } else {
+        lastBody = await r2.text();
       }
       await new Promise(res => setTimeout(res, 100));
     }
-    expect(j).not.toBeNull();
+    expect(j, `j should not be null; last status=${lastStatus}; last body=${JSON.stringify(lastBody)?.slice(0, 200)}`).not.toBeNull();
     expect(j.scope).toBe('all');
     expect(j.peer_count).toBeGreaterThanOrEqual(1);
     const foo = j.skills.find(s => s.name === 'foo-skill');
